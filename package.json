@@ -1,0 +1,14 @@
+{
+  "name": "dotink",
+  "version": "1.0.0",
+  "description": "点墨 · 1-bit 成像标准与参考实现：画面只有墨与纸两种像素，所有中间调由点的面积表达（r = rMax·√w）",
+  "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic"],
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dotink.js",
+  "files": ["dotink.js", "STANDARD.md", "SKILL.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
+  "scripts": {
+    "preview": "node -e \"console.log('open preview.html in a browser')\""
+  },
+  "private": false
+}

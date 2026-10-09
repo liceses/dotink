@@ -1,0 +1,4 @@
+# 本包的独立短片页是**源文件**，不是派生件 —— 显式放行。
+# 根 .gitignore 有一条 `**/index.html`（给旧产线的派生页面用的），它**误伤过一次**
+# （modules/visual/web/index.html 曾被静默漏提交）；这里按同样做法写明意图。
+!demo/index.html

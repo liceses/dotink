@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>点墨 · 独立短片（21s）</title>
+<style>
+  html,body{margin:0;height:100%;background:#F2F3F2;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0}
+  canvas#bleed{display:block}
+  #hint{position:absolute;right:10px;bottom:8px;font:500 12px ui-monospace,monospace;color:#5A5F61;
+        letter-spacing:.06em;z-index:9}
+  /* 渲染/截图时必须藏掉这行提示 —— 它是 DOM 反锯齿文字，会被拍进帧里，破坏 1-bit（实测 2403 像素） */
+  html[data-render] #hint{display:none}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hint">点墨 · DOT INK · 1-BIT ｜ 加 ?play 播放 ｜ 定格用 ?t=9.5</div>
+<script src="../dotink.js"></script>
+<script>
+(function () {
+  'use strict';
+  /* 自适应：把 1280×720 的舞台按窗口缩放（只影响观看，不影响渲染） */
+  function fit() {
+    const s = Math.min(innerWidth / 1280, innerHeight / 720);
+    const st = document.getElementById('stage');
+    st.style.transform = 'scale(' + s + ')';
+    st.style.left = ((innerWidth - 1280 * s) / 2) + 'px';
+    st.style.top = ((innerHeight - 720 * s) / 2) + 'px';
+  }
+  addEventListener('resize', fit); fit();
+
+  const DUR = 21.0, cols = 106, rows = 60;      /* cell = 1280/106 ≈ 12.07px */
+
+  /* 场：双源干涉（活的）——相位随时间走，格子值在翻，所以"在动" */
+  const field = DotInk.fields.interferenceFn(cols, rows, { k: 0.5, w: 0.20, speed: 1.1, drift: 0.6 });
+
+  /* 字幕：字是实墨，不过网屏 */
+  const caption = {
+    x: 96, y: 596, px: 40,
+    texts: [
+      { t0: 0.0, t1: 6.0, lines: ['只有墨与纸两种像素'] },
+      { t0: 6.0, t1: 13.0, lines: ['中间调由点的面积表达'] },
+      { t0: 13.0, t1: 21.0, lines: ['r = rMax·根号 w'] },
+    ],
+  };
+
+  /* 宿主：建画布 + 实现 __seek/__ready/__meta/__seekInit（两套渲染器的契约差异在 dotink.js 里抹平） */
+  const inst = DotInk.host({
+    cssW: 1280, cssH: 720, scale: 1.5,
+    cols: cols, rows: rows, cell: 12.07,
+    field: field, gain: 1, gamma: 1, floor: 0.035, maxFrac: 0.48,
+    duration: DUR, shutter: 1 / 28, hud: true, caption: caption,
+  });
+
+  window.__dotink = function () { return inst.judge(); };
+  const q = new URLSearchParams(location.search);
+  if (q.has('render')) document.documentElement.setAttribute('data-render', '1');   /* 渲染器会带 ?render */
+  if (q.has('t')) inst.draw(parseFloat(q.get('t')) || 0);   /* ?t=9.5 定格（渲染/截图用） */
+  else if (!q.has('play')) inst.draw(6.0);                  /* 默认定格在一个好看的时刻 */
+})();
+</script>
+</body>
+</html>

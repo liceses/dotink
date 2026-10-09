@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>点墨 · 判据计算器与实验台</title>
+<style>
+  :root{
+    --ink:#0C0D0E; --paper:#F2F3F2; --mute:#5A5F61; --hair:#D2D6D5; --panel:#E4E7E6; --accent:#FF4B1F;
+    --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--f-d)}
+  h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+  .lede{margin:0 0 22px;color:var(--mute);max-width:78ch}
+  .lab{font:500 12px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+  .card{border:2px solid var(--ink);background:var(--paper)}
+  .card > .hd{padding:8px 10px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .card > .bd{padding:10px}
+  canvas.frame{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;flex:1 1 720px;min-width:560px}
+  .ctl{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;margin:18px 0}
+  label.ctl{display:flex;flex-direction:column;gap:4px;font:500 12px var(--f-m);color:var(--mute)}
+  input[type=range]{width:150px}
+  select,button{font:600 13px var(--f-d);padding:7px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:0}
+  button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid var(--hair);padding:5px 6px;text-align:left;vertical-align:top}
+  th{font:500 11px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .ok{color:var(--ink);font-weight:700}
+  .bad{color:var(--accent);font-weight:700}
+  .kv{font:500 12px var(--f-m)}
+  #zoom{width:320px;height:180px}
+  .hint{font-size:12px;color:var(--mute);margin-top:8px}
+  .accent{color:var(--accent)}
+</style>
+</head>
+<body>
+<h1>点墨 · 判据计算器与实验台</h1>
+<p class="lede">
+  左边是<b>面积映射</b> <span class="kv">r = rMax·√w</span>（标准口径），右边是<b>线性映射</b> <span class="kv">r = rMax·w</span>（只作对照臂）。
+  同一张场、同一套令牌，只有映射不同 —— 中间调的差别一眼能看出来。下面的表是 <span class="kv">STANDARD.md</span> 的判据**实时算**出来的值。
+</p>
+
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><span class="lab">A · 面积映射 ✓</span><span class="lab kv" id="aInfo">—</span></div>
+    <div class="bd"><canvas id="cvA" class="frame" width="840" height="473" style="aspect-ratio:16/9"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="hd"><span class="lab">B · 线性映射（对照）</span><span class="lab kv" id="bInfo">—</span></div>
+    <div class="bd"><canvas id="cvB" class="frame" width="840" height="473" style="aspect-ratio:16/9"></canvas></div>
+  </div>
+</div>
+
+<div class="ctl">
+  <label class="ctl">场
+    <select id="field">
+      <option value="inter">双源干涉（活的）</option>
+      <option value="noise">噪声 · 整格滚动</option>
+      <option value="ramp">渐变 · 右→左</option>
+      <option value="text">文字 → 点阵（1-bit）</option>
+    </select>
+  </label>
+  <label class="ctl">点距 cell <input type="range" id="cell" min="6" max="24" step="1" value="12"><span class="kv" id="cellV">12px</span></label>
+  <label class="ctl">gain <input type="range" id="gain" min="2" max="60" step="1" value="10"><span class="kv" id="gainV">1.0</span></label>
+  <label class="ctl">gamma <input type="range" id="gamma" min="20" max="200" step="5" value="100"><span class="kv" id="gammaV">1.00</span></label>
+  <label class="ctl">floor <input type="range" id="floor" min="0" max="120" step="5" value="35"><span class="kv" id="floorV">0.035</span></label>
+  <label class="ctl">maxFrac <input type="range" id="maxFrac" min="20" max="60" step="2" value="48"><span class="kv" id="maxFracV">0.48</span></label>
+  <button id="hud" aria-pressed="false">加装饰（尺 + 进度）</button>
+  <button id="play" aria-pressed="false">播放</button>
+</div>
+
+<div class="row">
+  <div class="card" style="flex:1 1 420px;min-width:380px">
+    <div class="hd"><span class="lab">判据（实时）</span><span class="lab" id="verdict">—</span></div>
+    <div class="bd"><table id="checks"><thead><tr><th>判据</th><th>值</th><th>门限</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="card" style="flex:0 0 auto">
+    <div class="hd"><span class="lab">1:1 放大镜 · A 的左上角</span></div>
+    <div class="bd">
+      <canvas id="zoom" width="320" height="180"></canvas>
+      <div class="hint">标准自查表第 9 条：<b>细节必须看 1:1</b> —— 缩略图既藏缺陷也造假缺陷。</div>
+    </div>
+  </div>
+</div>
+
+<script src="dotink.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const W = 560, H = 315, S = 1.5;              /* CSS 尺寸；backing = 840×473 */
+
+  /* 文字 → 1-bit 覆盖率场（浏览器版的 img2field：先二值化再算每格深色占比，绝不做面积平均） */
+  let textField = null;
+  function buildTextField(cols, rows) {
+    const c = document.createElement('canvas'); c.width = 560; c.height = 315;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 560, 315);
+    g.fillStyle = '#000';
+    g.textBaseline = 'top';
+    g.font = '900 92px "Helvetica Neue",Arial,"Noto Sans SC",sans-serif';
+    g.fillText('点墨', 26, 30);
+    g.font = '700 34px "Helvetica Neue",Arial,"Noto Sans SC",sans-serif';
+    g.fillText('DOT INK', 30, 152);
+    g.font = '500 17px ui-monospace,monospace';
+    g.fillText('1-bit · paper + ink only', 32, 205);
+    const d = g.getImageData(0, 0, 560, 315);
+    return DotInk.fields.fromImageData(d.data, 560, 315, cols, rows, { thr: .62, gamma: .45, gain: 1.6 });
+  }
+
+  let A = null, B = null, raf = 0, t0 = performance.now();
+
+  function build() {
+    const cell = +$('cell').value;
+    const cols = Math.max(8, Math.round(W / cell)), rows = Math.max(6, Math.round(H / cell));
+    const gain = +$('gain').value / 10, gamma = +$('gamma').value / 100, floor = +$('floor').value / 1000;
+    const maxFrac = +$('maxFrac').value / 100;
+    const kind = $('field').value;
+
+    let f;
+    if (kind === 'inter') f = DotInk.fields.interferenceFn(cols, rows, { k: .55, w: .22, speed: 1.3 });
+    else if (kind === 'noise') f = DotInk.fields.scrollFn(DotInk.fields.noise(cols, rows, { seed: 7, octaves: 3, base: 4 }), cols, rows, { vx: 1, speed: 2.2 });
+    else if (kind === 'ramp') f = DotInk.fields.scrollFn(DotInk.fields.ramp(cols, rows), cols, rows, { vx: 1, speed: 1.1 });
+    else { if (!textField || textField.length !== cols * rows) textField = buildTextField(cols, rows); const g0 = textField; f = (i, x, y, t) => g0[i]; }
+
+    /* 净空分区（格坐标）：尺子带 + 进度带 = 装饰；中间大片 = 信息 */
+    const regions = { deco: [{ x: 0, y: 1, w: cols, h: 3 }, { x: 0, y: rows - 3, w: cols, h: 3 }], info: [{ x: 0, y: 5, w: cols, h: rows - 9 }] };
+    const hudOn = $('hud').getAttribute('aria-pressed') === 'true';
+    const hudC = { ruleY: 5 * cell, progY: (rows - 2) * cell, tcY: 1 * cell, ruleLen: Math.min(W - 96, 90 * cols / 12) };
+
+    const common = { cssW: W, cssH: H, scale: S, cols: cols, rows: rows, cell: cell, gain: gain, gamma: gamma, floor: floor, maxFrac: maxFrac, duration: 21, shutter: 0, regions: regions, hud: hudOn, hudC: hudC };
+    A = DotInk.create(Object.assign({ canvas: $('cvA'), field: f, areaMap: true }, common));
+    B = DotInk.create(Object.assign({ canvas: $('cvB'), field: f, areaMap: false }, common));
+    tick();
+  }
+
+  function fmt(x, n) { return (x === null || x === undefined || !isFinite(x)) ? '—' : x.toFixed(n === undefined ? 2 : n); }
+
+  function tick() {
+    const playing = $('play').getAttribute('aria-pressed') === 'true';
+    const t = playing ? ((performance.now() - t0) / 1000 % 21) : 6.0;
+    A.draw(t); B.draw(t);
+
+    const ja = A.judge(), ma = ja.measures;
+    $('aInfo').textContent = '点距 ' + fmt(ma.cell) + 'px · 中位点径 ' + fmt(ma.pitchRatioMedian ? ma.cell * S / ma.pitchRatioMedian : null, 1) + 'px · 覆盖 ' + fmt(ma.coverage * 100) + '%';
+    $('bInfo').textContent = '点距 ' + fmt(B.measures.cell) + 'px · 覆盖 ' + fmt(B.measures.coverage * 100) + '%';
+
+    const tb = $('checks').querySelector('tbody');
+    tb.innerHTML = '';
+    for (const c of ja.checks) {
+      const tr = document.createElement('tr');
+      const cls = c.ok === false ? 'bad' : (c.ok === true ? 'ok' : '');
+      tr.innerHTML = '<td>' + c.name + '</td><td class="kv">' + c.value + '</td><td class="kv">' + c.rule + '</td><td class="' + cls + '">' + (c.ok === false ? '✗' : c.ok === true ? '✓' : '·') + '</td>';
+      tb.appendChild(tr);
+    }
+    if (ma.decoVsInfo !== null && ma.decoVsInfo !== undefined) {
+      const tr = document.createElement('tr');
+      const bad = ma.decoVsInfo > 1;
+      tr.innerHTML = '<td>装饰墨 : 信息墨（本屏实测）</td><td class="kv">' + fmt(ma.decoVsInfo) + ':1</td><td class="kv">≤1:1（目标 ≤0.33:1）</td><td class="' + (bad ? 'bad' : 'ok') + '">' + (bad ? '✗' : '✓') + '</td>';
+      tb.appendChild(tr);
+    }
+    $('verdict').textContent = ja.pass ? '本屏判据全过' : '有判据未过';
+
+    /* 1:1 放大镜：从 A 的画布左上角取 160×90 设备像素，按 1:1 放大绘制（不插值） */
+    const z = $('zoom').getContext('2d');
+    z.imageSmoothingEnabled = false;
+    z.clearRect(0, 0, 320, 180);
+    z.drawImage(A.canvas, 24, 24, 160, 90, 0, 0, 320, 180);
+
+    if (playing) raf = requestAnimationFrame(tick);
+  }
+
+  $('field').addEventListener('change', build);
+  ['cell', 'gain', 'gamma', 'floor', 'maxFrac'].forEach(id => {
+    $(id).addEventListener('input', () => {
+      $('cellV').textContent = $('cell').value + 'px';
+      $('gainV').textContent = (+$('gain').value / 10).toFixed(1);
+      $('gammaV').textContent = (+$('gamma').value / 100).toFixed(2);
+      $('floorV').textContent = (+$('floor').value / 1000).toFixed(3);
+      $('maxFracV').textContent = (+$('maxFrac').value / 100).toFixed(2);
+      textField = null; build();
+    });
+  });
+  $('hud').addEventListener('click', e => {
+    const on = e.currentTarget.getAttribute('aria-pressed') === 'true';
+    e.currentTarget.setAttribute('aria-pressed', String(!on));
+    build();
+  });
+  $('play').addEventListener('click', e => {
+    const on = e.currentTarget.getAttribute('aria-pressed') === 'true';
+    e.currentTarget.setAttribute('aria-pressed', String(!on));
+    t0 = performance.now();
+    if (!on) raf = requestAnimationFrame(tick); else cancelAnimationFrame(raf);
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>
