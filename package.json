@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "commonjs",
   "main": "dotink.js",
-  "files": ["dotink.js", "STANDARD.md", "SKILL.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
+  "files": ["dotink.js", "pheno.js", "STANDARD.md", "SKILL.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
   "scripts": {
     "preview": "node -e \"console.log('open preview.html in a browser')\""
   },

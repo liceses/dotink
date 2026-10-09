@@ -13,9 +13,32 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 
 | 读什么 | 为什么 |
 |---|---|
-| [`STANDARD.md`](STANDARD.md) | **判据唯一真相**：令牌 / 三个几何量 / 面积映射 / 两种模式 / 净空 / 动 / 禁令 / 自查表 |
-| [`README.md`](README.md) | 最小用法、参数表、示例片与视频 |
-| [`preview.html`](preview.html) | 判据计算器 + 参数实验台（双击即开）：每条判据实时算给你看 |
+| [`STANDARD.md`](STANDARD.md) | **判据唯一真相**：令牌 / 三个几何量 / 面积映射 / 两种模式 / 净空 / 动 / 禁令 / 自查表；**§13 = 与 typefield 的分工**（产线里场归 dotink、画面归 typefield） |
+| [`README.md`](README.md) | 最小用法、参数表、示例片（8 个自然现象 + 判据幕）与视频 |
+| [`pheno.js`](pheno.js) | **自然现象场库**八个：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`，统一 `(cols, rows, opts) → (i,x,y,t) → 0..1` |
+| [`preview.html`](preview.html) | 判据计算器 + 参数实验台（双击即开），带 **1:1 放大镜** |
+
+## 0.5 · 在产线里怎么落（优先这条）
+
+**不要让 dotink 自己出画**：把场喂给 `modules/typefield`，**用它自己的 HUD/相机**——
+`text: '●'` 让它成为点墨渲染器：
+
+```js
+TypeField.create({
+  canvas, cssW: 1280, cssH: 720, scale: 1.5, cell: 16, cols: 80, rows: 45,
+  text: '●',                                                 // ★ 逐格字形 = 实心圆
+  fieldAt: { fn: DotInk.pheno.chladni(80, 45, { period: 16 }), min: 0.08 },
+  hud: true, hudC: { ruleY: 40, progY: 690, tcY: 12 },       // 它自带的尺/进度/时间码
+  camAt: t => ({ eye: [0, 0, 1800], tgt: [0, 0, 0], up: [0, 1, 0] }),
+});
+```
+
+`fieldAt` 是给 typefield 加的**加法式**钩子（不传 = 行为逐字节不变，已用同帧 SHA256 验证）。
+`dotink.js` 只在需要**自包含**时用（它的 HUD 与 typefield 同规格同源）。
+
+> ⚠ 加载顺序：`dotink.js` → `pheno.js`。**八个 phenomena 实例不要同时活着**：
+> 每个 1920×1080 实例约占 16MB 缓冲，八个会把浏览器拖到 30s/帧 —— 懒建 + 换幕即释放
+> （见 `work/1010-dotink-demo/content.html` 的 `phenAt` / `dropPhen`）。
 
 ## 1 · 最小用法
 
