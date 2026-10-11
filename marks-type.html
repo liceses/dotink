@@ -114,15 +114,24 @@
 
   function draw() {
     const t0 = performance.now();
-    const info = mp.draw(st.t);
+    let info = { act: 0, u: 0, morph: 0, draws: 0 };
+    try { info = mp.draw(st.t) || info; } catch (e) { window.__mtypeErr = 'draw 抛错: ' + (e.message || e); }
     st.ms = performance.now() - t0;
-    st.cur = Math.min(M.order.length - 1, Math.floor(st.t / PER));
+    /* ⚠ 下标必须夹住：第一帧的 rAF 时间戳可能比 performance.now() **早**，dt 为负 → t 为负 →
+       cur = -1 → 下面查 icons 会抛 TypeError → **rAF 循环当场死掉，画面停在 t≈0**（这个坑踩过）。 */
+    st.cur = Math.max(0, Math.min(M.order.length - 1, Math.floor(Math.max(0, st.t) / PER)));
+    const slug = M.order[st.cur], icon = M.icons[slug] || { title: String(slug) };
     document.querySelectorAll('.cell').forEach((el, i) => el.setAttribute('aria-current', String(i === st.cur)));
     $('tv').textContent = st.t.toFixed(1) + 's';
-    readout(info);
+    readout(info, icon);
   }
 
-  function readout(info) {
+  let lastRead = 0;
+  function readout(info, icon) {
+    /* 判据读数要 getImageData(1920×1080) —— 每帧做会白吃十几毫秒，节流到 ~4/s */
+    const nowMs = performance.now();
+    if (nowMs - lastRead < 250) return;
+    lastRead = nowMs;
     const cv = $('cv'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
     let ink = 0, pap = 0, gray = 0;
     for (let i = 0; i < d.length; i += 4) {
@@ -133,8 +142,8 @@
     }
     const tot = cv.width * cv.height;
     const rows = [
-      ['这一家', (st.cur + 1) + ' / ' + M.order.length + ' · ' + M.icons[M.order[st.cur]].title, 't = ' + st.t.toFixed(2) + 's'],
-      ['引擎状态', 'act ' + info.act + ' · 幕内 u ' + info.u.toFixed(2) + ' · 收束 m ' + info.morph.toFixed(2), 'markplate 的 draw(t) 是纯函数'],
+      ['这一家', (st.cur + 1) + ' / ' + M.order.length + ' · ' + icon.title, 't = ' + st.t.toFixed(2) + 's'],
+      ['引擎状态', 'act ' + (info.act | 0) + ' · 幕内 u ' + (+info.u || 0).toFixed(2) + ' · 收束 m ' + (+info.morph || 0).toFixed(2), 'markplate 的 draw(t) 是纯函数'],
       ['墨 / 纸', (ink / tot * 100).toFixed(2) + '% / ' + (pap / tot * 100).toFixed(2) + '%', ''],
       ['灰阶（非墨非纸）', gray + ' px', gray === 0 ? 'ok' : 'bad'],
       ['单帧耗时', st.ms.toFixed(1) + ' ms', '字场约 20–60ms/帧（离线渲染够用）'],
@@ -181,12 +190,21 @@
 
   let last = performance.now();
   function loop(now) {
-    const dt = (now - last) / 1000; last = now;
-    if (st.playing) {
-      st.t += dt;
-      if (st.t >= TOTAL) st.t -= TOTAL;
-      $('scrub').value = Math.round(st.t / TOTAL * 1000);
-      draw();
+    /* dt 必须夹到 [0, 0.1]：首帧时间戳可能早于 performance.now()（负），
+       切页面回来时又可能是几秒的大跳 —— 两种都会毁掉播放。 */
+    const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
+    last = now;
+    try {
+      if (st.playing) {
+        st.t += dt;
+        if (st.t >= TOTAL) st.t -= TOTAL;
+        if (st.t < 0) st.t = 0;
+        $('scrub').value = Math.round(st.t / TOTAL * 1000);
+        draw();
+      }
+    } catch (e) {
+      /* 一帧抛错**不能**让整个播放死掉：记下来，继续下一帧 */
+      window.__mtypeErr = 'loop 抛错: ' + (e.message || e);
     }
     requestAnimationFrame(loop);
   }

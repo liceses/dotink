@@ -293,13 +293,20 @@
 
   let last = performance.now();
   function loop(now) {
-    const dt = (now - last) / 1000; last = now;
-    if (st.playing && st.inst) {
-      st.t += dt;
-      const span = PHEN[st.i].span;
-      if (st.t > span) st.t -= span;
-      $('scrub').value = Math.round(st.t / span * 1000);
-      drawOnce();
+    /* dt 夹到 [0, 0.1]：首帧时间戳可能早于 performance.now()（负），切页回来可能是大跳 */
+    const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
+    last = now;
+    try {
+      if (st.playing && st.inst) {
+        st.t += dt;
+        const span = PHEN[st.i].span;
+        if (st.t > span) st.t -= span;
+        if (st.t < 0) st.t = 0;
+        $('scrub').value = Math.round(st.t / span * 1000);
+        drawOnce();
+      }
+    } catch (e) {
+      window.__galleryErr = 'loop 抛错: ' + (e.message || e);   /* 一帧抛错不能让播放死掉 */
     }
     requestAnimationFrame(loop);
   }
