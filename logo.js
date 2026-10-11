@@ -46,8 +46,10 @@
     rippleSpeed: 4.4,        /* 字不断浮动的快慢（引擎默认 4.4） */
     rippleAmp: 13,
     textPx: [26, 44],
-    markSize: 640,           /* 标在设计空间里的显示尺寸（px）—— 640 让标完整落在 1280×720 里 */
+    markSize: 640,           /* 标在设计空间里的显示尺寸（px）—— 只是**起手值**：装不下会自动调小 */
     markPx: 700,             /* 距离场分辨率 —— 与 markSize **必须分开**（主库记过这个坑） */
+    pad: 0.06,               /* 裁剪框在"字的真实范围"外留多少余量（比例） */
+    inkThresh: 0.08,         /* 判"这一格是字"的墨密度门槛：字格 8–40%，背景点格 0.3–1.5% */
     srcScale: 1,             /* 引擎画布的 device/CSS 比。⚠ 裁剪框必须乘它：create 会把画布设成
                                 cssW×srcScale（默认 1.5 → 1920×1080），用设计坐标去裁就会**只裁左上角**
                                 （标被放大 + 切掉，实测踩过）。*/
@@ -105,21 +107,39 @@
 
     /* 引擎画在一块离屏画布上（1280×720 的原始版式），我们再裁出标那一块 */
     const src = document.createElement('canvas');
-    const mp = global.MarkPlate.create({
-      canvas: src, icons: iconMap,
-      cssW: CW, cssH: CH, scale: o.srcScale,                  /* create 会把画布设成 CW×srcScale */
-      marks: [[slug, name || slug], [slug, name || slug]],   /* ⚠ 引擎要求 ≥2，单标就传两次 */
-      text: o.text,
-      actSeconds: 9999,                                       /* 单标：不换幕 */
-      zoom: [1, 1],                                           /* 标不推镜，只留引擎自带的微呼吸 */
-      markSize: o.markSize, markPx: o.markPx,
-      reveal: o.reveal,
-      ripple: { amp: o.rippleAmp, len: 0.34, speed: o.rippleSpeed },
-      paper: [255, 255, 255],                                 /* 纯白纸 → multiply 后等于透明 */
-      paperTint: 0,                                           /* 角标不要底纹 */
-      caption: o.caption ? undefined : false,
-      hud: o.hud ? undefined : false,
-    });
+
+    /* 引擎实例：先按 o.markSize 建一次，量出"字"的真实范围；装不下就调小 markSize 重建（最多 3 次）。
+       这样**任何形状的自备 logo 都能完整落进画幅**，不用人去猜 markSize。 */
+    let mp = null, CROP = null, BBOX = null;
+    function build(markSize) {
+      return global.MarkPlate.create({
+        canvas: src, icons: iconMap,
+        cssW: CW, cssH: CH, scale: o.srcScale,                  /* create 会把画布设成 CW×srcScale */
+        marks: [[slug, name || slug], [slug, name || slug]],    /* ⚠ 引擎要求 ≥2，单标就传两次 */
+        text: o.text,
+        actSeconds: 9999,                                       /* 单标：不换幕 */
+        zoom: [1, 1],                                           /* 标不推镜，只留引擎自带的微呼吸 */
+        markSize: markSize, markPx: o.markPx,
+        reveal: o.reveal,
+        ripple: { amp: o.rippleAmp, len: 0.34, speed: o.rippleSpeed },
+        paper: [255, 255, 255],                                 /* 纯白纸 → multiply 后等于透明 */
+        paperTint: 0,                                           /* 角标不要底纹 */
+        caption: o.caption ? undefined : false,
+        hud: o.hud ? undefined : false,
+      });
+    }
+    let ms = o.markSize;
+    for (let tries = 0; tries < 4; tries++) {
+      mp = build(ms);
+      BBOX = measureBBox();
+      CROP = BBOX ? fitCrop(BBOX) : null;
+      if (CROP) break;
+      ms = Math.round(ms * 0.9);                                /* 装不下 → 缩小标再量 */
+    }
+    if (!CROP) {                                                /* 兜底：整幅（至少不切） */
+      CROP = { x: 0, y: 0, w: src.width, h: src.height };
+    }
+    o.markSize = ms;                                            /* 记下实际用到的值，info() 可查 */
 
     const state = { t: 0, playing: !o.paused, raf: 0, last: 0, lastDraw: 0, err: null, frames: 0, ms: 0 };
 
@@ -127,11 +147,15 @@
       const box = target.getBoundingClientRect();
       const w = box.width || 1;
       const px = Math.max(24, Math.round(w * o.size));
+      /* ⚠ 画布**按裁剪框的长宽比**（不是正方形）：标有自己的长宽比，硬塞进正方形就会拉伸或切边 */
+      const ratio = CROP.h / CROP.w;
+      const py = Math.max(16, Math.round(px * ratio));
       const dpr = Math.min(o.dpr, global.devicePixelRatio || 1);
-      cv.style.width = px + 'px'; cv.style.height = px + 'px';
-      cv.width = Math.round(px * dpr); cv.height = Math.round(px * dpr);
+      cv.style.width = px + 'px'; cv.style.height = py + 'px';
+      cv.width = Math.round(px * dpr); cv.height = Math.round(py * dpr);
       const m = Math.round(w * o.margin);
       cv.style.left = cv.style.top = cv.style.right = cv.style.bottom = 'auto';
+      cv.style.transform = 'none';
       if (o.corner === 'tl') { cv.style.left = m + 'px'; cv.style.top = m + 'px'; }
       else if (o.corner === 'tr') { cv.style.right = m + 'px'; cv.style.top = m + 'px'; }
       else if (o.corner === 'bl') { cv.style.left = m + 'px'; cv.style.bottom = m + 'px'; }
@@ -140,18 +164,51 @@
       return px;
     }
 
-    /* 裁剪框：与引擎 markSet() 同一套公式（标心 + 微呼吸 + 显示尺寸），
-       最后**乘 srcScale** 换到设备像素 —— 而且永远裁正方形、永远在界内（不拉伸、不偏心）。 */
-    function cropBox() {
-      const S = o.srcScale || 1;
-      const z = 1 + 0.025 * Math.sin(0.9 * state.t);            /* zoom [1,1] 时的 z */
-      const side = Math.min(o.markSize * z * 1.08, Math.min(CW, CH));   /* 先保证放得下 */
-      const cx = CW / 2 + 12 * Math.sin(0.33 * state.t);
-      const cy = (Y0 + ROWS * CS) / 2 + 9 * Math.sin(0.27 * state.t + 1.1);
-      const x = Math.max(0, Math.min(CW - side, cx - side / 2));
-      const y = Math.max(0, Math.min(CH - side, cy - side / 2));
-      return { x: x * S, y: y * S, w: side * S, h: side * S };
+    /* ── 裁剪框：**量**出来，不是算出来 ──────────────────────────────────────────
+       为什么不能算：① 标外那些格子也会落墨（引擎给它们画 1–2px 小点）→ "有墨的范围"是**整个字版**
+       （实测 1227×604），不是标；② 标本身比 `markSize·z` 还大一圈（**字形比格距大、会溢出格子**）。
+
+       怎么量：**按格算墨密度** —— 字格 ≈ 8–40%，背景点格 ≈ 0.3–1.5%，差一个数量级，能干净分开。
+       （先试过 3×3 腐蚀：**分不开** —— 汉字的笔画也只有 2–3px 粗，和背景点一样粗；那次 markSize
+        被一路缩到 275、最后退回整幅，徽标里塞进了整个字版。）
+       量出来的框**静态**用（已含漂移余量），所以徽标的取景不会随呼吸抖。 */
+    function measureBBox() {
+      try {
+        mp.draw(o.reveal + 0.4);                                /* 等阅读波扫完 */
+        const W = src.width, H = src.height, S = o.srcScale || 1;
+        const d = src.getContext('2d').getImageData(0, 0, W, H).data;
+        const cell = CS * S;
+        let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+        for (let row = 0; row < ROWS; row++) {
+          for (let col = 0; col < COLS; col++) {
+            const px0 = Math.round(col * cell), py0 = Math.round(Y0 * S + row * cell);
+            const px1 = Math.min(W, Math.round(px0 + cell)), py1 = Math.min(H, Math.round(py0 + cell));
+            let ink = 0, tot = 0;
+            for (let y = py0; y < py1; y++) for (let x = px0; x < px1; x++) { tot++; if (d[(y * W + x) * 4] < 128) ink++; }
+            if (tot && ink / tot >= o.inkThresh) {
+              if (px0 < x0) x0 = px0; if (px1 > x1) x1 = px1;
+              if (py0 < y0) y0 = py0; if (py1 > y1) y1 = py1;
+            }
+          }
+        }
+        return x1 < 0 ? null : { x0: x0, y0: y0, x1: x1, y1: y1 };
+      } catch (e) { return null; }
     }
+
+    /* 由"字的范围"推出裁剪框：留 pad 余量 + 漂移余量（标心会 ±12/±9 呼吸）；
+       返回 null 表示**装不下**（那就要把 markSize 调小重建）。 */
+    function fitCrop(bb) {
+      const S = o.srcScale || 1;
+      const driftX = 12 * S, driftY = 9 * S;
+      const bw = bb.x1 - bb.x0 + 1, bh = bb.y1 - bb.y0 + 1;
+      const px = bw * o.pad + driftX, py = bh * o.pad + driftY;
+      const x = bb.x0 - px, y = bb.y0 - py;
+      const w = bw + 2 * px, h = bh + 2 * py;
+      if (x < 0 || y < 0 || x + w > src.width || y + h > src.height) return null;
+      return { x: x, y: y, w: w, h: h };
+    }
+
+    function cropBox() { return CROP; }
 
     function frame() {
       const t0 = performance.now();
@@ -205,7 +262,7 @@
       toggle: function () { state.playing = !state.playing; return api; },
       seek: function (t) { state.t = t; frame(); return api; },
       destroy: destroy,
-      info: function () { return { t: state.t, frames: state.frames, ms: +state.ms.toFixed(1), err: state.err, opts: o }; },
+      info: function () { return { t: state.t, frames: state.frames, ms: +state.ms.toFixed(1), err: state.err, opts: o, bbox: BBOX, crop: CROP }; },
     };
 
     function destroy(silent) {
