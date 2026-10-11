@@ -12,7 +12,8 @@
     "marks": "node -e \"console.log('open marks.html in a browser')\"",
     "marks-type": "node -e \"console.log('open marks-type.html in a browser')\"",
     "logo": "node -e \"console.log('open logo-demo.html in a browser')\"",
-    "preview": "node -e \"console.log('open preview.html in a browser')\""
+    "preview": "node -e \"console.log('open preview.html in a browser')\"",
+    "check": "node --test check/core.mjs && node tools/check-links.mjs"
   },
   "private": false
 }

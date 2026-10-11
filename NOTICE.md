@@ -34,7 +34,7 @@ Pearson 1993 · Witten & Sander 1981 · Kuramoto 1975 · Feigenbaum 1978 · 双�
 
 ---
 
-## 4 · 示例 B 自检片（[`media/1010-dotink-demo-1080p.mp4`](media/1010-dotink-demo-1080p.mp4)）
+## 4 · 示例 B 自检片（`1010-dotink-demo-1080p.mp4`（**Release 附件**，仓内只留 GIF 与静帧））
 
 本包自己渲染（主库 `work/1010-dotink-demo/`）：**无音轨**、无第三方素材、无外部字体（只用系统字体栈）。
 

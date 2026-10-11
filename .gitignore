@@ -2,3 +2,5 @@
 # 根 .gitignore 有一条 `**/index.html`（给旧产线的派生页面用的），它**误伤过一次**
 # （modules/visual/web/index.html 曾被静默漏提交）；这里按同样做法写明意图。
 !demo/index.html
+# 成片走 Release 附件，不进仓（本地留着以便复核/重出）
+media/_release/

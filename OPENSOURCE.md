@@ -47,7 +47,7 @@
 
 **缺**：**参考配方成片的源码不在包里**（它在主库 `lab/work/lab-field4`，用的是另一套引擎）
 → 要决定：搬进来（大工程）还是写明"成片是参考件、源码在主库" ·
-自检片 [`media/1010-dotink-demo-1080p.mp4`](media/1010-dotink-demo-1080p.mp4)（32.7 MB）需要主库
+自检片 `media/_release/1010-dotink-demo-1080p.mp4`（**Release 附件，不进仓**）（32.7 MB）需要主库
 B 线流水线才能重渲 → 它是**派生物**，要标注清楚 · 沙粒版目前只有点列 API，缺一个独立展示入口
 
 ### ③ 点墨的字符 logo 系统
@@ -67,15 +67,15 @@ B 线流水线才能重渲 → 它是**派生物**，要标注清楚 · 沙粒�
 
 | # | 问题 | 现状 | 动作 |
 |---|---|---|---|
-| 1 | **版本号不一致** | `dotink.js` 1.2.0 · `package.json` 1.4.0 · `pheno.js` 1.1.0 | 统一到 package.json + 加 `CHANGELOG.md` |
-| 2 | **没有测试** | 全靠人眼看页面 | 加 `test/`（`node --test`，零依赖）：1-bit 不变量 / pheno 确定性与值域 / vendored 正文 sha256 / icon 0 灰阶 / logo 裁剪框含 bbox |
-| 3 | **没有 CI** | — | GitHub Actions：`node --test` + 语法检查（渲染冒烟要浏览器，可选） |
-| 4 | **README 307 行塞了 5 个产品** | 一个文件讲完所有事 | 主 README 只做**路由**，三块各一份 `docs/0X-*.md` |
-| 5 | **媒体 57.9 MB** | 直接进 git | 视频走 Release 附件 / Git LFS；README 只用 GIF + 静帧（单文件虽 <100 MB，仓库体积要控） |
+| 1 | **版本号不一致** | `dotink.js` 1.2.0 · `package.json` 1.4.0 · `pheno.js` 1.1.0 | ✅ 已统一到 **1.4.0**（+ [`CHANGELOG.md`](CHANGELOG.md)） |
+| 2 | **没有自查** | 全靠人眼看页面 | ✅ 已有 [`check/`](check/README.md)（`npm run check`：10 项 + 链接检查）。**按用户定的口径：自查不进 CI，签字的是人眼** —— 见 [`STANDARD.md`](STANDARD.md) §16 |
+| 3 | ~~没有 CI~~ | — | ❌ **刻意不做**（用户 2026-10-11 原话："视觉工作用不太上，最终的验收终究还是人的眼睛"） |
+| 4 | **README 307 行塞了 5 个产品** | 一个文件讲完所有事 | ✅ 已拆成**路由 README（167 行）+ [`docs/01-standard.md`](docs/01-standard.md) · [`docs/02-phenomena.md`](docs/02-phenomena.md) · [`docs/03-marks-logo.md`](docs/03-marks-logo.md)** |
+| 5 | **媒体 57.9 MB** | 直接进 git | ✅ 已瘦到 **12.4 MB**：两个大 mp4 移出仓（`media/_release/`，已 gitignore，走 Release 附件）+ 新增 646 KB 小样片 `media/demo-clip.mp4` 给 logo demo 挂 |
 | 6 | **包外引用 3 处** | 全在 `markplate.js` **正文的用法注释**里（`../../../modules/markplate/...`） | **保留** —— 那是移植文件的正文，改了就不再"逐字节一致"（出处已在文件头与 `NOTICE.md` §6 写明）；`NOTICE.md` 里那处已改成纯文字 |
-| 7 | **孤儿媒体** | `media/poster.png`（0 引用）· `media/gallery.png`（0 引用） | 前者删或归档；后者补进 README 画廊一节 |
-| 8 | **LICENSE 署名** | `Copyright (c) 2026 liceses (make-videos-kit)` | **要你确认**用哪个名字 / handle |
-| 9 | **三块是否拆仓** | 现在全在一个包 | 见 §四 |
+| 7 | **孤儿媒体** | `media/poster.png`（0 引用）· `media/gallery.png`（0 引用） | ✅ `gallery.png` 已补进 README 画廊一节；`poster.png` 待定（删 / 归档） |
+| 8 | **LICENSE 署名** | `Copyright (c) 2026 liceses (make-videos-kit)` | ✅ 按你的决定**保持现状** |
+| 9 | **三块是否拆仓** | 现在全在一个包 | ✅ 你选了 **A · 单仓 + 文档路由** |
 
 ---
 
