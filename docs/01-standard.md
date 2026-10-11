@@ -1,7 +1,8 @@
 # ① 点墨的规范
 
 > 判据唯一真相在 [`STANDARD.md`](../STANDARD.md)；这一页是**用法、参数、判据、出处与边界**。
-> 最小可跑示例：[`preview.html`](../preview.html)（8 条判据实时算 + A/B + 1:1 放大镜）。
+> 最小可跑示例：[`preview.html`](../preview.html)（8 条判据实时算 + A/B + 1:1 放大镜）·
+> 接到自己页面上：[`hero.html`](../hero.html)（自适应 `scale` / 后台暂停 / `reduced-motion`）。
 
 ---
 
@@ -10,7 +11,7 @@
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `canvas` | — | 必填（或交给 `DotInk.host` 建） |
-| `cssW` `cssH` `scale` | 1280 / 720 / 1.5 | 画布契约（×1.5 → 真 1920×1080） |
+| `cssW` `cssH` `scale` | 1280 / 720 / 1.5 | 画布契约。**`scale` 取 `devicePixelRatio`** —— backing 要等于物理像素才是 1:1；写死 `1.5` 在 DPR≠1.5 的屏上会被浏览器重采样（实测 DPR 1.65 的机器上，屏幕上 **24.46% 的像素既不是墨也不是纸**）。完整写法见 [`hero.html`](../hero.html) |
 | `ink` `paper` | `[12,13,14]` / `[242,243,242]` | **就是** `#0C0D0E` / `#F2F3F2`（与 wireframe 令牌逐位相同） |
 | `cell` | 12 | 点距（px） |
 | `cols` `rows` | 由 cell 推 | 显式给则按它算（`cell` 变成约值） |

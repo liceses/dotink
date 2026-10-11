@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · Hero 示例（把点墨当网站视觉重心）</title>
+<link rel="icon" href="icon.svg">
+<style>
+  :root{
+    --ink:#0C0D0E; --paper:#F2F3F2; --mute:#5A5F61; --hair:#D2D6D5; --accent:#FF4B1F;
+    --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-d);
+    -webkit-font-smoothing:antialiased}
+
+  /* ── 舞台 ───────────────────────────────────────────────── */
+  .hero{position:relative;min-height:100svh;overflow:hidden;display:flex;flex-direction:column}
+  #ink{position:absolute;inset:0;width:100%;height:100%;display:block;
+       image-rendering:pixelated;   /* ★ 不做这句：backing≠物理像素时，屏幕上会有成片的灰 */
+       z-index:0}
+  /* 桌面：几乎不需要罩 —— 正文区的留白是**场自己**做出来的（zone 压到 floor 以下，
+     那里真的一格墨都没有）。罩是纸色半透明的，盖上反而把那层细网点洗成灰。 */
+  .veil{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(100deg,
+      rgba(242,243,242,.34) 0%, rgba(242,243,242,.18) 18%,
+      rgba(242,243,242,0) 34%)}
+  /* 窄屏：正文占满宽、占到 ~62% 高，所以留白也必须让到那儿 ——
+     上半段全纸、下半段一道网点带。这里罩要够实，光靠场压不住正文。 */
+  @media (max-width:860px){
+    .veil{background:linear-gradient(180deg,
+      rgba(242,243,242,1) 0%, rgba(242,243,242,1) 50%,
+      rgba(242,243,242,.86) 60%, rgba(242,243,242,.38) 74%,
+      rgba(242,243,242,0) 88%)}
+  }
+
+  /* ── 顶部导航（在流里，不压在正文上） ─────────────────────── */
+  .nav{position:relative;z-index:2;display:flex;gap:18px;flex-wrap:wrap;
+    padding:clamp(18px,2.6vw,30px) clamp(28px,5vw,88px) 0;
+    font:600 10.5px/1 var(--f-m);letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+  .nav a{color:inherit;text-decoration:none;padding-bottom:2px;border-bottom:1px solid transparent}
+  .nav a:hover{color:var(--ink);border-color:var(--ink)}
+
+  /* ── 正文 ───────────────────────────────────────────────── */
+  .inner{position:relative;z-index:2;flex:1 1 auto;display:flex;flex-direction:column;
+    justify-content:center;width:100%;max-width:min(760px,58vw);
+    padding:clamp(20px,3vw,36px) clamp(28px,5vw,88px) clamp(70px,8vw,104px)}
+  @media (max-width:860px){ .inner{max-width:none} }
+
+  .eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 clamp(18px,3vw,34px);
+    font:600 11px/1 var(--f-m);letter-spacing:.20em;text-transform:uppercase;color:var(--mute)}
+  .eyebrow i{width:8px;height:8px;background:var(--accent);display:block;flex:0 0 auto}
+
+  h1{margin:0;font-size:clamp(44px,8.2vw,116px);line-height:.94;letter-spacing:-.035em;font-weight:800}
+  h1 em{font-style:normal;position:relative;white-space:nowrap}
+  h1 em::after{content:'';position:absolute;left:0;right:0;bottom:.06em;height:.055em;
+    background:var(--ink);opacity:.9}
+
+  .lede{margin:clamp(20px,3vw,34px) 0 0;max-width:44ch;
+    font-size:clamp(15px,1.35vw,19px);line-height:1.72;color:#2A2D2E}
+  .lede b{font-weight:700;box-shadow:inset 0 -.42em 0 rgba(255,75,31,.28)}
+
+  .cta{display:flex;align-items:center;gap:26px;flex-wrap:wrap;margin-top:clamp(28px,4vw,46px)}
+  .btn{display:inline-block;padding:14px 24px;background:var(--ink);color:var(--paper);
+    text-decoration:none;font:600 13px/1 var(--f-m);letter-spacing:.06em;
+    transition:background .16s ease,transform .16s ease}
+  .btn:hover{background:var(--accent);transform:translateY(-1px)}
+  .link{color:var(--ink);text-decoration:none;font:600 13px/1 var(--f-m);letter-spacing:.06em;
+    border-bottom:1px solid var(--hair);padding-bottom:3px;transition:border-color .16s ease}
+  .link:hover{border-color:var(--ink)}
+
+  /* ── 读数牌：放左侧干净区，给一张纸底小牌 —— 压在墨上必读不出来 ── */
+  .readout{position:absolute;left:clamp(28px,5vw,88px);z-index:2;
+    bottom:clamp(16px,2.6vw,30px);
+    padding:9px 12px 10px;background:rgba(242,243,242,.90);
+    border-left:2px solid var(--accent);
+    font:500 10.5px/1.72 var(--f-m);color:var(--mute);letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .readout b{color:var(--ink);font-weight:700}
+  .readout .sep{color:var(--hair)}
+  .readout .warn{color:var(--accent);font-weight:700}
+
+  @media (max-width:860px){ .readout{display:none} }
+  @media (prefers-reduced-motion:reduce){ .btn{transition:none} }
+</style>
+</head>
+<body>
+
+<header class="hero" id="hero">
+  <canvas id="ink" aria-hidden="true"></canvas>
+  <div class="veil"></div>
+
+  <nav class="nav">
+    <a href="gallery.html">现象画廊</a>
+    <a href="preview.html">判据计算器</a>
+    <a href="marks-type.html">字版厂标</a>
+    <a href="icon.html">品牌图标</a>
+    <a href="STANDARD.md">标准</a>
+    <a href="README.md">包说明</a>
+  </nav>
+
+  <div class="inner">
+    <p class="eyebrow"><i></i>Dot Ink · 1-bit 成像</p>
+    <h1>画面只有<br><em>墨与纸</em></h1>
+    <p class="lede">
+      所有中间调由<b>点的面积</b>表达 —— 调子 = 墨量，墨量 = 点面积之和。
+      这不是给画面加一层纹理，是一套成像方式：逐帧确定性、断网可播、零灰阶。
+    </p>
+    <div class="cta">
+      <a class="btn" href="STANDARD.md">读标准</a>
+      <a class="link" href="gallery.html">现象画廊 →</a>
+    </div>
+  </div>
+
+  <div class="readout" id="readout"></div>
+</header>
+
+<script src="dotink.js"></script>
+<script>
+/* 把点墨当**网站视觉重心**的完整写法（README「三十秒上手」是它的最小版）。
+ *
+ * 这一页替 dotink.js 补了它不管的四件事 —— 每一件都对应一次实测：
+ *   ① scale 取 devicePixelRatio（不是写死 1.5）：backing 要等于物理像素才是 1:1。
+ *      实测 DPR 1.65 的机器上按 1.5 建，屏幕上 **24.46% 的像素既不是墨也不是纸**（252 种灰）。
+ *   ② image-rendering:pixelated：万一 backing ≠ 物理像素，至少不让浏览器把它混成灰。
+ *   ③ 自适应：成本 ≈ O(backing 像素)（compose() 每帧遍历整幅，与点数无关），
+ *      所以按像素预算压 scale；再按实测单帧耗时上下调（30fps 的预算是 33ms）。
+ *   ④ 生命周期：ResizeObserver 重建（约 3ms）、滚出视口/切后台停 rAF、reduced-motion 定格。
+ *
+ * 留白（§5 净空）是**把场本身压下去**做的，不是盖一层白 —— 正文区压到 floor 以下，
+ * 那里真的一格墨都不落。 */
+(function () {
+  const hero = document.getElementById('hero');
+  const cv = document.getElementById('ink');
+  const out = document.getElementById('readout');
+
+  const CELL = 8;                 // 点距（px）—— §14 参考配方
+  const MAXFRAC = 0.40;           // 满墨半径 = 0.40·cell（§4 硬上限 0.5）
+  const BUDGET = 2.0e6;           // backing 像素预算 —— 清晰度 ↔ 帧率 的那个旋钮
+  const FPS_CAP = 30;             // 满帧本来也到不了 60，封 30 省电省风扇
+  const FLOOR_SCALE = 0.75;       // 再低点就成马赛克了
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let inst = null, scale = 0, maxScale = 1, cellPx = CELL;
+  let raf = 0, last = 0, lastDraw = 0, prevDraw = 0, t = 6.0;
+  const costs = [], intervals = [];         // 单帧耗时 / 真实帧间隔（两件事，别混）
+  let visible = true, adaptCooldown = 0;
+
+  /* ── 场：干涉条纹 + 正文区留白 + 右下绽放 ────────────────────
+     这层是 §5「净空」的落点：装饰的墨不许压过信息（正文）。
+     做法不是盖一层白，是**把场本身压下去** —— 格子值不翻，墨就不存在。 */
+  function makeField(cols, rows, vertical) {
+    const base = DotInk.fields.interferenceFn(cols, rows, { k: 0.42, w: 0.24, speed: 0.85 });
+    const ss = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+    return function (i, cx, cy, tt) {
+      const x = cx / cols, y = cy / rows;
+      let zone, bloom;
+      if (vertical) {
+        /* 窄屏：正文占到 ~62% 高 → 留白让到 0.48，网点带压到最下面 */
+        zone = 1 - ss(0.48, 0.88, y);
+        bloom = 0.42 + 0.58 * ss(0.50, 1.00, y + 0.22 * x);
+      } else {
+        /* 正文列的留白：**一道**沿 veil 方向的斜边（x + 0.16y）。不要再乘一道 y 带 ——
+           x/y 两道软边相乘会在角落露成一个可见的矩形空洞（第一版就是这样）。 */
+        const textZone = 1 - ss(0.38, 0.74, x + 0.16 * (y - 0.5));
+        /* 顶部再横着让一条：**导航那一行也在纸上** ——
+           10.5px 的灰字压在网点上根本读不出来（和读数牌同一个错，踩了两次）。 */
+        const navZone = (1 - ss(0.06, 0.14, y)) * (1 - ss(0.40, 0.66, x));
+        zone = Math.max(textZone, navZone);
+        bloom = 0.42 + 0.58 * ss(0.18, 1.02, x + 0.42 * y);
+      }
+      /* 压到 6%：乘 bloom 后低于 floor → 正文区**一格墨都不落**，字天然压在纸上 */
+      return base(i, cx, cy, tt) * (1 - 0.94 * zone) * bloom;
+    };
+  }
+
+  /* ── scale 怎么定 ────────────────────────────────────────────
+     ★ 正确值是 devicePixelRatio：backing = CSS × DPR = 物理像素 → 1:1 不重采样，
+       最锐、也最"真 1-bit"。代价是 D² 倍成本，所以按 backing 像素预算往下压。 */
+  function build(reset) {
+    const w = hero.clientWidth, h = hero.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    maxScale = Math.max(FLOOR_SCALE, Math.min(dpr, Math.sqrt(BUDGET / (w * h))));
+    scale = (reset || !scale) ? maxScale : Math.min(scale, maxScale);
+
+    const cols = Math.max(8, Math.round(w / CELL));   // 先定母题尺寸，再定网格（§14）
+    const rows = Math.max(8, Math.round(h / CELL));
+    cellPx = w / cols;                                // 实际格宽（CSS px）
+    const vertical = w < 860;                         // 与 CSS 的窄屏断点一致
+
+    inst = DotInk.create({
+      canvas: cv, cssW: w, cssH: h, scale: scale,
+      cols: cols, rows: rows,                          // 显式给，免 cell 四舍五入漂移
+      maxFrac: MAXFRAC,
+      areaMap: true,                                   // 场是物理量原样 → 面积映射（§3 配对）
+      gain: 1.05, gamma: 1.0, floor: 0.075,
+      hud: false, caption: null, shutter: 0,
+      field: makeField(cols, rows, vertical),
+    });
+    costs.length = 0; intervals.length = 0; prevDraw = 0;
+    const t0 = performance.now();
+    inst.draw(t);
+    costs.push(performance.now() - t0);      // 先给一次实测，别让读数开局是"—"
+    paint(true);
+  }
+
+  /* ── 读数（判据是数值，不是"觉得好看"） ────────────────────── */
+  let lastPaint = 0;
+  function paint(force) {
+    const now = performance.now();
+    if (!force && now - lastPaint < 200) return;
+    lastPaint = now;
+    const m = inst.judge().measures;
+    const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+    const fps = intervals.length >= 6 ? (1000 / avg(intervals)).toFixed(0) : '—';
+    const cost = costs.length ? avg(costs).toFixed(1) : '—';
+    const upscaled = (cv.width / (hero.clientWidth * (window.devicePixelRatio || 1)));
+    const paused = document.hidden || !visible;
+    out.innerHTML =
+      '<span class="sep">φ = cos(k·d₁) + cos(k·d₂)</span><br>' +
+      '<b>' + inst.cols + '×' + inst.rows + '</b> 格 <span class="sep">·</span> ' +
+      '点距 <b>' + cellPx.toFixed(1) + 'px</b> <span class="sep">·</span> ' +
+      '满墨 ⌀<b>' + (MAXFRAC * cellPx * 2).toFixed(1) + 'px</b><br>' +
+      '覆盖率 <b>' + (m.coverage * 100).toFixed(2) + '%</b> <span class="sep">·</span> ' +
+      '点数 <b>' + m.points + '</b> <span class="sep">·</span> ' +
+      '单帧 <b>' + cost + 'ms</b><br>' +
+      '帧率 <b>' + fps + '</b>' + (paused ? ' <span class="warn">已暂停</span>' : '') +
+      ' <span class="sep">·</span> scale <b>' + scale.toFixed(2) + '</b>' +
+      ' <span class="sep">·</span> dpr <b>' + (window.devicePixelRatio || 1).toFixed(2) + '</b>' +
+      ' <span class="sep">·</span> backing <b>' + cv.width + '×' + cv.height + '</b>' +
+      (upscaled < 0.98 ? ' <span class="warn">↑' + (1 / upscaled).toFixed(2) + '×</span>' : '');
+  }
+
+  /* ── 主循环：时间驱动 + 自适应降级 ─────────────────────────── */
+  function loop(now) {
+    raf = requestAnimationFrame(loop);
+    if (!visible || document.hidden) { last = now; return; }
+    if (now - lastDraw < 1000 / FPS_CAP) return;      // 封顶 30fps
+
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
+    if (prevDraw) { intervals.push(now - prevDraw); if (intervals.length > 30) intervals.shift(); }
+    prevDraw = now; last = now; lastDraw = now;
+    t += dt;
+
+    const t0 = performance.now();
+    inst.draw(t);
+    const cost = performance.now() - t0;
+    costs.push(cost); if (costs.length > 30) costs.shift();
+    paint(false);
+
+    /* 30fps 的预算是 33ms。连续超 → 降 scale；长期很闲 → 升回去（但不超预算） */
+    const avgCost = costs.reduce((a, b) => a + b, 0) / costs.length;
+    if (costs.length >= 20 && now > adaptCooldown) {
+      if (avgCost > 30 && scale > FLOOR_SCALE) {
+        scale = Math.max(FLOOR_SCALE, scale - 0.25); adaptCooldown = now + 1500; build(false);
+      } else if (avgCost < 12 && scale < maxScale - 0.01) {
+        scale = Math.min(maxScale, scale + 0.25); adaptCooldown = now + 1500; build(false);
+      }
+    }
+  }
+
+  /* ── 重建 / 暂停 ──────────────────────────────────────────── */
+  let rt = 0;
+  const rebuild = () => { clearTimeout(rt); rt = setTimeout(() => build(true), 160); };
+  if (window.ResizeObserver) new ResizeObserver(rebuild).observe(hero);
+  else addEventListener('resize', rebuild);
+
+  if (window.IntersectionObserver) {
+    new IntersectionObserver(es => {
+      visible = es[0].isIntersecting;
+      if (inst) paint(true);                 // 状态变了要立刻反映到读数牌上
+    }, { threshold: 0.01 }).observe(hero);
+  }
+  /* 切到后台 → 停 rAF。读数牌是循环里画的，所以状态一变要**主动**重画一次，
+     否则牌子上会永远停着一句过期的"—"（第一版就是这样）。 */
+  document.addEventListener('visibilitychange', () => { if (inst) paint(true); });
+
+  build(true);
+  if (REDUCED) { inst.draw(6.0); paint(true); }        /* 减少动效 → 定格一帧，不起循环 */
+  else { lastDraw = 0; raf = requestAnimationFrame(loop); }
+
+  window.__hero = { get inst() { return inst; }, get scale() { return scale; }, get maxScale() { return maxScale; }, get t() { return t; } };
+})();
+</script>
+</body>
+</html>

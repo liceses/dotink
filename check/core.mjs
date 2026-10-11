@@ -153,7 +153,7 @@ test('版本号：package.json 与 dotink.js 一致', () => {
 
 test('文件表：README 里点名的入口文件都真的存在', () => {
   const need = ['dotink.js', 'pheno.js', 'markplate.js', 'marks.js', 'logo.js', 'STANDARD.md',
-    'preview.html', 'gallery.html', 'marks.html', 'marks-type.html', 'logo-demo.html', 'icon.html',
+    'preview.html', 'gallery.html', 'hero.html', 'marks.html', 'marks-type.html', 'logo-demo.html', 'icon.html',
     'NOTICE.md', 'SKILL.md', 'LICENSE', 'CHANGELOG.md', 'OPENSOURCE.md',
     'docs/01-standard.md', 'docs/02-phenomena.md', 'docs/03-marks-logo.md'];
   for (const f of need) assert.ok(fs.existsSync(path.join(ROOT, f)), '缺文件：' + f);

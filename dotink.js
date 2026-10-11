@@ -584,7 +584,7 @@
   /* 导出用**加法式**，不要整体赋值：整体赋值会把后加载/预挂的其它件冲掉
      （踩过：pheno.js 在 dotink.js 之后加载时，DotInk.pheno 会被这一行抹掉）。 */
   global.DotInk = Object.assign(global.DotInk || {}, {
-    version: '1.4.0',
+    version: '1.5.0',
     create: create, host: host, fields: fields,
     DEFAULTS: DEFAULTS, discMax: DISC_MAX,
     /* 标准里的公式单独导出，便于测试与对照 */

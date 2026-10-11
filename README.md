@@ -78,6 +78,7 @@
 | [`pheno.js`](pheno.js) | **自然现象场库**：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`（八个都是 `(cols, rows, opts) → (i,x,y,t) → 0..1`） |
 | [`preview.html`](preview.html) | **判据计算器与实验台**：8 条判据实时算、A/B 对照（√ vs 线性）、**1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **现象画廊（视觉产品）**：九项现象现场渲染 + 实时判据（M1/M2/M3 分开报）+ 映射 A/B + 1:1 放大镜 |
+| [`hero.html`](hero.html) | **全屏 hero 示例（把点墨当网站视觉重心）**：自适应 `scale`（DPR + 像素预算）· 后台暂停 · `reduced-motion` 定格 · 实时判据读数；正文留白是**把场压下去**做的（§5 净空），不是盖白 |
 | [`marks.html`](marks.html) · [`marks.js`](marks.js) | **厂标墙（第二件产品）**：47 家厂标用点墨画（网点 / 实墨两种落墨）+ 47 格墙 + 自动翻页 |
 | [`NOTICE.md`](NOTICE.md) | **第三方数据与出处**（厂标 CC0 与商标口径 / 现象公式出处 / 参考配方成片 / 自检片） |
 | [`icon.svg`](icon.svg) · [`icon-*.png`](icon-512.png) · [`icon.html`](icon.html) | **品牌图标**：矢量源 / 各尺寸位图（**0 灰阶**）/ 图标工坊（任意尺寸导出 + 1-bit 自检） |
@@ -122,20 +123,29 @@ node tools/make-icon.mjs --print    # 只打印几何与判据
 ## 三十秒上手
 
 ```html
-<canvas id="cv" style="width:560px;height:315px"></canvas>
+<canvas id="cv" style="width:560px;height:315px;image-rendering:pixelated"></canvas>
 <script src="dotink.js"></script>   <!-- 经典脚本，不是 ESM：file:// 下 import 会被 CORS 拦死 -->
 <script>
+const COLS = 47, ROWS = 26;                     // = round(cssW/cell) / round(cssH/cell)
 const inst = DotInk.create({
   canvas: document.getElementById('cv'),
-  cssW: 560, cssH: 315, scale: 1.5,      // backing = 840×473（×1.5 是真渲染，不是放大）
-  cell: 12,                              // 点距（px）
-  field: DotInk.fields.interferenceFn(46, 26, { k: .55, w: .22, speed: 1.3 }),
+  cssW: 560, cssH: 315,
+  scale: Math.min(2, devicePixelRatio),         // ★ 见下：**不要**写死 1.5
+  cols: COLS, rows: ROWS, cell: 12,             // 点距（px）
+  field: DotInk.fields.interferenceFn(COLS, ROWS, { k: .55, w: .22, speed: 1.3 }),
   gain: 1, duration: 21, shutter: 0,
 });
 inst.draw(3.5);      // 纯函数：同一个 t 画两次逐像素一致
-inst.judge();        // 八条判据一次报全（别自己心算）
+inst.judge();        // 逐条读数（M1/M2 是互斥体裁，怎么读见 STANDARD §4）
 </script>
 ```
+
+> **两件 `dotink.js` 不管、必须自己管的事**（都在实测里栽过）：
+> 1. **`scale` 取 `devicePixelRatio`，不要写死 1.5** —— backing 要**等于物理像素**才是 1:1。
+>    实测 DPR 1.65 的机器上按 `1.5` 建：屏幕上 **24.46% 的像素既不是墨也不是纸**（252 种灰）。
+> 2. **`image-rendering: pixelated`，且画布尺寸变了要重建**（`ResizeObserver` 防抖，重建约 3ms）。
+>
+> 完整的写法（自适应 `scale` / 后台暂停 / `reduced-motion` 定格 / 实时判据读数）见 [`hero.html`](hero.html)。
 
 **独立短片**（`DotInk.host` 自带宿主契约，**两套渲染器**都能直接渲）：
 

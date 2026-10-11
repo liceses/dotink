@@ -3,6 +3,24 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 1.5.0 — 2026-10-11
+
+**新增**
+- `hero.html`：**全屏 hero 示例（把点墨当网站视觉重心）** —— 单画布铺满视口 · 自适应 `scale`
+  （`min(DPR, √(预算 / 像素))`，再按实测单帧耗时上下调）· `ResizeObserver` 防抖重建（约 3ms）·
+  滚出视口 / 切后台停 rAF · `prefers-reduced-motion` 定格一帧 · 右下**实时判据读数**（格数 / 覆盖率 /
+  单帧 / 帧率 / scale / dpr / backing / 放大倍数）。
+  正文留白是**把场本身压下去**做的（§5 净空），不是盖一层白 —— 那里真的一格墨都不落；
+  桌面走斜边留白、窄屏走横带。实测：175×98 格 · 覆盖率 12.55% · 单帧 12.3ms · 28fps（封顶 30）。
+
+**修复（文档 —— 都对应一次实测）**
+- `README.md` / `SKILL.md` / `docs/01-standard.md`：「三十秒上手」把写死的 `scale: 1.5` 改成
+  `Math.min(2, devicePixelRatio)`，并补上 `image-rendering:pixelated` 与"画布尺寸变了要重建"。
+  依据：DPR 1.65 的机器上按 `1.5` 建，屏幕上 **24.46% 的像素既不是墨也不是纸**（252 种灰）；
+  加一句 `image-rendering:pixelated` 后为 **0**。
+- `README.md` / `SKILL.md`：示例里 `interferenceFn(46, 26)` 与 `create` 推出来的 `cols`（47）不一致 ——
+  改成显式传 `cols` / `rows`，让场与网格同源。
+
 ## 1.4.0 — 2026-10-11
 
 **新增**

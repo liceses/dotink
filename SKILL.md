@@ -18,6 +18,7 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 | [`pheno.js`](pheno.js) | **自然现象场库**八个：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`，统一 `(cols, rows, opts) → (i,x,y,t) → 0..1` |
 | [`preview.html`](preview.html) | 判据计算器 + 参数实验台（双击即开），带 **1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **画廊（视觉产品）**：九项现象**现场渲染**（8px 真圆盘 · 线性半径 · 每屏一句大字标题）+ 实时判据（**M1/M2/M3 分开报**）+ **映射 A/B** + 1:1 放大镜 —— 想知道"配方长什么样"就开它 |
+| [`hero.html`](hero.html) | **hero 示例**：把点墨当**网站视觉重心**的完整写法（自适应 `scale` = DPR + 像素预算 · 后台暂停 · `reduced-motion` 定格 · 实时判据读数）—— 想知道"接到自己页面上要补哪几件事"就开它 |
 | [`logo.js`](logo.js) · [`logo-demo.html`](logo-demo.html) | **字版 logo 组件（即插即用）**：三行引脚本 + 一次 `mount`，把「字拼成的标 + 阅读波浮现 + 字不断浮动」挂到**任意视频/网页**上；支持内置 47 家 / 自备 SVG；见 §「字版 logo 组件」 |
 | [`marks-type.html`](marks-type.html) · [`markplate.js`](markplate.js) | **字版厂标（移植自主库 markplate）**：厂标用**字**拼出来（每格一个字，字的大小按距离场走），`reveal` = 阅读波 → **字逐格浮现**；47 家 · 0.8s/家 · 37.6s 一遍 |
 | [`marks.html`](marks.html) | **点墨版厂标墙**：同一批 47 家厂标用**点**画（网点 / 实墨 1-bit 剪影 两种落墨）；版权口径见 [`NOTICE.md`](NOTICE.md) |
@@ -55,20 +56,26 @@ TypeField.create({
 ## 1 · 最小用法
 
 ```html
-<canvas id="cv" style="width:560px;height:315px"></canvas>
+<canvas id="cv" style="width:560px;height:315px;image-rendering:pixelated"></canvas>
 <script src="dotink.js"></script>      <!-- 经典脚本，不是 ESM（file:// 下 import 会被 CORS 拦死） -->
 <script>
+const COLS = 47, ROWS = 26;             // = round(cssW/cell) / round(cssH/cell)
 const inst = DotInk.create({
   canvas: document.getElementById('cv'),
-  cssW: 560, cssH: 315, scale: 1.5,     // 实际 backing = 840×473
-  cell: 12,                             // 点距（px）
-  field: DotInk.fields.interferenceFn(46, 26, { k: .55, w: .22, speed: 1.3 }),
+  cssW: 560, cssH: 315,
+  scale: Math.min(2, devicePixelRatio), // ★ 不要写死 1.5：backing 要等于物理像素才是 1:1
+  cols: COLS, rows: ROWS, cell: 12,     // 点距（px）
+  field: DotInk.fields.interferenceFn(COLS, ROWS, { k: .55, w: .22, speed: 1.3 }),
   gain: 1, duration: 21, shutter: 0,
 });
 inst.draw(3.5);                          // 纯函数：同一个 t 画两次逐像素一致
-inst.judge();                            // 判据一次报全（别自己心算）
+inst.judge();                            // 逐条读数（M1/M2 互斥，怎么读见 STANDARD §4）
 </script>
 ```
+
+> ⚠ 两件 `dotink.js` **不管**的事：① `scale` 取 `devicePixelRatio`（写死 1.5 在 DPR 1.65 的机器上，
+> 屏幕上 **24.46% 的像素既不是墨也不是纸**）；② `image-rendering:pixelated` + 尺寸变了要重建。
+> 完整写法见 [`hero.html`](hero.html)。
 
 ## 2 · 八条判据（细节与出处见 STANDARD.md）
 
