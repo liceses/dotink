@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="icon.svg">
+<title>点墨 · 品牌图标（图标工坊）</title>
+<style>
+  :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--accent:#FF4B1F;
+        --fd:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+        --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--fd)}
+  header{border-bottom:2px solid var(--ink);padding:14px 20px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+  h1{margin:0;font-size:20px}
+  .lab{font:500 12px/1.3 var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  header .links{margin-left:auto;display:flex;gap:14px}
+  a{color:inherit}
+  main{display:grid;grid-template-columns:minmax(420px,1fr) 420px;gap:0;align-items:start}
+  @media (max-width:1000px){main{grid-template-columns:1fr}}
+  .wrap{padding:20px;border-right:2px solid var(--ink)}
+  @media (max-width:1000px){.wrap{border-right:0;border-bottom:2px solid var(--ink)}}
+  #cv{display:block;width:min(420px,70vw);height:auto;border:2px solid var(--ink);image-rendering:pixelated;background:var(--paper)}
+  aside{padding:20px}
+  .ctl{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin:14px 0}
+  .ctl label{display:flex;flex-direction:column;gap:3px;font:500 12px var(--fm);color:var(--mute)}
+  button,select{font:600 13px var(--fd);padding:6px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer}
+  button.primary{background:var(--ink);color:var(--paper)}
+  .strip{display:flex;gap:14px;align-items:flex-end;margin-top:10px;flex-wrap:wrap}
+  .strip figure{margin:0;text-align:center}
+  .strip canvas{border:1px solid var(--hair);image-rendering:pixelated;display:block}
+  .strip figcaption{font:500 10px var(--fm);color:var(--mute);margin-top:4px}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+  th,td{border-bottom:1px solid var(--hair);padding:4px 6px;text-align:left}
+  th{font:500 11px var(--fm);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .kv{font:500 12px var(--fm)}
+  .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
+  code{font:500 12px var(--fm);background:#E4E7E6;padding:1px 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>点墨 · 品牌图标</h1>
+  <span class="lab">Dot Ink · Mark · drawn by the standard itself</span>
+  <div class="links lab"><a href="gallery.html">画廊</a><a href="STANDARD.md">标准</a><a href="README.md">包说明</a></div>
+</header>
+
+<main>
+  <div class="wrap">
+    <canvas id="cv" width="512" height="512"></canvas>
+    <div class="ctl">
+      <label>尺寸 <select id="size"><option>1024</option><option selected>512</option><option>256</option><option>192</option><option>128</option><option>64</option><option>32</option><option>16</option></select></label>
+      <label>accent 点 <input type="checkbox" id="acc" checked></label>
+      <label>&nbsp;<button id="dl" class="primary">导出 PNG</button></label>
+      <label>&nbsp;<button id="svg">看矢量版 icon.svg</button></label>
+    </div>
+    <div class="lab">读得清吗（16 / 32 / 64 / 192）</div>
+    <div class="strip" id="strip"></div>
+  </div>
+
+  <aside>
+    <div class="lab">这个图标就是本标准的一次应用</div>
+    <table><tbody id="spec"></tbody></table>
+
+    <div class="lab" style="margin-top:16px">本帧实测</div>
+    <table><tbody id="readout"></tbody></table>
+
+    <div class="lab" style="margin-top:16px">怎么用</div>
+    <div class="kv" style="font-size:12px">
+      · 网页：<code>&lt;link rel="icon" href="icon.svg"&gt;</code>（本页与画廊都已挂）<br>
+      · GitHub 仓库头像 / 应用图标：用 <code>icon-512.png</code><br>
+      · 源码：<code>icon.svg</code> 由 <code>tools/make-icon.mjs</code> 生成（几何即 §3/§4）<br>
+      · 改几何：编辑生成器里的 <code>PITCH / N / R / RMAX</code> 后重跑，再回本页导出 PNG
+    </div>
+  </aside>
+</main>
+
+<script src="dotink.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  /* 几何：与 tools/make-icon.mjs 同一套规则（15×15 网点 · maxFrac 0.406 · √ 面积映射 · 一颗 accent 点） */
+  const N = 15, MAXFRAC = 13 / 32, BASE_R = 1.8, R_FRAC = 196 / 512;
+
+  function paint(cv, S, accent) {
+    const cell = S / N;
+    const rMax = MAXFRAC * cell;
+    const baseV = Math.min(1, Math.pow(BASE_R * (S / 512) / rMax, 2));   /* √ 映射下 r=1.8px 对应的 v */
+    const R = R_FRAC * S;
+    const field = (i, cx, cy) => {
+      const x = (cx + 0.5) * cell, y = (cy + 0.5) * cell;
+      const d = Math.hypot(x - S / 2, y - S / 2);
+      const v = Math.max(0, Math.min(1, (1 - Math.pow(d / R, 2)) * 1.6));
+      return v > 0 ? Math.max(v, baseV) : baseV;
+    };
+    const inst = DotInk.create({
+      canvas: cv, cssW: S, cssH: S, scale: 1, cols: N, rows: N, cell: cell,
+      maxFrac: MAXFRAC, areaMap: true, floor: 0, gain: 1, hud: false, caption: null,
+      shutter: 0, duration: 1, field: field,
+    });
+    inst.draw(0);
+    if (accent) {
+      /* accent 点也用**硬像素**画：canvas 的 arc() 会反锯齿，混出一圈既非墨也非纸的像素
+         （实测 512px 时 92 px）—— 品牌图标要和标准一样干净：非墨即纸，外加这一颗 accent。 */
+      const ctx = cv.getContext('2d');
+      hardDisc(ctx, S / 2, S / 2, DotInk.radius(1, cell, MAXFRAC, true), '#FF4B1F');
+    }
+    /* 20px 墨框（画幅的 1/25.6），最后画、压在点上面 —— 与 icon.svg 同几何 */
+    const ctx2 = cv.getContext('2d');
+    const bw = Math.max(1, Math.round(S * 20 / 512));
+    ctx2.fillStyle = '#0C0D0E';
+    ctx2.fillRect(0, 0, S, bw); ctx2.fillRect(0, S - bw, S, bw);
+    ctx2.fillRect(0, 0, bw, S); ctx2.fillRect(S - bw, 0, bw, S);
+    return inst;
+  }
+
+  function hardDisc(ctx, cx, cy, r, color) {
+    ctx.fillStyle = color;
+    const rr = r * r;
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) {
+      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+        const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+        if (dx * dx + dy * dy <= rr) ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  function spec() {
+    const S = 512, cell = S / N, rMax = MAXFRAC * cell;
+    $('spec').innerHTML = [
+      ['网点', N + '×' + N + ' = ' + (N * N) + ' 颗 · 点距 ' + cell.toFixed(1) + 'px（画幅的 1/15）', ''],
+      ['中心盘', 'v = clamp01((1 − (d/R)²)·1.6)，R = ' + (R_FRAC * S).toFixed(0) + 'px', ''],
+      ['半径映射', 'r = rMax·√v（**面积映射**，§3：场是物理量原样 → 配 √）', 'ok'],
+      ['maxFrac', MAXFRAC.toFixed(3) + '（rMax ' + rMax.toFixed(1) + 'px / 点距 ' + cell.toFixed(1) + 'px）', 'ok'],
+      ['底纹', 'r = ' + BASE_R + 'px 细网格（放大才看得见，缩到 16px 自动消失）', ''],
+      ['accent 点', '正中心一颗 #FF4B1F —— 那是"点"的位置，也是主库的 --accent', ''],
+    ].map(r => '<tr><td>' + r[0] + '</td><td class="kv">' + r[1].replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</td><td class="' + r[2] + '">' + (r[2] === 'ok' ? '✓' : '') + '</td></tr>').join('');
+  }
+
+  function readout(inst, cv, accent) {
+    const S = cv.width;
+    const d = cv.getContext('2d').getImageData(0, 0, S, S).data;
+    let ink = 0, pap = 0, gray = 0, acc = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      if (Math.abs(r - 255) < 8 && Math.abs(g - 75) < 8 && Math.abs(b - 31) < 8) { acc++; continue; }
+      if (r < 128) ink++;
+      else if (Math.abs(r - 242) <= 2 && Math.abs(g - 243) <= 2 && Math.abs(b - 242) <= 2) pap++;
+      else gray++;
+    }
+    const tot = S * S;
+    $('readout').innerHTML = [
+      ['画布', S + '×' + S + '（' + tot.toLocaleString() + ' px）', ''],
+      ['墨', (ink / tot * 100).toFixed(2) + '%', ''],
+      ['纸', (pap / tot * 100).toFixed(2) + '%', ''],
+      ['accent', acc ? (acc + ' px（1 颗点）') : '关', ''],
+      ['灰阶（非墨非纸）', gray + ' px', gray === 0 ? 'ok' : 'bad'],
+      ['覆盖率判据（M2 面场）', (ink / tot * 100).toFixed(2) + '% ≥ 8%？', ink / tot >= .08 ? 'ok' : ''],
+    ].map(r => '<tr><td>' + r[0] + '</td><td class="kv">' + r[1] + '</td><td class="' + r[2] + '">' + (r[2] === 'ok' ? '✓' : r[2] === 'bad' ? '✗' : '') + '</td></tr>').join('');
+  }
+
+  let inst = null;
+  function render() {
+    const S = +$('size').value, accent = $('acc').checked;
+    const cv = $('cv');
+    cv.width = cv.height = 0;
+    cv.width = cv.height = S;
+    inst = paint(cv, S, accent);
+    readout(inst, cv, accent);
+  }
+
+  function strip() {
+    const box = $('strip');
+    box.innerHTML = '';
+    [16, 32, 64, 192].forEach(S => {
+      const f = document.createElement('figure');
+      const c = document.createElement('canvas');
+      c.width = c.height = S;
+      c.style.width = Math.max(S, 16) + 'px'; c.style.height = Math.max(S, 16) + 'px';
+      paint(c, S, $('acc').checked);
+      const cap = document.createElement('figcaption');
+      cap.textContent = S + 'px';
+      f.appendChild(c); f.appendChild(cap); box.appendChild(f);
+    });
+  }
+
+  $('size').addEventListener('change', render);
+  $('acc').addEventListener('change', () => { render(); strip(); });
+  $('dl').addEventListener('click', () => {
+    const S = +$('size').value;
+    const a = document.createElement('a');
+    a.download = 'icon-' + S + ($('acc').checked ? '' : '-ink') + '.png';
+    a.href = $('cv').toDataURL('image/png');
+    a.click();
+  });
+  $('svg').addEventListener('click', () => window.open('icon.svg', '_blank'));
+
+  spec(); render(); strip();
+  window.__icon = { paint: paint, get: () => $('cv').toDataURL('image/png') };   /* 给导出脚本用 */
+})();
+</script>
+</body>
+</html>

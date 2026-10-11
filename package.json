@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "commonjs",
   "main": "dotink.js",
-  "files": ["dotink.js", "pheno.js", "gallery.html", "STANDARD.md", "SKILL.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
+  "files": ["dotink.js", "pheno.js", "gallery.html", "icon.html", "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png", "tools", "STANDARD.md", "SKILL.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
   "scripts": {
     "gallery": "node -e \"console.log('open gallery.html in a browser')\"",
     "preview": "node -e \"console.log('open preview.html in a browser')\""
