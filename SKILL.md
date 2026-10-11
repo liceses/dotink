@@ -25,11 +25,12 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 
 ```js
 TypeField.create({
-  canvas, cssW: 1280, cssH: 720, scale: 1.5, cell: 16, cols: 80, rows: 45,
-  text: '●',                                                 // ★ 逐格字形 = 实心圆
-  fieldAt: { fn: DotInk.pheno.chladni(80, 45, { period: 16 }), min: 0.08 },
+  canvas, cssW: 1280, cssH: 720, scale: 1.5,
+  cell: 8, cols: 160, rows: 90,                               // ★ 8px 点距（参考配方）；不是 16px
+  text: '●',                                                 // 逐格字形 = 实心圆
+  fieldAt: { fn: DotInk.pheno.chladni(160, 90, { period: 16 }), min: 0.08 },
   hud: true, hudC: { ruleY: 40, progY: 690, tcY: 12 },       // 它自带的尺/进度/时间码
-  camAt: t => ({ eye: [0, 0, 1800], tgt: [0, 0, 0], up: [0, 1, 0] }),
+  camAt: t => ({ eye: [0, 0, 1620], tgt: [0, 0, 0], up: [0, 1, 0] }),
 });
 ```
 
@@ -39,6 +40,12 @@ TypeField.create({
 > ⚠ 加载顺序：`dotink.js` → `pheno.js`。**八个 phenomena 实例不要同时活着**：
 > 每个 1920×1080 实例约占 16MB 缓冲，八个会把浏览器拖到 30s/帧 —— 懒建 + 换幕即释放
 > （见 `work/1010-dotink-demo/content.html` 的 `phenAt` / `dropPhen`）。
+
+> **要"好看"就照 §14 的参考配方**（对标件：`lab-field4`《公式就是画面》八拍，媒体在
+> [`media/phenomena-8/`](media/phenomena-8)）：**点距 8px**（细条纹 6px）· 点径 0..3.2px
+> **真圆盘**（`maxFrac 0.40`）· **母题占满画面**（先定母题再定网格）· 每屏**一句大字标题** ·
+> 画面区域**不压 DOM** · **逐现象手调**。
+> 同一批公式，两版的格数是 **14,400 vs 3,600** —— 差距就在这几个数上。
 
 ## 1 · 最小用法
 

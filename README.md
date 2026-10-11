@@ -5,18 +5,52 @@
 调子 = 墨量，墨量 = 点面积之和。不是"加一层纹理"，是一套**成像方式**：
 1-bit 二值、可逐帧确定性渲染、断网双击就能播。
 
-![点墨标准示例 · 61 秒（8 个自然现象 + 判据）](media/demo.gif)
+![《公式就是画面》自然八拍 · 40.8 秒](media/phenomena-8/demo.gif)
 
-> **示例片**（61.0 s · 1920×1080 · 30fps · 1830 帧 · 无音轨）：
-> [`media/1010-dotink-demo-1080p.mp4`](media/1010-dotink-demo-1080p.mp4) ·
-> 抽帧总表 [`media/sheet.png`](media/sheet.png) · 封面 [`media/poster.png`](media/poster.png)
+> **示例 A · 参考配方**（从实验区里程碑**直接取，逐字节未改**）：
+> **《公式就是画面》自然八拍** —— 40.8 s · 1920×1080 · 30fps · 无声 · 1224 帧
 >
-> 内容：**自然现象八幕**（克拉德尼 / 向日葵 / de Jong / Gray-Scott / DLA / Kuramoto / 倍周期分叉 / 两源干涉）
-> ＋ **判据三幕**（点距与面积映射 / 覆盖率地板）。现象幕整幅交给 `modules/typefield`
-> —— 用它自己的 HUD 与相机，把 `text` 设成 `●` 就是点墨渲染器（见 [`STANDARD.md`](STANDARD.md) §13）。
+> 成片 [`media/phenomena-8/lab-field4-1080p.mp4`](media/phenomena-8/lab-field4-1080p.mp4) ·
+> 八拍接触印样 [`contact-sheet.png`](media/phenomena-8/contact-sheet.png) ·
+> 1:1 静帧 [`still-01…08`](media/phenomena-8) ·
+> **出处与参数** [`SOURCE.md`](media/phenomena-8/SOURCE.md)
+>
+> 八拍：克拉德尼（**沙粒版**）· 向日葵 · de Jong · Gray-Scott · DLA · Kuramoto · 倍周期分叉 · 两源干涉
+>
+> **示例 B · 标准自检片**（本包渲染，用来**量判据**，不是拿来看的）：
+> [`media/1010-dotink-demo-1080p.mp4`](media/1010-dotink-demo-1080p.mp4) —— 61.0 s，判据幕 + 现象幕；
+> 同一批公式，**表现力明显不如示例 A** —— 差在哪、怎么补，见下节「同一批公式，差在哪」。
 >
 > *(Dot Ink: a 1-bit imaging standard — paper and ink only, tone expressed by dot area.
 > `r = rMax·√w` so ink area is proportional to tone. See [`STANDARD.md`](STANDARD.md).)*
+
+---
+
+## 同一批公式，差在哪（实测对照）
+
+两个示例用的是**同一批公式**（`lab/PHENOMENA.md` 01–08）。差距不在公式，在这六个可量/可改的数：
+
+| 项 | **示例 A**（lab-field4 · 参考配方） | **示例 B**（本包自检片） |
+|---|---|---|
+| **点距** | **8 px**（08 拍 6 px）→ 160×90 = **14,400 格** | 16 px → 80×45 = **3,600 格**（**1/4**） |
+| **点径** | **真圆盘** 0..3.2 px（`maxFrac 0.40`） | typefield 的 `●` **字形**缩放（不是圆盘） |
+| 墨量（区域） | 2.95 %（07）– **15.21 %**（04） | 2.05 % – 8.64 % |
+| **母题尺度** | 母题**占满画面**（向日葵盘 ≈ 画幅高；Kuramoto 是大相位环；分叉树横贯） | 母题偏小（塞进通用网格） |
+| **构图** | 每屏一句**大字标题** + 公式 + 来源 | 左下 12 px 标签卡 |
+| 覆盖 | 画面**无 DOM** | 标签卡压住画面一角 |
+| 手调 | **逐现象**：01 用 3200 颗沙沿 −∇\|φ\| 迁移；06 打回仪表盘版重做；08 用 6 px 让条纹可分辨 | 场库通用实现，未按"画面"调 |
+
+**要补的六件事**（按性价比排）：
+
+1. **点距降到 8 px**（细条纹 6 px）—— 格数翻四倍，母题才**解**得出来；
+2. **走解析圆盘**（`dotink.js` 的 DISC 路径），**不要**用字形当点 —— 字形在小尺寸是阶梯、在大尺寸是字；
+3. **先定母题尺寸，再定网格**：让母题占满画面，而不是"把场塞进网格"；
+4. **每屏一句大字标题**（18–40 px 级），公式与来源放角上；
+5. **逐现象手调**，尤其是"兑现字幕"的那一步（01 的字幕写着"沙自己走到该在的地方"，就必须真的让沙走过去）；
+6. **画面区域不压 DOM**：要放字就用画布上的实墨层，别用卡片盖住画面。
+
+> 这六条已写进 [`STANDARD.md`](STANDARD.md) §14「参考配方」。示例 A 的参数与出处见
+> [`media/phenomena-8/SOURCE.md`](media/phenomena-8/SOURCE.md)（含重建命令与 SHA256 清单）。
 
 ---
 
@@ -29,7 +63,8 @@
 | [`pheno.js`](pheno.js) | **自然现象场库**：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`（八个都是 `(cols, rows, opts) → (i,x,y,t) → 0..1`） |
 | [`preview.html`](preview.html) | **判据计算器与实验台**：8 条判据实时算、A/B 对照（√ vs 线性）、**1:1 放大镜** |
 | [`SKILL.md`](SKILL.md) | 给 AI 会话用的入口（什么时候用、八条判据、四条最容易踩的） |
-| [`media/`](media) | 示例片与出图 |
+| [`media/phenomena-8/`](media/phenomena-8) | **示例 A · 参考配方**：《公式就是画面》自然八拍（lab-field4）—— 成片 / 接触印样 / 八张 1:1 静帧 / SHA256 清单 / [`SOURCE.md`](media/phenomena-8/SOURCE.md)，**逐字节取自里程碑** |
+| [`media/`](media) | 示例 B 自检片（`1010-dotink-demo`）与出图 |
 | [`demo/index.html`](demo/index.html) | 自包含独立短片页（双击即播，不依赖线框引擎） |
 | [`LICENSE`](LICENSE) | MIT |
 
