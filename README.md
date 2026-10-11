@@ -50,6 +50,8 @@
 
 ## 厂标墙 · 47 家（**第二件产品**）
 
+<img src="media/marks.png" width="620" alt="厂标墙：47 家厂标用点墨画">
+
 > 双击 [`marks.html`](marks.html) 就开：47 家厂标（OpenAI · Anthropic · GitHub · Python · React …）
 > **全部用点墨画**，两种落墨随时切。
 
