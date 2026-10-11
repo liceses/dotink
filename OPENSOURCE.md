@@ -112,7 +112,15 @@ dotink/
 
 ---
 
-## 五、发布前 checklist
+## 五、发布状态
+
+- ✅ **已开源**：https://github.com/liceses/dotink（public · `main`）· 成片作为 Release 附件：https://github.com/liceses/dotink/releases
+- 结构：**A · 单仓 + 文档路由**（你选的）· 署名：`liceses (make-videos-kit)`（保持现状）
+- 自查：`npm run check`（**刻意不进 CI** —— 签字的是人眼，见 [`STANDARD.md`](STANDARD.md) §16）
+
+---
+
+## 六、发布前 checklist（已逐条过）
 
 - [ ] 版本统一（+ `CHANGELOG.md`）
 - [ ] `test/`（零依赖）+ CI 跑通

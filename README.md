@@ -10,7 +10,7 @@
 > **示例 A · 参考配方**（从实验区里程碑**直接取，逐字节未改**）：
 > **《公式就是画面》自然八拍** —— 40.8 s · 1920×1080 · 30fps · 无声 · 1224 帧
 >
-> 成片 `lab-field4-1080p.mp4`（**Release 附件**，仓内只留 GIF 与 1:1 静帧） ·
+> 成片 [`lab-field4-1080p.mp4`](https://github.com/liceses/dotink/releases)（**Release 附件**，仓内只留 GIF 与 1:1 静帧） ·
 > 八拍接触印样 [`contact-sheet.png`](media/phenomena-8/contact-sheet.png) ·
 > 1:1 静帧 [`still-01…08`](media/phenomena-8) ·
 > **出处与参数** [`SOURCE.md`](media/phenomena-8/SOURCE.md)
@@ -18,8 +18,10 @@
 > 八拍：克拉德尼（**沙粒版**）· 向日葵 · de Jong · Gray-Scott · DLA · Kuramoto · 倍周期分叉 · 两源干涉
 >
 > **示例 B · 标准自检片**（本包渲染，用来**量判据**，不是拿来看的）：
-> `1010-dotink-demo-1080p.mp4`（**Release 附件**） —— 61.0 s，判据幕 + 现象幕；
+> [`1010-dotink-demo-1080p.mp4`](https://github.com/liceses/dotink/releases)（**Release 附件**） —— 61.0 s，判据幕 + 现象幕；
 > 同一批公式，**表现力明显不如示例 A** —— 差在哪、怎么补，见下节「同一批公式，差在哪」。
+>
+> **仓库**：https://github.com/liceses/dotink · **成片（Release 附件）**：https://github.com/liceses/dotink/releases
 >
 > *(Dot Ink: a 1-bit imaging standard — paper and ink only, tone expressed by dot area.
 > `r = rMax·√w` so ink area is proportional to tone. See [`STANDARD.md`](STANDARD.md).)*
