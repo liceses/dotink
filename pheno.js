@@ -473,10 +473,95 @@
     };
   }
 
+  /* ==========================================================================
+   * 01b · 克拉德尼「沙粒版」· PHENOMENA 01 —— **兑现字幕的那一版**
+   *   φ = cos(mπx)·cos(nπy) + α·cos(nπx)·cos(mπy)，沙沿 −∇|φ| 迁移
+   *   （字幕写"沙自己走到该在的地方"，所以必须真让沙走过去，而不是画一条算出来的节线带）
+   *
+   *   参数直接取自 lab-field4（里程碑 v0.3.1-phenomena-8-sand）的 simCHL()：
+   *     CH_N=3200 颗 · CH_SNAP=200 快照 · CH_STEP=12 子步 · CH_DRIFT=30 · CH_JITTER=1.0
+   *     模式扫 [[2,3],[3,5],[4,7],[5,6],[3,8]]，α 在每档里 +1 → −1（简并模的线性组合在拧）
+   *
+   *   ⚠ 两条来自 lab 的坑，照抄：
+   *     ① 漂移系数不能照搬"贝塞尔场"那套：方板 φ 的空间频率高一个量级，同样 8px 差分出来的
+   *        梯度大一截 —— 30 是实测标定值（mean|φ| 0.413 → 0.091，且密度图**成线**）；
+   *     ② 场必须**按快照**算：α 在连续漂，只按模式算就把"拧动"丢了。
+   *
+   *   落墨走**点列**（不是每格一份墨）：3200 颗各走各的，塞进网格会丢掉颗粒感。
+   *   返回 `(t) => Float32Array [x,y,r,…]`（CSS px），给 dotink 的 `pointsAt` 用。
+   *   构造成本 ≈ 3200×200×12 ≈ 7.7M 步（实测几百 ms），只在构造时付一次。
+   * ======================================================================== */
+  function sandChladniPoints(cols, rows, o) {
+    o = o || {};
+    const NX = cols, NY = rows, N = NX * NY;
+    const CW = o.cssW || 1280, CH = o.cssH || 720;
+    const PITCH = CW / NX;                                  /* 8px（配方）；漂移系数按它标定 */
+    const GRAINS = o.grains || 3200, SNAP = o.snaps || 200, STEP = o.substeps || 12;
+    const DRIFT = o.drift === undefined ? 30 : o.drift;
+    const JIT = o.jitter === undefined ? 1.0 : o.jitter;
+    const R = o.r === undefined ? 0.97 : o.r;                /* 颗粒半径（CSS px）≈ lab 的 1.45 设备px */
+    const SPAN = o.span || 12, LOOP = o.loop !== false;
+    const OUT = o.outScale === undefined ? 1 : o.outScale;   /* 缩略图用：把坐标缩到小画布 */
+    const MODES = o.modes || [[2, 3], [3, 5], [4, 7], [5, 6], [3, 8]];
+    const rnd = mulberry32(o.seed === undefined ? 11 : o.seed);
+
+    /* ① |φ| 场：200 张快照（模式在扫、α 在漂） */
+    const G = new Float32Array(SNAP * N);
+    for (let s = 0; s < SNAP; s++) {
+      const tt = s / (SNAP - 1) * MODES.length, k = Math.min(MODES.length - 1, tt | 0);
+      const m = MODES[k][0], n = MODES[k][1], a = 1 - 2 * (tt - k);
+      const base = s * N;
+      for (let j = 0; j < NY; j++) {
+        const y = (j + 0.5) / NY, cny = Math.cos(n * PI * y), cmy = Math.cos(m * PI * y);
+        for (let i = 0; i < NX; i++) {
+          const x = (i + 0.5) / NX;
+          G[base + j * NX + i] = Math.abs(Math.cos(m * PI * x) * cny + a * Math.cos(n * PI * x) * cmy);
+        }
+      }
+    }
+    /* ② 3200 颗沙：随机散在板上 → 每快照 12 子步沿 −∇|φ| 漂移 + 抖动 */
+    const px = new Float64Array(GRAINS), py = new Float64Array(GRAINS);
+    for (let i = 0; i < GRAINS; i++) { px[i] = rnd() * CW; py[i] = rnd() * CH; }
+    const PT = new Float32Array(SNAP * GRAINS * 2);
+    for (let s = 0; s < SNAP; s++) {
+      const base = s * N;
+      for (let i = 0; i < GRAINS; i++) { PT[(s * GRAINS + i) * 2] = px[i]; PT[(s * GRAINS + i) * 2 + 1] = py[i]; }
+      for (let st = 0; st < STEP; st++) {
+        for (let i = 0; i < GRAINS; i++) {
+          let gx = (px[i] / CW * NX) | 0, gy = (py[i] / CH * NY) | 0;
+          if (gx < 0) gx = 0; if (gy < 0) gy = 0;
+          if (gx > NX - 2) gx = NX - 2; if (gy > NY - 2) gy = NY - 2;
+          const c0 = G[base + gy * NX + gx];
+          const ax = (G[base + gy * NX + gx + 1] - c0) / PITCH;   /* 梯度按 CSS px（与 lab 同口径） */
+          const ay = (G[base + (gy + 1) * NX + gx] - c0) / PITCH;
+          px[i] += -ax * DRIFT + (rnd() - 0.5) * JIT;
+          py[i] += -ay * DRIFT + (rnd() - 0.5) * JIT;
+          if (px[i] < 0) px[i] = 0; if (py[i] < 0) py[i] = 0;
+          if (px[i] > CW) px[i] = CW; if (py[i] > CH) py[i] = CH;
+        }
+      }
+    }
+    const out = new Float32Array(GRAINS * 3);
+    return function (t) {
+      let u = t / SPAN;
+      u = LOOP ? u - Math.floor(u) : Math.min(1, Math.max(0, u));
+      const s = Math.min(SNAP - 1, Math.round(u * (SNAP - 1)));
+      const b = s * GRAINS * 2;
+      for (let i = 0; i < GRAINS; i++) {
+        out[i * 3] = PT[b + i * 2] * OUT;
+        out[i * 3 + 1] = PT[b + i * 2 + 1] * OUT;
+        out[i * 3 + 2] = R;
+      }
+      return out;
+    };
+  }
+
   global.DotInk = global.DotInk || {};
   global.DotInk.pheno = {
     chladni: chladni, sunflower: sunflower, deJong: deJong, grayScott: grayScott,
     dla: dla, kuramoto: kuramoto, bifurcation: bifurcation, interference: interference,
+    /* 01 的沙粒版（点列通道）—— 与 chladni 同一现象，落墨方式不同 */
+    sandChladniPoints: sandChladniPoints,
   };
-  global.DotInk.pheno.version = '1.0.0';
+  global.DotInk.pheno.version = '1.1.0';
 })(typeof window !== 'undefined' ? window : globalThis);

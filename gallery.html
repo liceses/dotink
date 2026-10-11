@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · 现象画廊</title>
+<style>
+  :root{
+    --ink:#0C0D0E; --paper:#F2F3F2; --mute:#5A5F61; --hair:#D2D6D5; --panel:#E4E7E6; --accent:#FF4B1F;
+    --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--f-d)}
+  header{border-bottom:2px solid var(--ink);padding:14px 20px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+  h1{margin:0;font-size:20px;letter-spacing:-.01em}
+  .lab{font:500 12px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  header .links{margin-left:auto;display:flex;gap:14px}
+  a{color:inherit}
+  main{display:grid;grid-template-columns:minmax(560px,1fr) 380px;gap:0;align-items:start}
+  @media (max-width:1180px){main{grid-template-columns:1fr}}
+  .stagewrap{padding:20px;border-right:2px solid var(--ink)}
+  @media (max-width:1180px){.stagewrap{border-right:0;border-bottom:2px solid var(--ink)}}
+  .stage{position:relative;border:2px solid var(--ink);background:var(--paper)}
+  .stage canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .headline{position:absolute;left:22px;bottom:18px;font:900 clamp(22px,3.2vw,44px)/1.05 var(--f-d);letter-spacing:-.02em;
+            background:var(--paper);padding:2px 12px 4px;border:2px solid var(--ink)}
+  .fml{position:absolute;left:24px;top:16px;font:500 12px/1.5 var(--f-m);color:var(--mute);
+       background:var(--paper);padding:4px 8px;border:1px solid var(--hair);max-width:60%}
+  .ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:14px}
+  .ctl label{display:flex;flex-direction:column;gap:3px;font:500 12px var(--f-m);color:var(--mute)}
+  input[type=range]{width:132px}
+  button,select{font:600 13px var(--f-d);padding:6px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:0;cursor:pointer}
+  button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+  aside{padding:20px}
+  .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .item{display:flex;gap:8px;align-items:center;text-align:left;padding:6px;border:2px solid var(--hair);background:var(--paper);cursor:pointer}
+  .item[aria-current=true]{border-color:var(--ink)}
+  .item canvas{width:56px;height:32px;display:block;border:1px solid var(--hair);image-rendering:pixelated}
+  .item b{font:700 13px/1.2 var(--f-d)}
+  .item span{display:block;font:500 10px/1.2 var(--f-m);color:var(--mute)}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}
+  th,td{border-bottom:1px solid var(--hair);padding:4px 6px;text-align:left}
+  th{font:500 11px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .kv{font:500 12px var(--f-m)}
+  .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
+  #zoom{width:240px;height:135px;border:2px solid var(--ink);image-rendering:pixelated;background:var(--paper)}
+  footer{border-top:2px solid var(--ink);padding:14px 20px;display:flex;gap:16px;flex-wrap:wrap;color:var(--mute)}
+  .note{font-size:12px;color:var(--mute);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>点墨 · 现象画廊</h1>
+  <span class="lab">Dot Ink · Gallery · 1-bit</span>
+  <div class="links lab">
+    <a href="STANDARD.md">标准</a><a href="README.md">包说明</a><a href="preview.html">判据计算器</a>
+  </div>
+</header>
+
+<main>
+  <div class="stagewrap">
+    <div class="stage" id="stage">
+      <canvas id="cv" width="1920" height="1080" style="aspect-ratio:16/9"></canvas>
+      <div class="fml" id="fml"></div>
+      <div class="headline" id="headline"></div>
+    </div>
+    <div class="ctl">
+      <label>点距
+        <select id="cell"><option>6</option><option selected>8</option><option>10</option><option>12</option><option>16</option></select>
+      </label>
+      <label>gain <input type="range" id="gain" min="20" max="300" value="100"><span class="kv" id="gainV">1.00</span></label>
+      <label>maxFrac <input type="range" id="mf" min="20" max="50" value="40"><span class="kv" id="mfV">0.40</span></label>
+      <label>映射 <button id="map" aria-pressed="false">r = rMax·w（线性·参考配方）</button></label>
+      <label>时间 <input type="range" id="scrub" min="0" max="1000" value="0"></label>
+      <label>播放 <button id="play" aria-pressed="true">播放中</button></label>
+      <label>1:1 放大镜 <canvas id="zoom" width="240" height="135"></canvas></label>
+    </div>
+    <div class="note">点距 8px = 160×90 = <b>14,400 格</b>（参考配方）。放大镜是**设备像素 1:1**：细节必须 1:1 看，缩略图既藏缺陷也造假缺陷。</div>
+  </div>
+
+  <aside>
+    <div class="lab">现象（9 项 · 含克拉德尼两种落墨）</div>
+    <div class="list" id="list"></div>
+
+    <div class="lab" style="margin-top:18px">本屏</div>
+    <table>
+      <tbody id="readout"></tbody>
+    </table>
+
+    <div class="lab" style="margin-top:18px">它为什么适合点墨</div>
+    <div id="why" style="font-size:13px"></div>
+    <div class="lab" style="margin-top:12px">公式 / 来源</div>
+    <div class="kv" id="src" style="font-size:12px"></div>
+  </aside>
+</main>
+
+<footer>
+  <span class="lab">出处：公式与来源见主库 lab/PHENOMENA.md 01–08；参考配方与对标件见 media/phenomena-8/SOURCE.md</span>
+  <span class="lab" style="margin-left:auto">离线 · 零外部请求 · 同一 t 两次逐像素一致</span>
+</footer>
+
+<script src="dotink.js"></script>
+<script src="pheno.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const W = 1280, H = 720, S = 1.5;
+
+  /* ── 九个条目：沙粒与节线是同一个现象的两种落墨方式（点列 / 网屏）──────────── */
+  const PHEN = [
+    { id: 'sand', name: '克拉德尼（沙粒）', tag: '点列 · 3200 颗',
+      fml: 'φ = cos(mπx)cos(nπy) + α·cos(nπx)cos(mπy)　沙沿 −∇|φ| 迁移',
+      src: 'Chladni 1787 · lab/PHENOMENA.md §01（沙粒版：lab-field4 里程碑 v0.3.1）',
+      why: '**兑现字幕**：字幕写"沙自己走到该在的地方"，所以真让 3200 颗沙沿 −∇|φ| 走过去 —— 腹点被甩起来、节线留下，α 一拧沙就跟着流。',
+      span: 12,
+      mk: (cols, rows, scale) => ({ pointsAt: DotInk.pheno.sandChladniPoints(cols, rows, { cssW: W, cssH: H, span: 12 }) }) },
+    { id: 'chladni', name: '克拉德尼（节线）', tag: '网屏 · 调幅',
+      fml: 'φ = cos(mπu)cos(nπv) + α·cos(nπu)cos(mπv)　节线 {|φ|<ε}',
+      src: 'Chladni 1787 · lab/PHENOMENA.md §01',
+      why: '节线本身就是墨线：**数一下就知道是哪个模**（m、n 是整数档，只能扫 α 与换模式，绝不能插值）。',
+      span: 18,
+      mk: (cols, rows) => ({ field: DotInk.pheno.chladni(cols, rows, { modes: [[4,3],[5,4],[3,5],[6,5]], eps: .22, period: 16 }) }) },
+    { id: 'sunflower', name: '向日葵', tag: '叶序 · 黄金角',
+      fml: 'r = c·√n　θ = n · 137.50776°',
+      src: 'Vogel 1979 · lab/PHENOMENA.md §02',
+      why: '34/55 两条旋臂**数得出来** —— 点阵正好承载叶序；θ 从 135° 扫到真黄金角，8 条直臂拧成螺旋密堆。',
+      span: 26,
+      mk: (cols, rows) => ({ field: DotInk.pheno.sunflower(cols, rows, { seeds: 2600, span: 26, fill: .46 }) }) },
+    { id: 'dejong', name: 'de Jong 吸引子', tag: '占用直方图',
+      fml: "x' = sin(a·y) − cos(b·x)　y' = sin(c·x) − cos(d·y)",
+      src: 'de Jong / Bourke · lab/PHENOMENA.md §03',
+      why: '**不是把点画上去**，是统计每格被穿过多少次 → 密度 → 点大小。两组参数在同一帧里各迭代一段（中间值会退化成两颗点，所以不能插值）。',
+      span: 30,
+      mk: (cols, rows) => ({ field: DotInk.pheno.deJong(cols, rows, { sets: [[1.641,1.902,.316,1.525],[1.4,-2.3,2.4,-2.1]], span: 30, iter: 60000 }) }) },
+    { id: 'grayscott', name: 'Gray-Scott 斑图', tag: '反应扩散',
+      fml: '∂u/∂t = Du∇²u − u·v² + F(1−u)　∂v/∂t = Dv∇²v + u·v² − (F+k)v',
+      src: 'Pearson 1993 · lab/PHENOMENA.md §04',
+      why: '**两种东西互相喂**：孤立斑点 → 吞并 → 满幅迷宫。(F,k) 一旦落进稳定区画面就死了 —— 参考值 F .042 / k .061。',
+      span: 36,
+      mk: (cols, rows) => ({ field: DotInk.pheno.grayScott(cols, rows, { F: .042, k: .061, steps: 1600, every: 10, warm: 150, span: 36 }) }) },
+    { id: 'dla', name: '扩散限制凝聚', tag: '随机游走',
+      fml: '随机行走的粒子碰到团簇就粘住',
+      src: 'Witten & Sander 1981 · lab/PHENOMENA.md §05',
+      why: '**屏蔽效应**让内枝被饿死，只留下外缘在长 —— 分维度看得见。',
+      span: 44,
+      mk: (cols, rows) => ({ field: DotInk.pheno.dla(cols, rows, { particles: 2600, seed: 11, span: 44 }) }) },
+    { id: 'kuramoto', name: 'Kuramoto 同步', tag: '相位环',
+      fml: 'dθᵢ/dt = ωᵢ + (K/N)·Σ sin(θⱼ − θᵢ)',
+      src: 'Kuramoto 1975 · lab/PHENOMENA.md §06',
+      why: '散相时是一片**沙沙响的细环**，锁相时收成一束**刚性旋转** —— 第一版做成"仪表盘"被打回，现在是纯视觉。',
+      span: 46,
+      mk: (cols, rows) => ({ field: DotInk.pheno.kuramoto(cols, rows, { K: 3.2, steps: 700, every: 5, seed: 7, span: 46 }) }) },
+    { id: 'bifurcation', name: '倍周期分叉', tag: 'Feigenbaum',
+      fml: 'xₙ₊₁ = r · xₙ · (1 − xₙ)',
+      src: 'Feigenbaum 1978 · lab/PHENOMENA.md §07',
+      why: '主干 → 一分为二 → 级联 → **混沌海与白窗**。不做"缩放看自相似"：深层是 Cantor 尘，拉起来像条形码。',
+      span: 24,
+      mk: (cols, rows) => ({ field: DotInk.pheno.bifurcation(cols, rows, { bins: 512, rHi: 3.9995, period: 24 }) }) },
+    { id: 'interference', name: '两源干涉', tag: '同心波 + 双曲线',
+      fml: 'A = Σᵢ sin(k·rᵢ − ωᵢt)/√rᵢ',
+      src: 'lab/PHENOMENA.md §08',
+      why: '**波在动，条纹不动**；两源分开 → 条纹变密。零模拟、零随机、纯解析 —— 用 6px 点距才分辨得出条纹。',
+      span: 24,
+      mk: (cols, rows) => ({ field: DotInk.pheno.interference(cols, rows, { lam: .056, d0: .07, d1: .48, period: 24, omega: 1.2 }) }) },
+  ];
+
+  const st = { i: 0, cell: 8, gain: 1, mf: .40, areaMap: false, playing: true, t: 0, inst: null, judgeAt: 0, ms: 0 };
+  /* 默认**线性**半径：参考配方（lab-field4）就是线性，而 pheno.js 的场自带 gamma 0.5–0.6 标定 ——
+     半径映射要和"场自带的 gamma"配对（见 STANDARD §3）：场已做感知标定 → 线性；
+     场是物理量原样（覆盖率/密度）→ √ 才让调子线性。按钮可随时 A/B。 */
+
+  function buildThumb(p) {
+    const c = document.createElement('canvas');
+    c.width = 56 * 1.5; c.height = 32 * 1.5;
+    try {
+      if (p.id === 'sand') {
+        const fn = DotInk.pheno.sandChladniPoints(40, 23, { cssW: 160, cssH: 90, grains: 900, snaps: 60, substeps: 8, span: 12, r: .6 });
+        const src = fn(9);
+        const pts = new Float32Array(src.length);
+        for (let k = 0; k < src.length; k += 3) { pts[k] = src[k] * 56 / 160; pts[k + 1] = src[k + 1] * 32 / 90; pts[k + 2] = .6; }
+        DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 40, rows: 23, cell: 1.4, hud: false, shutter: 0, pointsAt: () => pts });
+      } else {
+        /* 缩略图是"辨识用"，不是微缩：格子必须**粗**、点必须**大**，才读得成图案
+           （按 8px 配方微缩到 56px 只会糊成黑块 —— 实测过两轮） */
+        const g = p.mk(16, 9);
+        DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9, cell: 3.5, hud: false, shutter: 0, gain: .9, maxFrac: .30, areaMap: false, field: g.field });
+      }
+    } catch (e) { /* 缩略图失败不影响画廊 */ }
+    return c;
+  }
+
+  function buildList() {
+    const box = $('list');
+    box.innerHTML = '';
+    PHEN.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.className = 'item';
+      b.setAttribute('aria-current', String(i === st.i));
+      const c = buildThumb(p);
+      const d = document.createElement('div');
+      d.innerHTML = '<b>' + (i + 1) + '. ' + p.name + '</b><span>' + p.tag + '</span>';
+      b.appendChild(c); b.appendChild(d);
+      b.addEventListener('click', () => select(i));
+      box.appendChild(b);
+    });
+  }
+
+  /* 只留当前这一张实例：每个 1280×720 实例约 16MB 缓冲，多了会把浏览器拖死（实测 30s/帧） */
+  function select(i) {
+    st.i = i; st.t = 0; st.inst = null;
+    const cv = $('cv');
+    cv.width = cv.height = 0;                       /* 释放上一张的缓冲 */
+    const p = PHEN[i];
+    const cell = st.cell;
+    const cols = Math.round(W / cell), rows = Math.round(H / cell);
+    cv.width = W * S; cv.height = H * S;
+    const g = p.mk(cols, rows);
+    st.inst = DotInk.create(Object.assign({
+      canvas: cv, cssW: W, cssH: H, scale: S, cols: cols, rows: rows, cell: cell,
+      gain: st.gain, maxFrac: st.mf, areaMap: st.areaMap,
+      hud: false, caption: null, shutter: 0, duration: p.span,
+    }, g));
+    $('headline').textContent = p.name.replace(/（.*?）/, '');
+    $('fml').textContent = p.fml;
+    $('why').innerHTML = p.why;
+    $('src').textContent = p.src;
+    document.querySelectorAll('.item').forEach((el, k) => el.setAttribute('aria-current', String(k === i)));
+    /* 从"有内容的时刻"起播：这些现象在 t≈0 本来就很稀（沙还没走到节线、DLA 才一颗种子），
+       画廊的首屏要给到它成立的样子；想看稀薄期就拖时间轴。 */
+    st.t = p.t0 === undefined ? p.span * 0.6 : p.t0;
+    $('scrub').value = Math.round(st.t / p.span * 1000);
+    drawOnce();
+  }
+
+  function rebuild() {                                  /* 改点距/gain/maxFrac/映射 → 重建 */
+    const keepT = st.t;
+    select(st.i);
+    st.t = keepT; drawOnce();
+  }
+
+  function drawOnce() {
+    if (!st.inst) return;
+    const t0 = performance.now();
+    st.inst.draw(st.t);
+    st.ms = performance.now() - t0;
+    const z = $('zoom').getContext('2d');
+    z.imageSmoothingEnabled = false;
+    z.drawImage($('cv'), 60, 40, 240, 135, 0, 0, 240, 135);   /* 设备像素 1:1 */
+    if (performance.now() - st.judgeAt > 500) { st.judgeAt = performance.now(); readout(); }
+  }
+
+  function readout() {
+    let j;
+    try { j = st.inst.judge(); } catch (e) { return; }
+    const m = j.measures, rows = [];
+    const pr = m.pitchRatioMedian;
+    const isPoints = !!(st.inst.opts && st.inst.opts.pointsAt);
+    /* 三种模式分开判（见 STANDARD §4）：M1 网点 / M2 面场 / M3 结构线刻 —— 拿 M1 的 3:1 去卡 M2 是错的 */
+    const mode = isPoints ? 'M3' : (m.coverage >= .08 ? 'M2' : 'M1');
+    const modeRule = { M1: 'M1 网点：≥3:1 点才读得成点', M2: 'M2 面场：不卡 3:1（覆盖率 ≥8%）', M3: 'M3 线刻：看结构处局部覆盖率 + 1:1' }[mode];
+    const modeOk = mode === 'M1' ? (pr && pr >= 3) : (mode === 'M2' ? m.coverage >= .08 : null);
+    rows.push(['模式', mode, modeRule, modeOk === null ? '' : (modeOk ? 'ok' : 'bad')]);
+    /* 勾线型（M3）**不能**拿整屏覆盖率判死 —— 墨集中在结构上，整屏本来就只有 1–5% */
+    rows.push(['覆盖率（整屏）', (m.coverage * 100).toFixed(2) + '%',
+      mode === 'M3' ? '勾线型：只作参考（要量结构处局部）' : '铺面 ≥8% / 勾线看局部',
+      mode === 'M3' ? (m.coverage >= .002 ? '' : 'bad') : (m.coverage >= .08 ? 'ok' : (m.coverage >= .01 ? '' : 'bad'))]);
+    rows.push(['点距 : 点径（中位）', pr ? pr.toFixed(2) + ':1' : '—（点列通道）', 'M1 要 ≥3:1', mode === 'M1' ? (pr >= 3 ? 'ok' : 'bad') : '']);
+    rows.push(['点数 / 格数', m.points + ' / ' + (st.inst.cols * st.inst.rows), '点距 ' + m.cell.toFixed(1) + 'px · 满墨点径 ' + (m.rMax * 2).toFixed(1) + 'px', '']);
+    rows.push(['单帧耗时', st.ms.toFixed(1) + ' ms', '主线程占用', st.ms < 40 ? 'ok' : 'bad']);
+    rows.push(['1-bit', '无灰阶', 'compose() 保证非墨即纸', 'ok']);
+    $('readout').innerHTML = rows.map(r => '<tr><td>' + r[0] + '</td><td class="kv">' + r[1] + '</td><td class="kv">' + r[2] + '</td><td class="' + r[3] + '">' + (r[3] === 'ok' ? '✓' : r[3] === 'bad' ? '✗' : '·') + '</td></tr>').join('');
+  }
+
+  /* ── 交互 ───────────────────────────────────────────────────────────── */
+  $('cell').addEventListener('change', e => { st.cell = +e.target.value; rebuild(); });
+  $('gain').addEventListener('input', e => { st.gain = +e.target.value / 100; $('gainV').textContent = st.gain.toFixed(2); rebuild(); });
+  $('mf').addEventListener('input', e => { st.mf = +e.target.value / 100; $('mfV').textContent = st.mf.toFixed(2); rebuild(); });
+  $('map').addEventListener('click', e => {
+    st.areaMap = !st.areaMap;
+    e.currentTarget.setAttribute('aria-pressed', String(st.areaMap));
+    e.currentTarget.textContent = st.areaMap ? 'r = rMax·√w（面积映射）' : 'r = rMax·w（线性·参考配方）';
+    rebuild();
+  });
+  $('play').addEventListener('click', e => {
+    st.playing = !st.playing;
+    e.currentTarget.setAttribute('aria-pressed', String(st.playing));
+    e.currentTarget.textContent = st.playing ? '播放中' : '已暂停';
+  });
+  $('scrub').addEventListener('input', e => { st.t = +e.target.value / 1000 * PHEN[st.i].span; st.playing = false; $('play').setAttribute('aria-pressed', 'false'); $('play').textContent = '已暂停'; drawOnce(); });
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = (now - last) / 1000; last = now;
+    if (st.playing && st.inst) {
+      st.t += dt;
+      const span = PHEN[st.i].span;
+      if (st.t > span) st.t -= span;
+      $('scrub').value = Math.round(st.t / span * 1000);
+      drawOnce();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  buildList();
+  select(0);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

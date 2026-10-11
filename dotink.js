@@ -64,6 +64,10 @@
 
     /* 场：函数 (i, cx, cy, t) => 0..1，或 {v: Float32Array}，或 Float32Array */
     field: null,
+    /* 逐帧**点列**通道（与 field 互斥，优先级更高）：`(t) => Float32Array [x,y,r, x,y,r, …]`，
+       x/y/r 全是 CSS px。给"粒子 / 沙粒"这类装置用 —— 颗粒各走各的，硬塞进网格会丢掉颗粒感
+       （lab-field4 的 01 沙粒就是这么画的：3200 颗，颗粒半径 1.45 设备px ≈ 0.97 CSS px）。 */
+    pointsAt: null,
     /* 静的位/覆盖场：由 fields.* 构造器产出 */
     duration: 12,
     shutter: 1 / 28,       /* 运动模糊：两帧叠（t 与 t−shutter）。0 = 关 */
@@ -344,6 +348,17 @@
     let ptsDrawn = 0;
     function paint(t) {
       ptsDrawn = 0;
+      /* 点列通道（沙粒/粒子）：不走网格，直接按 (x,y,r) 落墨 —— 颗粒感才留得住 */
+      if (typeof o.pointsAt === 'function') {
+        const P = o.pointsAt(t);
+        if (P) {
+          for (let k = 0; k + 2 < P.length; k += 3) {
+            const r = P[k + 2];
+            if (r > 0) { dot(P[k], P[k + 1], r); ptsDrawn++; }
+          }
+        }
+        return;
+      }
       const gl = o.glyph;
       for (let cy = 0; cy < ROWS; cy++) {
         for (let cx = 0; cx < COLS; cx++) {
@@ -449,6 +464,9 @@
         pitchRatioMedian: pitchRatio,                        /* 该屏中位点径下的 点距:点径 */
         coverage: cover,                                     /* 全画布墨量占比 */
         points: ptsDrawn,
+        /* 没有 regions 时也要给 null —— 曾经不给，judge() 里 `!== null` 判成"有值"，
+           于是在 undefined 上调 .toFixed 抛错（画廊的判据面板因此整块空白）。 */
+        decoVsInfo: null,
       };
       if (o.regions) {
         const sum = rs2 => rs2.reduce((a, r) => a + countIn(r), 0);
@@ -494,7 +512,7 @@
       add('点径上限 ≤ 点距/2', (RMAX * 2) <= CELL + 1e-6, (RMAX * 2).toFixed(2) + '/' + CELL.toFixed(2) + 'px', 'maxFrac ≤ 0.5');
       add('覆盖率（当"面"用）', m.coverage >= 0.08, (m.coverage * 100).toFixed(2) + '%', '≥8%');
       add('覆盖率（看不见的下限）', m.coverage >= 0.02, (m.coverage * 100).toFixed(2) + '%', '≥2%（实测 1.4% 看不见）');
-      if (m.decoVsInfo !== null) add('装饰墨:信息墨', m.decoVsInfo <= 1.0,
+      if (m.decoVsInfo !== null && m.decoVsInfo !== undefined) add('装饰墨:信息墨', m.decoVsInfo <= 1.0,
         m.decoVsInfo.toFixed(2) + ':1', '≤1:1（目标 ≤0.33:1）');
       return { measures: m, checks: J, pass: J.every(x => x.ok !== false) };
     }
@@ -551,7 +569,7 @@
   /* 导出用**加法式**，不要整体赋值：整体赋值会把后加载/预挂的其它件冲掉
      （踩过：pheno.js 在 dotink.js 之后加载时，DotInk.pheno 会被这一行抹掉）。 */
   global.DotInk = Object.assign(global.DotInk || {}, {
-    version: '1.0.0',
+    version: '1.1.0',
     create: create, host: host, fields: fields,
     DEFAULTS: DEFAULTS, discMax: DISC_MAX,
     /* 标准里的公式单独导出，便于测试与对照 */
