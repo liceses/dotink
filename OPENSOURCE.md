@@ -132,14 +132,25 @@ git add -- dotink && git commit -m "..."
 git branch -D dotink-standalone
 git subtree split -P dotink -b dotink-standalone
 
-# 3) 推（新仓无协作者 → 可强推；有协作者后改用 PR 流程）
-git push --force https://github.com/liceses/dotink.git dotink-standalone:main
+# 3) 推 —— **先验是不是 fast-forward**（2026-10-12 实测补的一条）
+#    远端与本地 dotink-standalone 同步时，subtree split 会**复现同一批 SHA**，
+#    新 split 以远端那个提交为祖先 → 普通 push 就行，**不需要 --force**。
+git ls-remote https://github.com/liceses/dotink.git refs/heads/main    # 记下远端 SHA
+git merge-base --is-ancestor <远端SHA> dotink-standalone
+#   退出码 0  → 是祖先，走下面这条普通 push（1.5.0 / 1.6.0 两次都是这样推的）
+git push https://github.com/liceses/dotink.git dotink-standalone:main
+#   退出码非 0 → 远端被人动过 / split 方式变了，**先搞清楚为什么**再决定要不要强推
+# git push --force https://github.com/liceses/dotink.git dotink-standalone:main
 
 # 4) 成片更新了 → 补 Release 附件（GitHub 会自己算 sha256，可与 MANIFEST 对）
+#    ⚠ **媒体没动就不要新开 release**：新开一个不带附件的 release，会让
+#      /releases/latest 变成"点进去没有东西可下"（README 里"成片（Release 附件）"那条就落空）。
+#      1.5.0 / 1.6.0 两次都只推了代码，Release 停在 v1.4.0。
 gh release upload v1.4.0 --repo liceses/dotink dotink/media/_release/*.mp4 --clobber
 ```
 
 **已发布**：https://github.com/liceses/dotink（public · `main`）· 成片：https://github.com/liceses/dotink/releases/tag/v1.4.0
+· 代码版本跟 `package.json` 走（当前 **1.6.0**）；Release 只在**媒体变了**时才新开。
 
 ---
 

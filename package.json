@@ -1,12 +1,28 @@
 {
   "name": "dotink",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "点墨 · 1-bit 成像标准与参考实现 + 现象画廊 + 厂标墙 + 字版厂标 + 即插即用 logo 组件 + hero 示例",
   "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks", "typeplate", "logo-overlay", "hero"],
   "license": "MIT",
   "type": "commonjs",
   "main": "dotink.js",
-  "files": ["dotink.js", "pheno.js", "gallery.html", "hero.html", "marks.html", "marks-type.html", "marks.js", "markplate.js", "logo.js", "logo-demo.html", "icon.html", "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png", "tools", "STANDARD.md", "SKILL.md", "NOTICE.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
+  "exports": {
+    ".": "./dotink.js",
+    "./pheno.js": "./pheno.js",
+    "./marks.js": "./marks.js",
+    "./markplate.js": "./markplate.js",
+    "./logo.js": "./logo.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dotink.js", "pheno.js",
+    "gallery.html", "hero.html", "preview.html", "marks.html", "marks-type.html", "logo-demo.html", "icon.html",
+    "marks.js", "markplate.js", "logo.js",
+    "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png",
+    "tools", "check", "docs", "demo",
+    "media/*.png", "media/*.gif", "media/*.mp4", "media/phenomena-8",
+    "STANDARD.md", "SKILL.md", "NOTICE.md", "README.md", "CHANGELOG.md", "LICENSE"
+  ],
   "scripts": {
     "gallery": "node -e \"console.log('open gallery.html in a browser')\"",
     "hero": "node -e \"console.log('open hero.html in a browser')\"",
@@ -14,7 +30,8 @@
     "marks-type": "node -e \"console.log('open marks-type.html in a browser')\"",
     "logo": "node -e \"console.log('open logo-demo.html in a browser')\"",
     "preview": "node -e \"console.log('open preview.html in a browser')\"",
-    "check": "node --test check/core.mjs && node tools/check-links.mjs"
+    "check": "node --test check/core.mjs && node tools/check-links.mjs",
+    "prepublishOnly": "npm run check"
   },
   "private": false
 }

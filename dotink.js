@@ -14,19 +14,11 @@
 (function (global) {
   'use strict';
 
-  /* ── 圆盘偏移表：DISC[r] = [dx,dy, dx,dy, …]（设备像素偏移，绘制时乘 DW） ── */
-  const DISC_MAX = 64;
-  const DISC = (function () {
-    const out = [null];
-    for (let r = 1; r <= DISC_MAX; r++) {
-      const p = [];
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r) p.push(dx, dy);
-      }
-      out.push(p);
-    }
-    return out;
-  })();
+  /* ── 点径：**解析圆盘**（不做整数取整） ──
+     曾经用一张 DISC[r] 偏移表按整数半径查 —— 于是 r=1.108 与 r=0.940 都落进 DISC[1]，
+     画出来**逐像素完全相同**：cell 8 / maxFrac 0.40 / scale 1 下整条调子只剩 **4 个层次**
+     （而 §14 的参考配方写的是「0..3.2px 连续调幅」）。
+     现在改成像素中心判**真半径**，层次数跟着半径连续走 —— 见 dot()。 */
 
   /* ── 可复现伪随机（渲染路径禁 Math.random） ── */
   function mulberry32(seed) {
@@ -258,19 +250,26 @@
       }
     };
 
-    const dot = (function () {
-      return function (cx, cy, r) {
-        const x = Math.round(cx * S), y = Math.round(cy * S);
-        if (x < 0 || y < 0 || x >= DW || y >= DH) return;
-        let rr = Math.round(r * S); if (rr < 1) rr = 1; if (rr > DISC_MAX) rr = DISC_MAX;
-        const ed = Math.min(x, y, DW - 1 - x, DH - 1 - y); if (rr > ed) rr = ed; if (rr < 1) return;
-        const p = DISC[rr];
-        for (let i = 0; i < p.length; i += 2) {
-          const t = ((y + p[i + 1]) * DW + (x + p[i])) * 4;
+    /* 解析圆盘：**像素中心落在真半径内**才算墨（旧版是 `Math.round(r·S)` 查整数表，
+       那会把 0.06→0.165 这么宽的一段场值压成同一个点径 —— 调幅就断了）。
+       包围盒按 ceil(rf) 走，再按画布边界收窄；半径本身不设上限（clamp 到边界即可）。 */
+    const dot = function (cx, cy, r) {
+      const x = Math.round(cx * S), y = Math.round(cy * S);
+      if (x < 0 || y < 0 || x >= DW || y >= DH) return;
+      const rf = r * S;
+      if (!(rf > 0)) return;
+      const r2 = rf * rf;
+      const ed = Math.min(x, y, DW - 1 - x, DH - 1 - y);
+      let lim = Math.ceil(rf); if (lim > ed) lim = ed; if (lim < 0) return;
+      for (let dy = -lim; dy <= lim; dy++) {
+        const dy2 = dy * dy, base = (y + dy) * DW;
+        for (let dx = -lim; dx <= lim; dx++) {
+          if (dx * dx + dy2 > r2) continue;
+          const t = (base + x + dx) * 4;
           PX[t] = INK[0]; PX[t + 1] = INK[1]; PX[t + 2] = INK[2]; PX[t + 3] = 255;
         }
-      };
-    })();
+      }
+    };
 
     /* ── 字形（可选）：字是**实墨**，不是网点。只在 glyph 模式用 ── */
     const RC = new Map();
@@ -515,20 +514,93 @@
       return { t: t, draws: draws, points: ptsDrawn };
     }
 
-    /* 标准自检：把判据一次报全（preview 与片体都用它） */
-    function judge(t) {
+    /* ── 1-bit 的**实测**：把画布读回来，数既不是墨也不是纸的像素 ──
+       旧版这一行是写死的 `true`（文案"compose() 保证"）—— 那不是判据，是信念：
+       标准 §7-1 警告的"DOM 覆盖层被拍进帧"它抓不到，画布内部的破功也抓不到。
+       现在真数。代价是一次 `getImageData`（约 2M 像素），所以留了 `pixels:false` 的口子。 */
+    function countNonBinary() {
+      const d = CTX.getImageData(0, 0, DW, DH).data;
+      let bad = 0; const kinds = new Set();
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        if ((r === INK[0] && g === INK[1] && b === INK[2]) ||
+            (r === PAPER[0] && g === PAPER[1] && b === PAPER[2])) continue;
+        bad++;
+        if (kinds.size < 6) kinds.add(r + ',' + g + ',' + b);
+      }
+      return { bad: bad, kinds: kinds.size };
+    }
+
+    /* 模式推断：**M1/M2/M3 是互斥体裁**（STANDARD §4），只能挑一个当门禁。
+       auto = 点读得成点（中位比 ≥3:1）→ M1；否则按"点当面用" → M2。
+       ⚠ 结构型画面（节线 / 枝 / 条纹，整区覆盖率天然 2–5%）**必须显式传 `mode:'M3'`** ——
+         auto 不会替你把"太稀"解释成"勾线"（那样 pass 又会变成没意义）。 */
+    function autoMode(m) {
+      return (m.pitchRatioMedian !== null && m.pitchRatioMedian >= 3) ? 'M1' : 'M2';
+    }
+
+    /* 标准自检：把判据一次报全，但 **pass 只算当前模式的门禁行**。
+       旧版把 M1 与 M2 同时当硬门禁 —— 做网点的画必然卡覆盖率、做面场的画必然卡 3:1，
+       于是 pass 实践上恒为 false（实测 11 种真实用法 9 种报"不过"，连 README 自己的示例都不过）。
+       返回：`{ mode, modes, measures, checks, failed, untested, pass }`；
+       `checks[].gate === false` 的是参考行，不计入 pass。 */
+    function judge(t, opts) {
+      opts = opts || {};
       const m = measure();
+      const MODES = ['M1', 'M2', 'M3'];
+      let mode = opts.mode || o.mode || 'auto';
+      if (mode === 'auto') mode = autoMode(m);
+      if (MODES.indexOf(mode) < 0) mode = 'M2';
+
       const J = [];
-      const add = (name, ok, val, rule) => J.push({ name: name, ok: ok, value: val, rule: rule });
-      add('1-bit 无灰阶', true, 'compose() 保证', '硬');
-      add('点距:点径（中位）', m.pitchRatioMedian === null ? null : m.pitchRatioMedian >= 3,
-        m.pitchRatioMedian === null ? 'n/a' : m.pitchRatioMedian.toFixed(2) + ':1', '≥3:1（网点模式）');
-      add('点径上限 ≤ 点距/2', (RMAX * 2) <= CELL + 1e-6, (RMAX * 2).toFixed(2) + '/' + CELL.toFixed(2) + 'px', 'maxFrac ≤ 0.5');
-      add('覆盖率（当"面"用）', m.coverage >= 0.08, (m.coverage * 100).toFixed(2) + '%', '≥8%');
-      add('覆盖率（看不见的下限）', m.coverage >= 0.02, (m.coverage * 100).toFixed(2) + '%', '≥2%（实测 1.4% 看不见）');
-      if (m.decoVsInfo !== null && m.decoVsInfo !== undefined) add('装饰墨:信息墨', m.decoVsInfo <= 1.0,
-        m.decoVsInfo.toFixed(2) + ':1', '≤1:1（目标 ≤0.33:1）');
-      return { measures: m, checks: J, pass: J.every(x => x.ok !== false) };
+      const add = (name, ok, val, rule, gate) => J.push({ name: name, ok: ok, value: val, rule: rule, gate: gate !== false });
+      const pr = m.pitchRatioMedian;
+      const ratioTxt = pr === null ? 'n/a' : pr.toFixed(2) + ':1';
+      const covTxt = (m.coverage * 100).toFixed(2) + '%';
+
+      /* 通用（三种模式都硬） */
+      if (opts.pixels === false || !draws) {
+        add('1-bit 无灰阶', null, draws ? '未测（pixels:false）' : '未测（还没 draw）', '硬', true);
+      } else {
+        const nb = countNonBinary();
+        add('1-bit 无灰阶', nb.bad === 0,
+          nb.bad === 0 ? '0 / ' + (DW * DH) + ' px' : nb.bad + ' px（' + nb.kinds + ' 种色）', '硬', true);
+      }
+      add('点径上限 ≤ 点距', (RMAX * 2) <= CELL + 1e-6, (RMAX * 2).toFixed(2) + '/' + CELL.toFixed(2) + 'px', 'maxFrac ≤ 0.5', true);
+      if (m.decoVsInfo !== null && m.decoVsInfo !== undefined) {
+        add('装饰墨:信息墨', m.decoVsInfo <= 1.0, m.decoVsInfo.toFixed(2) + ':1', '≤1:1（目标 ≤0.33:1）', true);
+      }
+
+      /* 按模式（§4：三种体裁的判据不同，别混） */
+      if (mode === 'M1') {
+        add('点距:点径（中位）', pr === null ? null : pr >= 3, ratioTxt, '≥3:1（网点：点要读成点）', true);
+        /* §4 的「点径 < 点距/2」说的是**实际（中位）**点径，不是满墨值 ——
+           满墨那一条是"硬上限 maxFrac ≤ 0.5"，已经在上面的通用门禁里。
+           而"中位比 ≥3:1"本身就蕴含"中位点径 ≤ 点距/3 < 点距/2"，所以这里只报数。 */
+        add('点径 < 点距/2（中位）', null,
+          pr === null ? 'n/a' : (CELL / pr).toFixed(2) + '/' + (CELL / 2).toFixed(2) + 'px',
+          '参考（中位比 ≥3:1 已蕴含）', false);
+        add('区域覆盖率', null, covTxt, '参考（M1 不看覆盖率）', false);
+      } else if (mode === 'M2') {
+        add('区域覆盖率 ≥ 8%', m.coverage >= 0.08, covTxt, '≥8%（面场：点当面用）', true);
+        add('区域覆盖率 ≤ 55%', m.coverage <= 0.55, covTxt, '≤55%（糊成一堵墙的天花板）', true);
+        add('点距:点径（中位）', null, ratioTxt, '参考（M2 不卡 3:1）', false);
+      } else {
+        /* M3 的阈值在标准里是**待标定**（§4），所以这里只放一道"别是全纸"的地板 ——
+           真正的判断是"结构处局部覆盖率 + 1:1 看一眼"，不能拿 M2 的 8% 去卡它
+           （画廊 01 沙粒版整区只有 0.51%，但节线看得清清楚楚）。 */
+        add('区域覆盖率 > 0.2%', m.coverage > 0.002, covTxt, '只防"整屏全纸"；M3 的局部阈值待标定，必须 1:1 看', true);
+        add('点距:点径（中位）', null, ratioTxt, '参考（M3 看结构处局部覆盖率 + 1:1）', false);
+      }
+
+      const gates = J.filter(x => x.gate);
+      const failed = gates.filter(x => x.ok === false).map(x => x.name);
+      const untested = gates.filter(x => x.ok === null || x.ok === undefined).map(x => x.name);
+      return {
+        mode: mode, modes: MODES, measures: m, checks: J,
+        failed: failed, untested: untested,
+        pass: failed.length === 0 && untested.length === 0,
+      };
     }
 
     return {
@@ -584,9 +656,9 @@
   /* 导出用**加法式**，不要整体赋值：整体赋值会把后加载/预挂的其它件冲掉
      （踩过：pheno.js 在 dotink.js 之后加载时，DotInk.pheno 会被这一行抹掉）。 */
   global.DotInk = Object.assign(global.DotInk || {}, {
-    version: '1.5.0',
+    version: '1.6.0',
     create: create, host: host, fields: fields,
-    DEFAULTS: DEFAULTS, discMax: DISC_MAX,
+    DEFAULTS: DEFAULTS,
     /* 标准里的公式单独导出，便于测试与对照 */
     radius: function (v, cell, maxFrac, areaMap, gain) {
       const w = Math.min(1, (v || 0) * (gain === undefined ? 1 : gain));
@@ -594,6 +666,13 @@
       const rMax = (maxFrac === undefined ? 0.48 : maxFrac) * cell;
       return (areaMap === false) ? rMax * w : rMax * Math.sqrt(w);
     },
-    _disc: DISC, _mulberry32: mulberry32,
+    /* 圆盘偏移表已删（点径改解析圆盘，见 dot()）：`discMax` / `_disc` 不再导出。
+       保留一个最小偏移表给需要"整数半径圆盘"的调用方自己用。 */
+    discOffsets: function (r) {
+      const ri = Math.max(1, Math.round(r)), p = [];
+      for (let dy = -ri; dy <= ri; dy++) for (let dx = -ri; dx <= ri; dx++) if (dx * dx + dy * dy <= ri * ri) p.push(dx, dy);
+      return p;
+    },
+    _mulberry32: mulberry32,
   });
 })(typeof window !== 'undefined' ? window : this);

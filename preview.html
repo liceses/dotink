@@ -140,30 +140,39 @@
 
   function fmt(x, n) { return (x === null || x === undefined || !isFinite(x)) ? '—' : x.toFixed(n === undefined ? 2 : n); }
 
+  /* judge() 现在会**真读画布像素**数 1-bit（约 2M 像素一次）—— 不能每帧跑，节流到 ~4/s */
+  let lastJudge = 0, jCache = null;
+
   function tick() {
     const playing = $('play').getAttribute('aria-pressed') === 'true';
     const t = playing ? ((performance.now() - t0) / 1000 % 21) : 6.0;
     A.draw(t); B.draw(t);
 
-    const ja = A.judge(), ma = ja.measures;
+    const nowMs = performance.now();
+    if (!jCache || nowMs - lastJudge > 250) { jCache = A.judge(); lastJudge = nowMs; }
+    const ja = jCache, ma = ja.measures;
     $('aInfo').textContent = '点距 ' + fmt(ma.cell) + 'px · 中位点径 ' + fmt(ma.pitchRatioMedian ? ma.cell * S / ma.pitchRatioMedian : null, 1) + 'px · 覆盖 ' + fmt(ma.coverage * 100) + '%';
-    $('bInfo').textContent = '点距 ' + fmt(B.measures.cell) + 'px · 覆盖 ' + fmt(B.measures.coverage * 100) + '%';
+    /* ⚠ 这里原来写的是 `B.measures` —— `measure` 是**函数**不是属性，于是 tick() 一进来就
+       抛 TypeError，判据表**从来没填过**（页面看着"有表头没内容"）。改成真调一次。 */
+    const mb = B.measure();
+    $('bInfo').textContent = '点距 ' + fmt(mb.cell) + 'px · 覆盖 ' + fmt(mb.coverage * 100) + '%';
 
     const tb = $('checks').querySelector('tbody');
     tb.innerHTML = '';
+    /* 标出哪几行是**门禁**（`gate === false` 的是参考行，不计入 pass）——
+       旧版把 M1 的 3:1 与 M2 的 8% 同时当硬门禁，pass 实践上恒为 false */
     for (const c of ja.checks) {
       const tr = document.createElement('tr');
       const cls = c.ok === false ? 'bad' : (c.ok === true ? 'ok' : '');
-      tr.innerHTML = '<td>' + c.name + '</td><td class="kv">' + c.value + '</td><td class="kv">' + c.rule + '</td><td class="' + cls + '">' + (c.ok === false ? '✗' : c.ok === true ? '✓' : '·') + '</td>';
+      tr.innerHTML = '<td>' + c.name + (c.gate === false ? ' <span class="kv">参考</span>' : '') + '</td>' +
+        '<td class="kv">' + c.value + '</td><td class="kv">' + c.rule + '</td>' +
+        '<td class="' + cls + '">' + (c.ok === false ? '✗' : c.ok === true ? '✓' : '·') + '</td>';
       tb.appendChild(tr);
     }
-    if (ma.decoVsInfo !== null && ma.decoVsInfo !== undefined) {
-      const tr = document.createElement('tr');
-      const bad = ma.decoVsInfo > 1;
-      tr.innerHTML = '<td>装饰墨 : 信息墨（本屏实测）</td><td class="kv">' + fmt(ma.decoVsInfo) + ':1</td><td class="kv">≤1:1（目标 ≤0.33:1）</td><td class="' + (bad ? 'bad' : 'ok') + '">' + (bad ? '✗' : '✓') + '</td>';
-      tb.appendChild(tr);
-    }
-    $('verdict').textContent = ja.pass ? '本屏判据全过' : '有判据未过';
+    const notPassed = ja.failed.concat(ja.untested);
+    $('verdict').textContent = ja.pass
+      ? '本屏判据全过（模式 ' + ja.mode + '）'
+      : '未过：' + notPassed.join(' · ') + '（模式 ' + ja.mode + '）';
 
     /* 1:1 放大镜：从 A 的画布左上角取 160×90 设备像素，按 1:1 放大绘制（不插值） */
     const z = $('zoom').getContext('2d');

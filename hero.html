@@ -43,9 +43,11 @@
   .nav a:hover{color:var(--ink);border-color:var(--ink)}
 
   /* ── 正文 ───────────────────────────────────────────────── */
+  /* 底部要给读数牌**留出位置**：它是绝对定位在左下角的（约 100px 高），
+     不预留的话视口一矮，它就会压在 CTA 按钮上（实测 1110×530 时压住了）。 */
   .inner{position:relative;z-index:2;flex:1 1 auto;display:flex;flex-direction:column;
     justify-content:center;width:100%;max-width:min(760px,58vw);
-    padding:clamp(20px,3vw,36px) clamp(28px,5vw,88px) clamp(70px,8vw,104px)}
+    padding:clamp(20px,3vw,36px) clamp(28px,5vw,88px) clamp(112px,13vh,164px)}
   @media (max-width:860px){ .inner{max-width:none} }
 
   .eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 clamp(18px,3vw,34px);
@@ -212,7 +214,9 @@
     const now = performance.now();
     if (!force && now - lastPaint < 200) return;
     lastPaint = now;
-    const m = inst.judge().measures;
+    /* 只取 measures —— judge() 的 1-bit 行会**真读画布像素**（约 2M 一次），
+       而这条读数每 200ms 刷一次：那个代价留给判据面板（preview / gallery），不花在这。 */
+    const m = inst.judge(null, { pixels: false }).measures;
     const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
     const fps = intervals.length >= 6 ? (1000 / avg(intervals)).toFixed(0) : '—';
     const cost = costs.length ? avg(costs).toFixed(1) : '—';

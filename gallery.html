@@ -253,24 +253,28 @@
   }
 
   function readout() {
+    const isPoints = !!(st.inst && st.inst.opts && st.inst.opts.pointsAt);
     let j;
-    try { j = st.inst.judge(); } catch (e) { return; }
+    /* 模式交给 judge()：结构型（沙粒/节线/枝）显式传 M3 —— auto 不会替你把"太稀"解释成"勾线" */
+    try { j = st.inst.judge(null, { mode: isPoints ? 'M3' : 'auto' }); } catch (e) { return; }
     const m = j.measures, rows = [];
     const pr = m.pitchRatioMedian;
-    const isPoints = !!(st.inst.opts && st.inst.opts.pointsAt);
-    /* 三种模式分开判（见 STANDARD §4）：M1 网点 / M2 面场 / M3 结构线刻 —— 拿 M1 的 3:1 去卡 M2 是错的 */
-    const mode = isPoints ? 'M3' : (m.coverage >= .08 ? 'M2' : 'M1');
+    const mode = j.mode;
     const modeRule = { M1: 'M1 网点：≥3:1 点才读得成点', M2: 'M2 面场：不卡 3:1（覆盖率 ≥8%）', M3: 'M3 线刻：看结构处局部覆盖率 + 1:1' }[mode];
-    const modeOk = mode === 'M1' ? (pr && pr >= 3) : (mode === 'M2' ? m.coverage >= .08 : null);
-    rows.push(['模式', mode, modeRule, modeOk === null ? '' : (modeOk ? 'ok' : 'bad')]);
+    /* 模式结论**直接取 judge()**（别再自己推一套 —— 两套口径打架过） */
+    const failed = j.failed.concat(j.untested);
+    rows.push(['模式', mode, modeRule, failed.length ? 'bad' : 'ok']);
     /* 勾线型（M3）**不能**拿整屏覆盖率判死 —— 墨集中在结构上，整屏本来就只有 1–5% */
     rows.push(['覆盖率（整屏）', (m.coverage * 100).toFixed(2) + '%',
       mode === 'M3' ? '勾线型：只作参考（要量结构处局部）' : '铺面 ≥8% / 勾线看局部',
-      mode === 'M3' ? (m.coverage >= .002 ? '' : 'bad') : (m.coverage >= .08 ? 'ok' : (m.coverage >= .01 ? '' : 'bad'))]);
+      mode === 'M3' ? '' : (m.coverage >= .08 ? 'ok' : 'bad')]);
     rows.push(['点距 : 点径（中位）', pr ? pr.toFixed(2) + ':1' : '—（点列通道）', 'M1 要 ≥3:1', mode === 'M1' ? (pr >= 3 ? 'ok' : 'bad') : '']);
     rows.push(['点数 / 格数', m.points + ' / ' + (st.inst.cols * st.inst.rows), '点距 ' + m.cell.toFixed(1) + 'px · 满墨点径 ' + (m.rMax * 2).toFixed(1) + 'px', '']);
     rows.push(['单帧耗时', st.ms.toFixed(1) + ' ms', '主线程占用', st.ms < 40 ? 'ok' : 'bad']);
-    rows.push(['1-bit', '无灰阶', 'compose() 保证非墨即纸', 'ok']);
+    /* 1-bit：judge() 现在**真读画布像素**（旧版这里和 judge() 里都是写死的 ok） */
+    const ob = j.checks.find(c => c.name === '1-bit 无灰阶');
+    const obOk = ob && ob.ok === true;
+    rows.push(['1-bit', obOk ? '无灰阶' : (ob && ob.ok === false ? '有灰阶' : '未测'), ob ? ob.value : '—', obOk ? 'ok' : (ob && ob.ok === false ? 'bad' : '')]);
     $('readout').innerHTML = rows.map(r => '<tr><td>' + r[0] + '</td><td class="kv">' + r[1] + '</td><td class="kv">' + r[2] + '</td><td class="' + r[3] + '">' + (r[3] === 'ok' ? '✓' : r[3] === 'bad' ? '✗' : '·') + '</td></tr>').join('');
   }
 

@@ -137,7 +137,7 @@ const inst = DotInk.create({
   gain: 1, duration: 21, shutter: 0,
 });
 inst.draw(3.5);      // 纯函数：同一个 t 画两次逐像素一致
-inst.judge();        // 逐条读数（M1/M2 是互斥体裁，怎么读见 STANDARD §4）
+inst.judge();        // 逐条读数：pass 按模式算，M1/M2 互斥 → 结构型传 {mode:'M3'}（见 STANDARD §4）
 </script>
 ```
 

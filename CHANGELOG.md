@@ -3,6 +3,50 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 1.6.0 — 2026-10-12
+
+**修内核（两处都是"宣称与实现对不上"，各带一次实测）**
+- `dotink.js`：**点径改解析圆盘**（删掉 `DISC[r]` 整数偏移表，改成像素中心判**真半径**）。
+  旧实现 `Math.round(r·S)` 会把 `0.06 → 0.165` 这么宽的一段场值压成同一个点径 ——
+  实测：cell 8 / maxFrac 0.40 / scale 1（**正是 §14 参考配方**）画一条渐变只有 **4 个层次**，
+  而 §14 写的是「0..3.2px **连续调幅**」。改后同参数 **9 个层次**（scale 2 时 **22 个**）。
+  副作用（记一笔）：最小落墨从"整数半径 1 = 5 px"变成"真半径 < 0.5 时只有中心 1 px"。
+  `DotInk._disc` / `discMax` **不再导出**（补了 `DotInk.discOffsets(r)` 给需要整数圆盘的调用方）。
+- `dotink.js`：**`judge()` 加 `mode`**（`'M1' | 'M2' | 'M3' | 'auto'`），`pass` 只算**当前模式的门禁行**。
+  旧版把 M1（≥3:1）与 M2（≥8%）同时当硬门禁 —— 而 §4 明说这两种体裁**互斥**，
+  于是做网点的画必然卡覆盖率、做面场的画必然卡 3:1：实测 11 种真实用法 **9 种报"不过"**，
+  **连 README 自己的示例都不过**。改后同批 10 种用法 **8 种通过**，两个"否"都是正确的否
+  （结构型不声明模式 / 全空场）。返回体加了 `mode` / `failed` / `untested`；
+  `checks[].gate === false` 的是参考行，不计入 pass。
+  ⚠ 结构型画面（节线 / 枝 / 条纹）**必须显式传 `mode:'M3'`** —— auto 不会替你把"太稀"解释成"勾线"。
+- `dotink.js`：`judge()` 的「1-bit 无灰阶」**改成真读画布像素**（`getImageData` 数非墨非纸）。
+  旧版这一行是写死的 `true`（文案"compose() 保证"）—— 那不是判据，是信念：§7-1 警告的
+  "DOM 覆盖层被拍进帧"它抓不到，画布内部的破功也抓不到。代价是一次 2M 像素读回，
+  所以留了 `judge(t, { pixels: false })` 的口子（`hero.html` 就用它）。
+
+**修页面**
+- `preview.html`：**判据表从来没填过**。`tick()` 里写的是 `B.measures` —— `measure` 是**函数**不是属性，
+  一进来就抛 TypeError，表永远停在"有表头没内容"。改成真调一次 `B.measure()`；
+  另把 judge 节流到 ~4/s（1-bit 现在要真读像素），并显示「模式 + 未过项」、参考行标「参考」。
+- `gallery.html`：模式判定改为**直接取 `judge()` 的结论**（原来页面自己推一套，与 judge 打架过）；
+  1-bit 行改成读实测值（原来是写死的 ok）；沙粒 / 节线显式传 `mode:'M3'`。
+- `hero.html`：底部给读数牌**预留位置**（实测视口 1110×530 时它压住 CTA 按钮）；judge 走 `pixels:false`。
+
+**修文档 / 打包**
+- `media/phenomena-8/`：`MANIFEST.sha256` **重生成**为"本目录原地可验"（11/11 全过）；
+  `SOURCE.md` 去掉不实的「已逐文件核对 10/10 一致」—— 上游那 10 条里，`lab-field4-1080p.mp4`
+  在 `../_release/`（hash 一致）、`README.md` 已改写为 `SOURCE.md`（hash 不同），**两条都不在原目录**。
+- `STANDARD.md` §1 / §11：记下对标件（`lab-field4`）的令牌实测是 `#0C0C0C` / `#F2F2F2`，
+  与 §1 的 `#0C0D0E` / `#F2F3F2` **各差 1 位**（冻结件不回改，按 §11 记数）。
+- `OPENSOURCE.md` §七：补上"先验 fast-forward"这一步 —— 实测两次推送都是普通 push，
+  **不需要 `--force`**；并写明"媒体没动就不要新开 release"（否则 `/releases/latest` 会变成空）。
+- `package.json`：`files` 改成**显式列 media 子路径**，并补 `check` / `docs` / `CHANGELOG`；
+  加 `exports` 与 `prepublishOnly`；新增 `.npmignore`。
+  **实测 `npm pack` 从 61.4 MB 降到 12.6 MB** —— 旧的白名单 `"media"` 把 `media/_release/` 里
+  两个 48.9 MB 成片一起打进了包（`.gitignore` 排 git 有效，但排不掉 `files` 白名单里的条目）。
+
+**自查**：`npm run check` **10/10 通过 · 链接 183 条全在**。
+
 ## 1.5.0 — 2026-10-11
 
 **新增**

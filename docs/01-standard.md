@@ -27,7 +27,17 @@
 `sdf`（距离场）、`fromImageData`（真图 → 覆盖率场，先二值化**再**算每格深色占比，绝不做面积平均）、
 `bits`（1-bit 行程编码 → 场）。
 
-返回：`{ draw(t), judge(t), measure(), reset(), cols, rows, cell, rMax, duration }`。
+返回：`{ draw(t), judge(t, opts), measure(), reset(), cols, rows, cell, rMax, duration }`。
+
+**`judge(t, opts)` 的 `opts`**（v1.6.0 起）：
+
+| 键 | 值 | 说明 |
+|---|---|---|
+| `mode` | `'M1' \| 'M2' \| 'M3' \| 'auto'` | **M1/M2/M3 是互斥体裁**（见下表）→ `pass` 只算当前模式的门禁行。`auto` = 中位比 ≥3:1 → M1，否则 M2；**结构型（节线/枝/条纹）必须显式传 `M3`** |
+| `pixels` | `false` | 跳过 1-bit 的**画布像素读回**（约 2M 像素一次）。跳过时那一行报"未测"，`pass` 为 `false`（没测就不能签字） |
+
+返回体：`{ mode, modes, measures, checks, failed, untested, pass }`；
+`checks[].gate === false` 的是**参考行**，不计入 `pass`。
 
 ---
 

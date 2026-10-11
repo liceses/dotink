@@ -1,0 +1,16 @@
+# npm 打包排除清单。
+#
+# 为什么需要这个文件：`package.json` 的 `files` 是**白名单**，它写着 `"media"`；
+# 而成片在 `media/_release/`（.gitignore 排掉了 git，**但 npm 不看 .gitignore 的白名单语义**）
+# —— 于是 `npm pack` 会把两个 48.9 MB 的 mp4 一起打进包里（实测 **61.4 MB**）。
+# npm 的规则：同时存在 `.npmignore` 与 `.gitignore` 时**以 `.npmignore` 为准**。
+#
+# 成片走 GitHub Release 附件：https://github.com/liceses/dotink/releases
+
+media/_release/
+
+# 本地产物 / 编辑器
+*.tgz
+*.log
+.DS_Store
+Thumbs.db
