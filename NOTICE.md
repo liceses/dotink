@@ -48,7 +48,7 @@ Pearson 1993 · Witten & Sander 1981 · Kuramoto 1975 · Feigenbaum 1978 · 双�
 
 ## 6 · 字版厂标引擎（[`markplate.js`](markplate.js)）
 
-**代码逐字节移植**自主库 [`modules/markplate/markplate.js`](../modules/markplate/markplate.js)
+**代码逐字节移植**自主库 `modules/markplate/markplate.js`（主库路径）
 （`MarkPlate 1.0`，19 KB，零依赖、经典脚本）：**未改一行**，只在文件最上面加了出处头；
 正文 sha256 与上游一致，可用 [`tools/vendor-markplate.mjs`](tools/vendor-markplate.mjs) 复验/重取。
 
