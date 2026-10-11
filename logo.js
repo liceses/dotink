@@ -46,8 +46,11 @@
     rippleSpeed: 4.4,        /* 字不断浮动的快慢（引擎默认 4.4） */
     rippleAmp: 13,
     textPx: [26, 44],
-    markSize: 700,           /* 标在设计空间里的显示尺寸（px） */
+    markSize: 640,           /* 标在设计空间里的显示尺寸（px）—— 640 让标完整落在 1280×720 里 */
     markPx: 700,             /* 距离场分辨率 —— 与 markSize **必须分开**（主库记过这个坑） */
+    srcScale: 1,             /* 引擎画布的 device/CSS 比。⚠ 裁剪框必须乘它：create 会把画布设成
+                                cssW×srcScale（默认 1.5 → 1920×1080），用设计坐标去裁就会**只裁左上角**
+                                （标被放大 + 切掉，实测踩过）。*/
     caption: false,          /* 是否带名字（实墨点阵） */
     hud: false,              /* 是否带尺/进度/时间码 */
     blend: 'multiply',       /* 覆盖层的混合模式：白纸乘上去 = 看不见 */
@@ -102,9 +105,9 @@
 
     /* 引擎画在一块离屏画布上（1280×720 的原始版式），我们再裁出标那一块 */
     const src = document.createElement('canvas');
-    src.width = CW; src.height = CH;
     const mp = global.MarkPlate.create({
       canvas: src, icons: iconMap,
+      cssW: CW, cssH: CH, scale: o.srcScale,                  /* create 会把画布设成 CW×srcScale */
       marks: [[slug, name || slug], [slug, name || slug]],   /* ⚠ 引擎要求 ≥2，单标就传两次 */
       text: o.text,
       actSeconds: 9999,                                       /* 单标：不换幕 */
@@ -137,18 +140,17 @@
       return px;
     }
 
-    /* 裁剪框：与引擎 markSet() 同一套公式（标心 + 微呼吸 + 显示尺寸） */
+    /* 裁剪框：与引擎 markSet() 同一套公式（标心 + 微呼吸 + 显示尺寸），
+       最后**乘 srcScale** 换到设备像素 —— 而且永远裁正方形、永远在界内（不拉伸、不偏心）。 */
     function cropBox() {
+      const S = o.srcScale || 1;
       const z = 1 + 0.025 * Math.sin(0.9 * state.t);            /* zoom [1,1] 时的 z */
-      const side = o.markSize * z * 1.08;                       /* 8% 余量，别把笔画切掉 */
+      const side = Math.min(o.markSize * z * 1.08, Math.min(CW, CH));   /* 先保证放得下 */
       const cx = CW / 2 + 12 * Math.sin(0.33 * state.t);
       const cy = (Y0 + ROWS * CS) / 2 + 9 * Math.sin(0.27 * state.t + 1.1);
-      let x = cx - side / 2, y = cy - side / 2, w = side, h = side;
-      if (x < 0) { w += x; x = 0; }
-      if (y < 0) { h += y; y = 0; }
-      if (x + w > CW) w = CW - x;
-      if (y + h > CH) h = CH - y;
-      return { x: x, y: y, w: w, h: h };
+      const x = Math.max(0, Math.min(CW - side, cx - side / 2));
+      const y = Math.max(0, Math.min(CH - side, cy - side / 2));
+      return { x: x * S, y: y * S, w: side * S, h: side * S };
     }
 
     function frame() {
