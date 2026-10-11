@@ -95,6 +95,50 @@
 
 > 下层还叠了「名字（实墨点阵）+ 尺与读数」两层，`caption: false` / `hud: false` 可整层关掉（做目录小样时用）。
 
+## 字版 logo 组件 · 即插即用（**挂到任意视频上**）
+
+<img src="media/logo-demo.png" width="620" alt="字版 logo 组件挂在视频上">
+
+> **三行引脚本 + 一次 `mount`**，就能把「**字拼成的标 + 阅读波浮现 + 字不断浮动**」挂到**任意视频 / 网页**上。
+> [`logo-demo.html`](logo-demo.html) 是证明页 —— 它挂的就是一个普通 mp4（换成你自己的就行）。
+
+```html
+<script src="markplate.js"></script><script src="marks.js"></script><script src="logo.js"></script>
+<script>
+DotInkLogo.mount(document.querySelector('.host'), {
+  slug: 'openai',   // 内置 47 家；或 d:'M12 2 …'（自备 SVG path）/ svg-src="my.svg"（自备文件）
+  size: 0.14,       // 占容器宽 14%
+  corner: 'br',     // tl / tr / bl / br / center
+  reveal: 1.2,      // 阅读波浮现的秒数
+});
+</script>
+```
+
+或声明式：`<dot-ink-logo slug="openai" size="14%" corner="br" reveal="1.2">` + `DotInkLogo.defineElement()`。
+
+| 能调 | 说明 |
+|---|---|
+| `slug` · `d` · `svg-src` | 内置 47 家 · 自备 SVG path · 自备 `.svg`（多段 `<path>` 自动合并） |
+| `size` · `corner` · `margin` | 占容器宽的比例 · 九宫位置 · 边距（也按容器宽算） |
+| `reveal` · `rippleSpeed` · `rippleAmp` | 浮现快慢 · **浮动快慢** · 浮动幅度 |
+| `caption` · `hud` | 名字（实墨点阵）· 尺 / 进度 / 时间码 |
+| `fps` · `dpr` · `smooth` · `blend` · `paused` | 重绘上限 · 像素密度 · 平滑缩放 · 混合模式 · 起手暂停 |
+| API | `set` · `pause` · `resume` · `toggle` · `seek` · `layout` · `info` · `destroy` |
+
+**实测**（挂在 1920×1080 视频上）：覆盖层单帧 **2.9–3.7 ms**（24 fps 上限下 5 秒 118 帧）·
+重挂后画布数**始终 1**（旧实例会销毁）· 暂停后帧数冻结 ✓ · 无错误。
+
+**三个实现要点**（都踩过）：
+
+1. **白纸 + `multiply`**：纸设成纯白、覆盖层 `mix-blend-mode: multiply` —— 白纸在视频上等于不存在，
+   **零逐帧成本**（逐帧抠 2M 像素的 alpha 会白吃十几毫秒）；
+2. 引擎 `markplate` **要求 `marks ≥ 2`**（它靠"两个标互融"做过渡）→ 单标就**传同一个标两次**；
+3. 覆盖层自带 rAF 循环：**dt 夹到 `[0, 0.1]` + try/catch** —— 首帧时间戳可能早于 `performance.now()`（负）、
+   切页回来是大跳；一帧抛错若发生在 `requestAnimationFrame` 之前，播放会**静默死掉**。
+
+> **下一步（已验证、未实现）**：同一套素材还能走 **ffmpeg 后处理**把标烧进**任意 mp4**
+> （实测 61 s / 1080p 只花 **6.8 s**；纸底可用 `colorkey=0xF2F3F2` 一键抠掉，**6.6 s**）。
+
 ---
 
 ## 同一批公式，差在哪（实测对照）

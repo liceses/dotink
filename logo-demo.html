@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="icon.svg">
+<title>点墨 · 字版 logo 组件（挂到任意视频上）</title>
+<style>
+  :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--panel:#E4E7E6;--accent:#FF4B1F;
+        --fd:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+        --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--fd)}
+  header{border-bottom:2px solid var(--ink);padding:14px 20px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+  h1{margin:0;font-size:20px}
+  .lab{font:500 12px/1.3 var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  header .links{margin-left:auto;display:flex;gap:14px}
+  a{color:inherit}
+  main{display:grid;grid-template-columns:minmax(560px,1fr) 430px;gap:0;align-items:start}
+  @media (max-width:1180px){main{grid-template-columns:1fr}}
+  .wrap{padding:20px;border-right:2px solid var(--ink)}
+  @media (max-width:1180px){.wrap{border-right:0;border-bottom:2px solid var(--ink)}}
+  /* 被挂的容器：position:relative 由组件自己补，这里只画边框 */
+  .host{position:relative;border:2px solid var(--ink);background:#000}
+  .host video{display:block;width:100%;height:auto}
+  .ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:14px}
+  .ctl label{display:flex;flex-direction:column;gap:3px;font:500 12px var(--fm);color:var(--mute)}
+  input[type=range]{width:140px}
+  button,select,input[type=file]{font:600 13px var(--fd);padding:6px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer}
+  button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+  aside{padding:20px}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+  th,td{border-bottom:1px solid var(--hair);padding:4px 6px;text-align:left}
+  th{font:500 11px var(--fm);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .kv{font:500 12px var(--fm)}
+  .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
+  pre{background:var(--panel);border-left:3px solid var(--ink);padding:10px 12px;overflow:auto;font:500 12px/1.5 var(--fm)}
+  code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1><img src="icon.svg" alt="" width="26" height="26" style="vertical-align:-5px;margin-right:8px">点墨 · 字版 logo 组件</h1>
+  <span class="lab">Drop-in · letters form the mark · keeps floating</span>
+  <div class="links lab"><a href="marks-type.html">字版厂标页</a><a href="marks.html">点墨版</a><a href="NOTICE.md">许可</a></div>
+</header>
+
+<main>
+  <div class="wrap">
+    <!-- 任意视频：换成你自己的 mp4 就行 -->
+    <div class="host" id="host">
+      <video id="vid" src="media/phenomena-8/lab-field4-1080p.mp4" autoplay muted loop playsinline></video>
+    </div>
+    <div class="ctl">
+      <label>厂标 <select id="slug"></select></label>
+      <label>位置
+        <select id="corner">
+          <option value="br" selected>右下</option><option value="bl">左下</option>
+          <option value="tr">右上</option><option value="tl">左上</option><option value="center">正中</option>
+        </select>
+      </label>
+      <label>大小 <input type="range" id="size" min="4" max="40" value="14"><span class="kv" id="sizeV">14%</span></label>
+      <label>浮现 <input type="range" id="reveal" min="2" max="40" value="12"><span class="kv" id="revV">1.2s</span></label>
+      <label>浮动 <input type="range" id="ripple" min="0" max="120" value="44"><span class="kv" id="ripV">4.4</span></label>
+      <label>名字 <button id="cap" aria-pressed="false">不带</button></label>
+      <label>动 <button id="pause" aria-pressed="true">浮动中</button></label>
+      <label>自备 logo <input type="file" id="svg" accept=".svg,image/svg+xml"></label>
+    </div>
+    <div class="lab" style="margin-top:10px">
+      这一页挂的就是**任意一个视频**（<code>media/phenomena-8/lab-field4-1080p.mp4</code>）；
+      换成你的 mp4、或者把组件挂到任何容器上都一样。
+    </div>
+  </div>
+
+  <aside>
+    <div class="lab">怎么用（三行）</div>
+    <pre>&lt;script src="markplate.js"&gt;&lt;/script&gt;
+&lt;script src="marks.js"&gt;&lt;/script&gt;
+&lt;script src="logo.js"&gt;&lt;/script&gt;
+
+&lt;script&gt;
+DotInkLogo.mount(document.querySelector('.host'), {
+  slug: 'openai',     // 或 d: 'M12 2 …'（自备 SVG path）
+  size: 0.14,         // 占容器宽 14%
+  corner: 'br',       // tl/tr/bl/br/center
+  reveal: 1.2,        // 阅读波浮现的秒数
+});
+&lt;/script&gt;</pre>
+    <div class="lab" style="margin-top:12px">或声明式</div>
+    <pre>&lt;dot-ink-logo slug="openai" size="14%"
+  corner="br" reveal="1.2"&gt;&lt;/dot-ink-logo&gt;
+&lt;script&gt;DotInkLogo.defineElement()&lt;/script&gt;</pre>
+
+    <div class="lab" style="margin-top:16px">本帧</div>
+    <table><tbody id="readout"></tbody></table>
+
+    <div class="lab" style="margin-top:16px">三个实现要点</div>
+    <div class="kv" style="font-size:12px">
+      ① **白纸 + multiply**：纸设成纯白、覆盖层 `mix-blend-mode: multiply`，白纸在视频上等于不存在 ——
+      零逐帧成本（逐帧抠 2M 像素的 alpha 会白吃十几毫秒）；<br>
+      ② 引擎 `markplate` **要求 marks ≥ 2**（它靠两个标互融做过渡）→ 单标就**传同一个标两次**；<br>
+      ③ 覆盖层自带 rAF 循环：**dt 夹到 [0,0.1] + try/catch** —— 首帧时间戳可能为负、切页回来是大跳，
+      一帧抛错在 `requestAnimationFrame` 之前会让播放**静默死掉**（都踩过）。
+    </div>
+  </aside>
+</main>
+
+<footer>
+  厂标路径来自 simple-icons（<b>CC0 1.0</b>）；商标归各家，这里用于**指称** —— 商用发布前按法务口径过一遍（<a href="NOTICE.md">NOTICE.md</a>）。
+  引擎 <code>markplate.js</code> 从主库逐字节移植；字版与阅读波的机制见 <a href="README.md">README</a>「字版厂标」。
+</footer>
+
+<script src="markplate.js"></script>
+<script src="marks.js"></script>
+<script src="logo.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const M = window.DotInkMarks;
+  const host = $('host');
+
+  /* 47 家塞进下拉 */
+  const sel = $('slug');
+  M.order.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = M.icons[s].title || s;
+    sel.appendChild(o);
+  });
+  sel.value = 'openai';
+
+  let logo = DotInkLogo.mount(host, {
+    slug: 'openai', size: 0.14, corner: 'br', reveal: 1.2, rippleSpeed: 4.4, caption: false,
+  });
+
+  function remount(patch) {
+    const next = Object.assign({}, logo.opts, patch);
+    logo.destroy();                       /* ⚠ 每次重挂都要销毁旧的，否则画布会一层层叠上去 */
+    logo = DotInkLogo.mount(host, next);
+  }
+  function readout() {
+    const i = logo.info();
+    const rows = [
+      ['当前标', i.opts.slug + (i.opts.d ? '（自备）' : ''), i.opts.caption ? '带名字' : '不带名字'],
+      ['位置 / 大小', i.opts.corner + ' · ' + Math.round(i.opts.size * 100) + '%', '边距 ' + Math.round(i.opts.margin * 100) + '%'],
+      ['时间 / 帧数', i.t.toFixed(1) + 's / ' + i.frames + ' 帧', i.opts.fps + ' fps 上限'],
+      ['单帧耗时', i.ms + ' ms', i.ms < 40 ? 'ok' : 'bad'],
+      ['错误', i.err || '无', i.err ? 'bad' : 'ok'],
+    ];
+    $('readout').innerHTML = rows.map(r =>
+      '<tr><td>' + r[0] + '</td><td class="kv">' + r[1] + '</td><td class="' + (r[2] === 'ok' ? 'ok' : r[2] === 'bad' ? 'bad' : '') + '">' + r[2] + '</td></tr>').join('');
+  }
+  setInterval(readout, 500);
+
+  sel.addEventListener('change', e => remount({ slug: e.target.value, d: null, name: null }));
+  $('corner').addEventListener('change', e => remount({ corner: e.target.value }));
+  $('size').addEventListener('input', e => { $('sizeV').textContent = e.target.value + '%'; remount({ size: +e.target.value / 100 }); });
+  $('reveal').addEventListener('input', e => { $('revV').textContent = (+e.target.value / 10).toFixed(1) + 's'; remount({ reveal: +e.target.value / 10 }); });
+  $('ripple').addEventListener('input', e => { $('ripV').textContent = (+e.target.value / 10).toFixed(1); remount({ rippleSpeed: +e.target.value / 10 }); });
+  $('cap').addEventListener('click', e => {
+    const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', String(on));
+    e.currentTarget.textContent = on ? '带名字' : '不带';
+    remount({ caption: on });
+  });
+  $('pause').addEventListener('click', e => {
+    const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', String(on));
+    e.currentTarget.textContent = on ? '浮动中' : '已暂停';
+    on ? logo.resume() : logo.pause();
+  });
+  $('svg').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = DotInkLogo.svgToPath(String(r.result));
+        remount({ d: d, name: f.name.replace(/\.svg$/i, ''), slug: null });
+      } catch (err) { alert('这个 SVG 用不了：' + err.message); }
+    };
+    r.readAsText(f);
+  });
+  /* 容器尺寸变了（换窗口/换视频）要重排 */
+  addEventListener('resize', () => logo.layout());
+  window.__logoDemo = { get: () => logo, remount: remount };
+})();
+</script>
+</body>
+</html>
