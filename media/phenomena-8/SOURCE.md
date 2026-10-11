@@ -47,5 +47,5 @@ node modules/wireframe/render.mjs work/lab-field4/film/lab-field4.html --keep-fr
 它是本标准 §4（M2 面场 / M3 结构线刻）的**参考配方**，也是"表现力"的标尺：
 **同一个现象，点距细一倍、母题占满、每屏一句大字，画面就是另一个量级。**
 
-本包自己的自检片（`1010-dotink-demo-1080p.mp4`，**Release 附件**；本地在 `../_release/`）用的是同一批公式，
+本包自己的自检片（`1010-dotink-demo-1080p.mp4`，**[Release 附件](https://github.com/liceses/dotink/releases)**；本地在 `../_release/`）用的是同一批公式，
 但点距 16 px、母题偏小、还压着标签卡 —— 两相对照，差在哪一目了然（见 [`docs/02-phenomena.md`](../../docs/02-phenomena.md)）。

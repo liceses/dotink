@@ -120,6 +120,29 @@ dotink/
 
 ---
 
+## 七、怎么更新已发布仓（主库仍是唯一真相）
+
+`dotink/` 是主库里的一个目录；GitHub 上的 [`liceses/dotink`](https://github.com/liceses/dotink) 是它的**镜像**（独立历史，14+ 条提交）。
+
+```powershell
+# 1) 在主库里改完并提交（split 切的是**已提交**历史 —— 忘了提交就会推出旧内容）
+git add -- dotink && git commit -m "..."
+
+# 2) 切出独立历史：dotink/ 变成仓根
+git branch -D dotink-standalone
+git subtree split -P dotink -b dotink-standalone
+
+# 3) 推（新仓无协作者 → 可强推；有协作者后改用 PR 流程）
+git push --force https://github.com/liceses/dotink.git dotink-standalone:main
+
+# 4) 成片更新了 → 补 Release 附件（GitHub 会自己算 sha256，可与 MANIFEST 对）
+gh release upload v1.4.0 --repo liceses/dotink dotink/media/_release/*.mp4 --clobber
+```
+
+**已发布**：https://github.com/liceses/dotink（public · `main`）· 成片：https://github.com/liceses/dotink/releases/tag/v1.4.0
+
+---
+
 ## 六、发布前 checklist（已逐条过）
 
 - [ ] 版本统一（+ `CHANGELOG.md`）
