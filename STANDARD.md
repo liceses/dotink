@@ -352,3 +352,33 @@ TypeField.create({
 > **这份配方的产品形态**：本包 [`gallery.html`](gallery.html) —— 九项现象**现场渲染**（8px 真圆盘、
 > **线性半径**、每屏一句大字标题、公式与来源在场），带**实时判据**（模式 M1/M2/M3 分开报）与
 > **映射 A/B**。实测：九项全部 0 灰阶像素、单帧 9–11 ms、无页面错误。
+
+---
+
+## 15 · 场的三种形态（以及一个会**静默吞场**的坑）
+
+`field` 收三种形态：
+
+| 形态 | 例子 | 备注 |
+|---|---|---|
+| 函数 `(i, cx, cy, t) → 0..1` | `DotInk.pheno.chladni(...)` · `fields.interferenceFn(...)` | 每帧求值 —— **动只能从这里来** |
+| `Float32Array`（长度 = cols×rows） | `fields.ramp / gradient / img2field / fromImageData …` | 静态场 |
+| `{v: Float32Array}` | 同上包一层 | 与上等价 |
+
+**坑（2026-10-11 修）**：旧检测写成
+
+```js
+const staticField = (o.field && (o.field instanceof Float32Array || (o.field && o.field.v))) || null;
+const staticV = staticField instanceof Float32Array ? staticField : (staticField ? staticField.v : null);
+```
+
+传 `Float32Array` 时第一行整体求值成布尔 **`true`**（`&&` 返回的是条件表达式的值，不是数组），
+于是 `staticField.v` 是 `undefined` → **场被静默当成空的：一帧 0 个点、不抛错、画布全纸**。
+`{v: …}` 与函数场都正常，所以它躲过了此前所有用法 —— 是**厂标墙 47 格全空**才把它逼出来。
+
+现在改成 `ArrayBuffer.isView` 判"是不是类型化数组"，**并把数组本身取出来**；
+顺带解决**跨 realm 假否定**（CDP 注入的数组与页面不同 realm，`instanceof` 会判 false）。
+
+> **教训与 `lab-field22` 同一条：数值只能用来定位，不能用来签字。**
+> 我第一版的"墨量"读数还把**透明像素**（r=0）算成了墨 —— 于是"100% 墨"的页面在肉眼上是空的。
+> 判据必须**先判 alpha、再判墨纸**，并且**最后一定要打开看一眼**。

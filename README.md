@@ -48,6 +48,27 @@
 
 ---
 
+## 厂标墙 · 47 家（**第二件产品**）
+
+> 双击 [`marks.html`](marks.html) 就开：47 家厂标（OpenAI · Anthropic · GitHub · Python · React …）
+> **全部用点墨画**，两种落墨随时切。
+
+| 落墨 | 做法 | 什么时候用 |
+|---|---|---|
+| **网点（调幅）** | 厂标 → 覆盖率场（`fields.fromImageData`：先二值化再算每格深色占比）→ 每格一份墨；场自带 gamma(0.45)，所以半径走**线性**（§3 配对规则） | 要"印刷感" |
+| **实墨（1-bit 剪影）** | 路径按 **50% 阈值**切硬像素、零反锯齿 | 要"识别"；小尺寸反而更清楚 |
+
+- 大图 8px 点距（70×70 格）+ **47 格墙** + `← →` 换家 + 空格播放（**0.8s/家 → 一遍 47 家 = 37.6s**，与实验区 `lab-field22` 同节奏）+ 1:1 放大镜
+- **实测**：47 家**全部 0 灰阶**；覆盖率 20–38%（厂标是细笔画，落在 M2 面场）
+- **版权口径**：路径数据来自 [simple-icons](https://github.com/simple-icons/simple-icons)（**CC0 1.0**），商标归各家、本包用于**指称** —— 详见 [`NOTICE.md`](NOTICE.md)
+- 数据生成：[`tools/make-marks.mjs`](tools/make-marks.mjs)（从主库 `modules/markplate/icons.js` 只抽 key/title/d）
+
+> 这一页还**逼出了包内核的一个静默 bug** 并修掉：`field` 直接传 `Float32Array` 时，
+> 旧的检测写法把数组判成布尔 `true` → 场被吞、一帧 0 个点、**不报错**（厂标墙 47 格全空才暴露）。
+> 详见 [`STANDARD.md`](STANDARD.md) §15。
+
+---
+
 ## 同一批公式，差在哪（实测对照）
 
 两个示例用的是**同一批公式**（`lab/PHENOMENA.md` 01–08）。差距不在公式，在这六个可量/可改的数：
@@ -85,6 +106,8 @@
 | [`pheno.js`](pheno.js) | **自然现象场库**：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`（八个都是 `(cols, rows, opts) → (i,x,y,t) → 0..1`） |
 | [`preview.html`](preview.html) | **判据计算器与实验台**：8 条判据实时算、A/B 对照（√ vs 线性）、**1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **现象画廊（视觉产品）**：九项现象现场渲染 + 实时判据（M1/M2/M3 分开报）+ 映射 A/B + 1:1 放大镜 |
+| [`marks.html`](marks.html) · [`marks.js`](marks.js) | **厂标墙（第二件产品）**：47 家厂标用点墨画（网点 / 实墨两种落墨）+ 47 格墙 + 自动翻页 |
+| [`NOTICE.md`](NOTICE.md) | **第三方数据与出处**（厂标 CC0 与商标口径 / 现象公式出处 / 参考配方成片 / 自检片） |
 | [`icon.svg`](icon.svg) · [`icon-*.png`](icon-512.png) · [`icon.html`](icon.html) | **品牌图标**：矢量源 / 各尺寸位图（**0 灰阶**）/ 图标工坊（任意尺寸导出 + 1-bit 自检） |
 | [`tools/make-icon.mjs`](tools/make-icon.mjs) | 图标生成器（零依赖；几何即 §3/§4 的一次应用） |
 | [`SKILL.md`](SKILL.md) | 给 AI 会话用的入口（什么时候用、八条判据、四条最容易踩的） |

@@ -330,10 +330,17 @@
       return o.areaMap ? RMAX * Math.sqrt(w) : RMAX * w;
     }
 
-    /* ── 场求值 ── */
-    const staticField = (o.field && (o.field instanceof Float32Array || (o.field && o.field.v))) || null;
-    const staticV = staticField instanceof Float32Array ? staticField : (staticField ? staticField.v : null);
-    const fnField = typeof o.field === 'function' ? o.field : null;
+    /* ── 场求值 ──
+       ⚠ 这里踩过一个**静默吞场**的坑（marks.html 的厂标墙全空，查了三轮）：
+         原来的写法 `(o.field && (o.field instanceof Float32Array || …)) || null`
+         在传 Float32Array 时整体求值成布尔 **true**（`&&` 返回的是条件表达式的值），
+         于是 `staticField.v` 是 undefined → 场被当成"空"，一帧画 0 个点、不报错。
+         现在用 `ArrayBuffer.isView` 判"是不是类型化数组"：**跨 realm 也成立**（CDP 注入的
+         数组与页面不是同一个 realm，`instanceof` 会假否定），并且把数组本身取出来。 */
+    const fld = o.field;
+    const isView = (x) => !!x && (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(x));
+    const staticV = isView(fld) ? fld : (fld && isView(fld.v) ? fld.v : null);
+    const fnField = typeof fld === 'function' ? fld : null;
     const vAt = (i, cx, cy, t) => {
       let v;
       if (staticV) v = staticV[i] || 0;
@@ -346,8 +353,12 @@
 
     /* ── 一帧：把场画成点 ── */
     let ptsDrawn = 0;
+    let dbg = null;                      /* 诊断口：哪条分支、第一格取值（见 debug()） */
     function paint(t) {
       ptsDrawn = 0;
+      dbg = { mode: typeof o.pointsAt === 'function' ? 'points' : (o.glyph ? 'glyph' : 'grid'),
+              cols: COLS, rows: ROWS, floor: o.floor, gain: o.gain, rmax: RMAX, cell: CELL,
+              skippedFloor: 0, skippedR: 0, drawn: 0, v0: null, w0: null, r0: null };
       /* 点列通道（沙粒/粒子）：不走网格，直接按 (x,y,r) 落墨 —— 颗粒感才留得住 */
       if (typeof o.pointsAt === 'function') {
         const P = o.pointsAt(t);
@@ -365,7 +376,8 @@
           const i = cy * COLS + cx;
           const v = vAt(i, cx, cy, t);
           const w = Math.min(1, v * o.gain);
-          if (w < o.floor) continue;                    /* floor 之下当纸（防底噪） */
+          if (i === 0) { dbg.v0 = v; dbg.w0 = w; }
+          if (w < o.floor) { dbg.skippedFloor++; continue; }   /* floor 之下当纸（防底噪） */
           const px = cx * CELL + CELL / 2, py = cy * CELL + CELL / 2;
           if (gl) {
             /* 字形模式：字要读得清才用字；小到读不清就降级成点（**降级半径 = rMin，全片一致**） */
@@ -378,8 +390,10 @@
             ptsDrawn++; continue;
           }
           const r = radiusOf(v);
-          if (r <= 0) continue;
+          if (i === 0) dbg.r0 = r;
+          if (r <= 0) { dbg.skippedR++; continue; }
           dot(px, py, r);
+          dbg.drawn++;
           ptsDrawn++;
         }
       }
@@ -519,6 +533,7 @@
 
     return {
       draw: draw, judge: judge, measure: measure, reset: function () { RC.clear(); },
+      debug: function () { return dbg; },
       opts: o, cols: COLS, rows: ROWS, cell: CELL, rMax: RMAX,
       duration: o.duration, canvas: cv, draws: () => draws,
     };
@@ -569,7 +584,7 @@
   /* 导出用**加法式**，不要整体赋值：整体赋值会把后加载/预挂的其它件冲掉
      （踩过：pheno.js 在 dotink.js 之后加载时，DotInk.pheno 会被这一行抹掉）。 */
   global.DotInk = Object.assign(global.DotInk || {}, {
-    version: '1.1.0',
+    version: '1.2.0',
     create: create, host: host, fields: fields,
     DEFAULTS: DEFAULTS, discMax: DISC_MAX,
     /* 标准里的公式单独导出，便于测试与对照 */

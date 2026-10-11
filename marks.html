@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="icon.svg">
+<title>点墨 · 厂标墙（47 家）</title>
+<style>
+  :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--panel:#E4E7E6;--accent:#FF4B1F;
+        --fd:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+        --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--fd)}
+  header{border-bottom:2px solid var(--ink);padding:14px 20px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+  h1{margin:0;font-size:20px}
+  .lab{font:500 12px/1.3 var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  header .links{margin-left:auto;display:flex;gap:14px}
+  a{color:inherit}
+  main{display:grid;grid-template-columns:minmax(520px,1fr) 470px;gap:0;align-items:start}
+  @media (max-width:1150px){main{grid-template-columns:1fr}}
+  .wrap{padding:20px;border-right:2px solid var(--ink)}
+  @media (max-width:1150px){.wrap{border-right:0;border-bottom:2px solid var(--ink)}}
+  .stage{position:relative;border:2px solid var(--ink);width:min(560px,74vw);aspect-ratio:1;background:var(--paper)}
+  .stage canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+  .name{position:absolute;left:14px;bottom:12px;background:var(--paper);border:2px solid var(--ink);padding:2px 10px;font:800 18px/1.2 var(--fd)}
+  .idx{position:absolute;right:14px;top:12px;background:var(--paper);border:1px solid var(--hair);padding:2px 8px;font:500 12px var(--fm);color:var(--mute)}
+  .ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:14px}
+  .ctl label{display:flex;flex-direction:column;gap:3px;font:500 12px var(--fm);color:var(--mute)}
+  button,select{font:600 13px var(--fd);padding:6px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer}
+  button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+  aside{padding:20px}
+  .wall{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;max-height:430px;overflow:auto;padding-right:4px}
+  .cell{border:2px solid var(--hair);background:var(--paper);cursor:pointer;padding:2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .cell[aria-current=true]{border-color:var(--ink)}
+  .cell canvas{width:100%;height:auto;display:block;image-rendering:pixelated}
+  .cell span{font:500 8px/1.1 var(--fm);color:var(--mute);text-align:center;white-space:nowrap;overflow:hidden;max-width:100%}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+  th,td{border-bottom:1px solid var(--hair);padding:4px 6px;text-align:left}
+  th{font:500 11px var(--fm);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .kv{font:500 12px var(--fm)}
+  .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
+  #zoom{width:210px;height:210px;border:2px solid var(--ink);image-rendering:pixelated;background:var(--paper)}
+  footer{border-top:2px solid var(--ink);padding:14px 20px;color:var(--mute);font-size:12px}
+  code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1><img src="icon.svg" alt="" width="26" height="26" style="vertical-align:-5px;margin-right:8px">点墨 · 厂标墙</h1>
+  <span class="lab">Dot Ink · Marks · 47</span>
+  <div class="links lab"><a href="gallery.html">现象画廊</a><a href="icon.html">品牌图标</a><a href="STANDARD.md">标准</a><a href="README.md">包说明</a></div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="name" id="name"></div>
+      <div class="idx" id="idx"></div>
+    </div>
+    <div class="ctl">
+      <label>落墨 <button id="mode" aria-pressed="true">网点（调幅）</button></label>
+      <label>点距 <select id="cell"><option>4</option><option>6</option><option selected>8</option><option>10</option><option>12</option></select></label>
+      <label>翻页 <button id="play" aria-pressed="false">播放（0.8s/家）</button></label>
+      <label>1:1 放大镜 <canvas id="zoom" width="210" height="210"></canvas></label>
+    </div>
+    <div class="lab" style="margin-top:10px">← → 换一家 · 空格 播放/暂停 · 一遍 47 家 = 37.6s（与 lab-field22 同节奏）</div>
+  </div>
+
+  <aside>
+    <div class="lab">47 家（点一下看大图）</div>
+    <div class="wall" id="wall"></div>
+
+    <div class="lab" style="margin-top:16px">本屏实测</div>
+    <table><tbody id="readout"></tbody></table>
+
+    <div class="lab" style="margin-top:16px">两种落墨</div>
+    <div class="kv" style="font-size:12px">
+      · <b>网点</b>：把厂标的覆盖率场喂给点墨（<code>fromImageData</code> → 每格一份墨）。
+      场自带 gamma（0.45），所以半径走**线性**（STANDARD §3 的配对规则）。<br>
+      · <b>实墨</b>：路径按 50% 阈值切硬像素 —— 1-bit 的剪影，小尺寸反而更清楚。<br>
+      · 两种都**零灰阶**：厂标不是照片，不需要中间调；网点版给的是"印刷感"，实墨版给的是"识别"。
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <b>版权口径</b>：厂标是各家的商标，这里用来**指称**那家公司属于规范使用；路径数据来自
+  <a href="https://github.com/simple-icons/simple-icons">simple-icons</a>（<b>CC0 1.0</b>），不是官方素材包，除形变外没有改绘。
+  商用发布前按自家法务口径过一遍。详见 <a href="NOTICE.md">NOTICE.md</a>。
+  数据由 <code>tools/make-marks.mjs</code> 从主库 <code>modules/markplate/icons.js</code> 抽出（只留 key/title/d）。
+</footer>
+
+<script src="dotink.js"></script>
+<script src="marks.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const M = window.DotInkMarks, S = 560, SCALE = 1.5, INK = '#0C0D0E', PAPER = '#F2F3F2';
+  const st = { i: 0, cell: 8, solid: false, playing: false, inst: null, ms: 0 };
+
+  /* 厂标路径 → 离屏画布（纸底 + 墨标，占画幅 86%）—— 给 fromImageData 用 */
+  function raster(icon, px) {
+    const c = document.createElement('canvas'); c.width = c.height = px;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.fillStyle = PAPER; x.fillRect(0, 0, px, px);
+    x.fillStyle = INK;
+    const s = px * 0.86 / M.viewBox, off = px * 0.07;
+    x.setTransform(s, 0, 0, s, off, off);
+    x.fill(new Path2D(icon.d));
+    return c;
+  }
+
+  /* 实墨：路径按 50% 阈值切硬像素（零反锯齿） */
+  function solid(cv, icon) {
+    const w = Math.round(S * SCALE);
+    const off = document.createElement('canvas'); off.width = off.height = w;
+    const o = off.getContext('2d', { willReadFrequently: true });
+    o.fillStyle = INK;
+    const s = w * 0.86 / M.viewBox, d0 = w * 0.07;
+    o.setTransform(s, 0, 0, s, d0, d0);
+    o.fill(new Path2D(icon.d));
+    o.setTransform(1, 0, 0, 1, 0, 0);
+    const d = o.getImageData(0, 0, w, w);
+    for (let k = 0; k < d.data.length; k += 4) {
+      const ink = d.data[k + 3] > 127;
+      d.data[k] = ink ? 12 : 242; d.data[k + 1] = ink ? 13 : 243; d.data[k + 2] = ink ? 14 : 242; d.data[k + 3] = 255;
+    }
+    const ctx = cv.getContext('2d');
+    ctx.putImageData(d, 0, 0);
+  }
+
+  function drawMark(cv, icon, cssSize, cell, solidMode) {
+    if (solidMode) { cv.width = cv.height = Math.round(cssSize * SCALE); solid(cv, icon); return null; }
+    const cols = Math.round(cssSize / cell), rows = cols;
+    const px = cols * 2;                                  /* 栅格 2px/格，够算覆盖率 */
+    const rc = raster(icon, px);
+    const v = DotInk.fields.fromImageData(
+      rc.getContext('2d').getImageData(0, 0, px, px).data, px, px, cols, rows,
+      { thr: 0.62, gamma: 0.45, gain: 1.6 });
+    cv.width = cv.height = Math.round(cssSize * SCALE);
+    const inst = DotInk.create({
+      canvas: cv, cssW: cssSize, cssH: cssSize, scale: SCALE, cols: cols, rows: rows, cell: cell,
+      field: v, areaMap: false, maxFrac: 0.48, floor: 0.02, gain: 1, hud: false, shutter: 0, duration: 1,
+    });
+    inst.draw(0);                       /* ⚠ 建了实例必须画：漏了这句画布是空的（实测过） */
+    return inst;
+  }
+
+  function render() {
+    const k = M.order[st.i], icon = M.icons[k];
+    const cv = $('cv');
+    cv.width = cv.height = 0;
+    st.inst = drawMark(cv, icon, S, st.cell, st.solid);
+    $('name').textContent = icon.title;
+    $('idx').textContent = (st.i + 1) + ' / ' + M.order.length;
+    document.querySelectorAll('.cell').forEach((el, j) => el.setAttribute('aria-current', String(j === st.i)));
+    /* 放大镜：设备像素 1:1 */
+    const z = $('zoom').getContext('2d');
+    z.imageSmoothingEnabled = false;
+    const side = Math.round(210);
+    z.clearRect(0, 0, 210, 210);
+    z.drawImage(cv, Math.round(cv.width / 2 - side / 2), Math.round(cv.height / 2 - side / 2), side, side, 0, 0, 210, 210);
+    readout();
+  }
+
+  function readout() {
+    const cv = $('cv'), ctx = cv.getContext('2d');
+    const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    let ink = 0, pap = 0, gray = 0, clear = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
+      /* ⚠ 透明像素必须先判掉：r=0 的空白画布会被算成"100% 墨"（我第一版就这么骗过自己） */
+      if (a < 128) { clear++; continue; }
+      if (r < 128) ink++;
+      else if (Math.abs(r - 242) <= 2 && Math.abs(g - 243) <= 2 && Math.abs(b - 242) <= 2) pap++;
+      else gray++;
+    }
+    const tot = cv.width * cv.height;
+    const cov = ink / tot;
+    let m = null;
+    try { m = st.inst ? st.inst.measure() : null; } catch (e) {}
+    const pr = m && m.pitchRatioMedian;
+    /* 模式按 §4 分开判：覆盖率 ≥8% 是**面**，不拿 M1 的 3:1 去卡它（厂标网点多半落在面场里） */
+    const mode = st.solid ? '实墨' : (cov >= 0.08 ? 'M2 面场' : (pr && pr >= 3 ? 'M1 网点' : 'M3 结构'));
+    const modeRule = st.solid ? '不是网点，不卡 3:1'
+      : (mode === 'M1 网点' ? '点距:点径 ' + pr.toFixed(2) + ':1（≥3:1 ' + (pr >= 3 ? '✓' : '✗') + '）'
+        : (mode === 'M2 面场' ? '面场：不卡 3:1（覆盖率 ≥8%）' : '结构型：看结构处局部覆盖率 + 1:1'));
+    const rows = [
+      ['落墨', st.solid ? '实墨 · 1-bit 剪影' : '网点 · 调幅', st.solid ? '阈值 50%，零反锯齿' : '覆盖率场 → 每格一份墨'],
+      ['模式', mode, modeRule],
+      ['覆盖率（整屏）', (cov * 100).toFixed(2) + '%', '厂标是细笔画，天然低于面场的 8%'],
+      ['格数', st.solid ? '—（矢量路径直接切像素）' : (m ? m.points + ' 点 / ' + (st.inst.cols * st.inst.rows) + ' 格 · 点距 ' + m.cell.toFixed(1) + 'px' : ''), ''],
+      ['灰阶（非墨非纸）', gray + ' px', gray === 0 ? 'ok' : 'bad'],
+      ['未落墨（透明）', clear + ' px', clear === 0 ? 'ok' : 'bad'],
+      ['画布', cv.width + '×' + cv.height + '（' + SCALE + '× 真渲染）', ''],
+    ];
+    $('readout').innerHTML = rows.map(r =>
+      '<tr><td>' + r[0] + '</td><td class="kv">' + r[1] + '</td><td class="kv">' + r[2] + '</td><td class="' + (r[2] === 'ok' ? 'ok' : r[2] === 'bad' ? 'bad' : '') + '">' +
+      (r[2] === 'ok' ? '✓' : r[2] === 'bad' ? '✗' : '') + '</td></tr>').join('');
+  }
+
+  function buildWall() {
+    const box = $('wall');
+    box.innerHTML = '';
+    M.order.forEach((k, j) => {
+      const icon = M.icons[k];
+      const b = document.createElement('button');
+      b.className = 'cell';
+      const c = document.createElement('canvas');
+      drawMark(c, icon, 92, 4, st.solid);
+      const s = document.createElement('span');
+      s.textContent = icon.title;
+      b.appendChild(c); b.appendChild(s);
+      b.addEventListener('click', () => { st.i = j; render(); });
+      box.appendChild(b);
+    });
+  }
+
+  let timer = null;
+  function setPlay(on) {
+    st.playing = on;
+    $('play').setAttribute('aria-pressed', String(on));
+    $('play').textContent = on ? '播放中（0.8s/家）' : '播放（0.8s/家）';
+    if (timer) { clearInterval(timer); timer = null; }
+    if (on) timer = setInterval(() => { st.i = (st.i + 1) % M.order.length; render(); }, 800);
+  }
+
+  $('cell').addEventListener('change', e => { st.cell = +e.target.value; render(); });
+  $('mode').addEventListener('click', e => {
+    st.solid = !st.solid;
+    e.currentTarget.setAttribute('aria-pressed', String(!st.solid));
+    e.currentTarget.textContent = st.solid ? '实墨（1-bit 剪影）' : '网点（调幅）';
+    buildWall(); render();
+  });
+  $('play').addEventListener('click', () => setPlay(!st.playing));
+  addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') { st.i = (st.i + 1) % M.order.length; render(); }
+    else if (e.key === 'ArrowLeft') { st.i = (st.i + M.order.length - 1) % M.order.length; render(); }
+    else if (e.key === ' ') { e.preventDefault(); setPlay(!st.playing); }
+  });
+
+  buildWall();
+  render();
+  window.__marks = {
+    st: st, render: render, order: M.order, count: M.order.length,
+    /* 自检（跑在页面自己的 realm 里）：确认"Float32Array 场"这条路真的出点 */
+    selftest: function () {
+      const v = DotInk.fields.ramp(70, 70);
+      const out = { ctorName: v.constructor.name, isF32: v instanceof Float32Array, isView: ArrayBuffer.isView(v), len: v.length, v0: +v[0].toFixed(3) };
+      const cv = document.createElement('canvas'); cv.width = cv.height = 840;
+      const inst = DotInk.create({ canvas: cv, cssW: 560, cssH: 560, scale: 1.5, cols: 70, rows: 70, cell: 8,
+        field: v, areaMap: true, hud: false, shutter: 0, floor: 0.02, gain: 1 });
+      out.optsIsSameArray = inst.opts.field === v;
+      out.typeofPointsAt = typeof inst.opts.pointsAt;
+      out.pointsAtSrc = inst.opts.pointsAt ? String(inst.opts.pointsAt).slice(0, 90) : null;
+      out.typeofGlyph = typeof inst.opts.glyph;
+      out.keysWithFn = Object.keys(inst.opts).filter(function (k) { return typeof inst.opts[k] === 'function'; });
+      inst.draw(0);
+      out.points = inst.measure().points;
+      out.dbg = inst.debug ? inst.debug() : null;
+      out.coverage = +inst.measure().coverage.toFixed(4);
+      return out;
+    },
+  };
+})();
+</script>
+</body>
+</html>

@@ -18,6 +18,7 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 | [`pheno.js`](pheno.js) | **自然现象场库**八个：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`，统一 `(cols, rows, opts) → (i,x,y,t) → 0..1` |
 | [`preview.html`](preview.html) | 判据计算器 + 参数实验台（双击即开），带 **1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **画廊（视觉产品）**：九项现象**现场渲染**（8px 真圆盘 · 线性半径 · 每屏一句大字标题）+ 实时判据（**M1/M2/M3 分开报**）+ **映射 A/B** + 1:1 放大镜 —— 想知道"配方长什么样"就开它 |
+| [`marks.html`](marks.html) | **厂标墙（第二件产品）**：47 家厂标用点墨画（网点 / **实墨 1-bit 剪影** 两种落墨）+ 47 格墙 + 0.8s/家自动翻页；版权口径见 [`NOTICE.md`](NOTICE.md) |
 | [`icon.svg`](icon.svg) · [`icon.html`](icon.html) | **品牌图标**（几何即 §3/§4 的一次应用：15×15 网点 · maxFrac 0.406 · √ 映射 · 一颗 accent 点）+ **图标工坊**（任意尺寸导出、0 灰阶自检） |
 
 ## 0.5 · 在产线里怎么落（优先这条）
