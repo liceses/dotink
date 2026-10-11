@@ -1,15 +1,16 @@
 {
   "name": "dotink",
-  "version": "1.2.0",
-  "description": "点墨 · 1-bit 成像标准与参考实现 + 现象画廊 + 厂标墙：画面只有墨与纸两种像素，中间调由点的面积表达（半径映射与场自带的 gamma 配对）",
-  "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks"],
+  "version": "1.3.0",
+  "description": "点墨 · 1-bit 成像标准与参考实现 + 现象画廊 + 厂标墙 + 字版厂标：画面只有墨与纸两种像素，中间调由点的面积表达",
+  "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks", "typeplate"],
   "license": "MIT",
   "type": "commonjs",
   "main": "dotink.js",
-  "files": ["dotink.js", "pheno.js", "gallery.html", "marks.html", "marks.js", "icon.html", "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png", "tools", "STANDARD.md", "SKILL.md", "NOTICE.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
+  "files": ["dotink.js", "pheno.js", "gallery.html", "marks.html", "marks-type.html", "marks.js", "markplate.js", "icon.html", "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png", "tools", "STANDARD.md", "SKILL.md", "NOTICE.md", "preview.html", "README.md", "LICENSE", "demo", "media"],
   "scripts": {
     "gallery": "node -e \"console.log('open gallery.html in a browser')\"",
     "marks": "node -e \"console.log('open marks.html in a browser')\"",
+    "marks-type": "node -e \"console.log('open marks-type.html in a browser')\"",
     "preview": "node -e \"console.log('open preview.html in a browser')\""
   },
   "private": false

@@ -43,3 +43,13 @@ Pearson 1993 · Witten & Sander 1981 · Kuramoto 1975 · Feigenbaum 1978 · 双�
 ## 5 · 品牌图标（[`icon.svg`](icon.svg) · [`icon-*.png`](icon-512.png)）
 
 原创，几何即本标准 §3/§4 的一次应用（生成器 [`tools/make-icon.mjs`](tools/make-icon.mjs)）。MIT。
+
+---
+
+## 6 · 字版厂标引擎（[`markplate.js`](markplate.js)）
+
+**代码逐字节移植**自主库 [`modules/markplate/markplate.js`](../modules/markplate/markplate.js)
+（`MarkPlate 1.0`，19 KB，零依赖、经典脚本）：**未改一行**，只在文件最上面加了出处头；
+正文 sha256 与上游一致，可用 [`tools/vendor-markplate.mjs`](tools/vendor-markplate.mjs) 复验/重取。
+
+它用到的厂标路径数据许可与商标口径**同 §1**（simple-icons **CC0 1.0**；商标归各家；指称使用；商用前过法务）。
