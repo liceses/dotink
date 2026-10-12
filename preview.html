@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>点墨 · 判据计算器与实验台</title>
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="ink.css">
 <style>
   :root{
     --ink:#0C0D0E; --paper:#F2F3F2; --mute:#5A5F61; --hair:#D2D6D5; --panel:#E4E7E6; --accent:#FF4B1F;
@@ -11,8 +12,9 @@
     --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
-  body{margin:0;padding:28px;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--f-d)}
-  h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--f-d)}
+  /* 站点头 / 页脚 / 大标题交给 ink.css；正文自己包一层容器（原来靠 body 的 padding） */
+  .page-body{padding:clamp(16px,3vw,32px);max-width:1600px;margin:0 auto}
   .lede{margin:0 0 22px;color:var(--mute);max-width:78ch}
   .lab{font:500 12px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
   .row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
@@ -38,12 +40,31 @@
 </style>
 </head>
 <body>
-<h1>点墨 · 判据计算器与实验台</h1>
-<p class="lede">
-  左边是<b>面积映射</b> <span class="kv">r = rMax·√w</span>（标准口径），右边是<b>线性映射</b> <span class="kv">r = rMax·w</span>（只作对照臂）。
-  同一张场、同一套令牌，只有映射不同 —— 中间调的差别一眼能看出来。下面的表是 <span class="kv">STANDARD.md</span> 的判据**实时算**出来的值。
-</p>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+    <nav class="site-nav">
+      <a href="gallery.html">现象画廊</a>
+      <a href="preview.html" aria-current="page">判据计算器</a>
+      <a href="marks-type.html">字版厂标</a>
+      <a href="marks.html">点墨厂标</a>
+      <a href="icon.html">品牌图标</a>
+      <a href="logo-demo.html">logo 组件</a>
+      <a href="STANDARD.md">标准</a>
+    </nav>
+  </div>
+</header>
 
+<section class="page-intro">
+  <p class="kicker"><i></i>Dot Ink · Judge · 实时</p>
+  <h1 class="display">判据计算器</h1>
+  <p>左边是<b>面积映射</b> <code>r = rMax·√w</code>（标准口径），右边是<b>线性映射</b> <code>r = rMax·w</code>（只作对照臂）。
+     同一张场、同一套令牌，只有映射不同 —— 中间调的差别一眼能看出来。</p>
+  <p>下面那张表是 <code>STANDARD.md</code> 的判据<b>实时算</b>出来的值：门禁行带 ✓/✗，参考行标「参考」。
+     右上角显示当前<b>判定模式</b>与未过项 —— 判据按体裁走，M1/M2 不互相卡。</p>
+</section>
+
+<div class="page-body">
 <div class="grid2">
   <div class="card">
     <div class="hd"><span class="lab">A · 面积映射 ✓</span><span class="lab kv" id="aInfo">—</span></div>
@@ -86,6 +107,19 @@
     </div>
   </div>
 </div>
+
+</div><!-- /.page-body -->
+
+<footer class="site-foot">
+  <div class="in">
+    <span>判据的唯一真相在 <a href="STANDARD.md">STANDARD.md</a>；这一页是它的计算器与实验台。</span>
+    <span class="links">
+      <a href="README.md">包说明</a>
+      <a href="gallery.html">现象画廊</a>
+      <a href="https://github.com/liceses/dotink">GitHub</a>
+    </span>
+  </div>
+</footer>
 
 <script src="dotink.js"></script>
 <script>

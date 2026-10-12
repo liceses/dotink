@@ -3,6 +3,23 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 1.7.0 — 2026-10-13
+
+**新增：一套共用设计系统（`ink.css`）—— 六页合成一组宣传页**
+- 起因：每个页面各写一套内联 CSS、导航各指各的，`preview.html` 连 header 都没有（**进去出不来，0 条链接**）。
+- `ink.css`（零依赖，`file://` 双击可用）：令牌 / **粘性站点头 + 全站一致的 7 项导航**（当前页带 accent 下划线）/
+  页头（kicker + display 标题 + 一句「这是什么」）/ 站脚 / `.btn` `.link` / 统一焦点环 / `prefers-reduced-motion`。
+- 六页统一改造：`gallery` · `preview` · `marks-type` · `marks` · `icon` · `logo-demo` ——
+  每页都有站点头、一段**页头说明**（这是什么 / 该看哪）、站脚与全站导航；`hero.html` 也挂 `ink.css` 共享令牌。
+- 命名避开 `.wrap`：gallery / marks / icon / logo-demo 都用它当主内容列，共用件改叫 `.page-body`。
+
+**修复**
+- `gallery.html`：**九个缩略图全是黑块，而且长得一模一样**。`buildThumb()` 只 `DotInk.create()`、
+  没 `draw()` —— 而 `dotink.js` 取的是 `getContext('2d', { alpha:false })`，**未绘制的画布是不透明白黑**。
+  现在按 `select()` 同一条规则起播（`p.t0 ?? p.span*0.6`）并真画一帧。
+
+**自查**：`npm run check` **10/10 · 链接 187 条全在**。
+
 ## 1.6.0 — 2026-10-12
 
 **修内核（两处都是"宣称与实现对不上"，各带一次实测）**

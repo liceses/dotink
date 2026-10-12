@@ -1,6 +1,6 @@
 {
   "name": "dotink",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "点墨 · 1-bit 成像标准与参考实现 + 现象画廊 + 厂标墙 + 字版厂标 + 即插即用 logo 组件 + hero 示例",
   "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks", "typeplate", "logo-overlay", "hero"],
   "license": "MIT",

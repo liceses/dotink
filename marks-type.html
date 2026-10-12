@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="ink.css">
 <title>点墨 · 字版厂标（47 家 · 字拼成的标）</title>
 <style>
   :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--panel:#E4E7E6;--accent:#FF4B1F;
@@ -11,10 +12,8 @@
         --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--fd)}
-  header{border-bottom:2px solid var(--ink);padding:14px 20px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
-  h1{margin:0;font-size:20px}
+  /* 站点头 / 页脚 / 大标题交给 ink.css（全站一致）—— 这里只留本页的功能样式 */
   .lab{font:500 12px/1.3 var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
-  header .links{margin-left:auto;display:flex;gap:14px}
   a{color:inherit}
   main{display:grid;grid-template-columns:minmax(560px,1fr) 420px;gap:0;align-items:start}
   @media (max-width:1180px){main{grid-template-columns:1fr}}
@@ -37,15 +36,32 @@
   .kv{font:500 12px var(--fm)}
   .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
   code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
-  footer{border-top:2px solid var(--ink);padding:14px 20px;color:var(--mute);font-size:12px}
 </style>
 </head>
 <body>
-<header>
-  <h1><img src="icon.svg" alt="" width="26" height="26" style="vertical-align:-5px;margin-right:8px">点墨 · 字版厂标</h1>
-  <span class="lab">MarkPlate · 47 marks · letters form the mark</span>
-  <div class="links lab"><a href="marks.html">点墨版厂标墙</a><a href="gallery.html">现象画廊</a><a href="STANDARD.md">标准</a></div>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+    <nav class="site-nav">
+      <a href="gallery.html">现象画廊</a>
+      <a href="preview.html">判据计算器</a>
+      <a href="marks-type.html" aria-current="page">字版厂标</a>
+      <a href="marks.html">点墨厂标</a>
+      <a href="icon.html">品牌图标</a>
+      <a href="logo-demo.html">logo 组件</a>
+      <a href="STANDARD.md">标准</a>
+    </nav>
+  </div>
 </header>
+
+<section class="page-intro">
+  <p class="kicker"><i></i>MarkPlate · 47 marks · letters form the mark</p>
+  <h1 class="display">字版厂标</h1>
+  <p>厂标不是画出来的，是<b>用字拼出来的</b> —— 每格一个字，字的大小按厂标的距离场走；
+     「阅读波」扫过时，字<b>逐格浮现</b>。</p>
+  <p>47 家 · 一家 0.8s · 一遍 37.6s（与实验区 <code>lab-field22</code> 同节奏）。
+     引擎 <code>markplate.js</code> 从主库<b>逐字节移植</b>，正文 sha256 与上游一致。</p>
+</section>
 
 <main>
   <div class="wrap">
@@ -80,9 +96,17 @@
   </aside>
 </main>
 
-<footer>
-  厂标路径来自 simple-icons（<b>CC0 1.0</b>）；商标归各家，这里用于**指称** —— 商用发布前按法务口径过一遍（见 <a href="NOTICE.md">NOTICE.md</a>）。
-  同一批厂标的**点墨版**（网点 / 1-bit 剪影）在 <a href="marks.html">marks.html</a>。
+<footer class="site-foot">
+  <div class="in">
+    <span>厂标路径来自 simple-icons（<b>CC0 1.0</b>）；商标归各家，这里用于<b>指称</b> ——
+      商用发布前按法务口径过一遍（见 <a href="NOTICE.md">NOTICE.md</a>）。</span>
+    <span class="links">
+      <a href="marks.html">点墨版厂标</a>
+      <a href="README.md">包说明</a>
+      <a href="STANDARD.md">标准</a>
+      <a href="https://github.com/liceses/dotink">GitHub</a>
+    </span>
+  </div>
 </footer>
 
 <script src="markplate.js"></script>
