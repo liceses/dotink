@@ -59,8 +59,8 @@
   <h1 class="display">字版厂标</h1>
   <p>厂标不是画出来的，是<b>用字拼出来的</b> —— 每格一个字，字的大小按厂标的距离场走；
      「阅读波」扫过时，字<b>逐格浮现</b>。</p>
-  <p><b>点一下换一家，换过去就停住</b>（默认不自动翻页）—— 想看它自己跑，按「自动播放」：
-     一家 0.8s、一遍 37.6s，与实验区 <code>lab-field22</code> 同节奏。
+  <p><b>点一下换一家，然后停在它上面 —— 标不动，字继续浮动</b>。想看它自己翻页，
+     按「自动翻页」（停住 4s 换下一家）。
      引擎 <code>markplate.js</code> 从主库<b>逐字节移植</b>，正文 sha256 与上游一致。</p>
 </section>
 
@@ -70,11 +70,10 @@
     <div class="ctl">
       <label>换一家 <button id="step">下一家 →</button></label>
       <label>浮现 <button id="replay">重放这一家的浮现</button></label>
-      <label>自动播放 <button id="play" aria-pressed="false">自动播放</button></label>
-      <label>时间 <input type="range" id="scrub" min="0" max="1000" value="0"><span class="kv" id="tv">0.0s</span></label>
+      <label>自动翻页 <button id="play" aria-pressed="false">自动翻页</button></label>
       <label>阅读波 reveal <input type="range" id="rev" min="15" max="300" value="60"><span class="kv" id="revV">0.60s</span></label>
     </div>
-    <div class="lab" style="margin-top:10px">← → 换一家 · 空格 自动播放/暂停 · 点右栏任一家直接跳过去 —— <b>默认不自动翻页，换过去就停住</b></div>
+    <div class="lab" style="margin-top:10px">← → 换一家 · 空格 自动翻页/暂停 · 点右栏任一家直接跳过去 —— <b>换过去就停在这一家，字继续浮动</b></div>
   </div>
 
   <aside>
@@ -118,14 +117,23 @@
   const $ = id => document.getElementById(id);
   const M = window.DotInkMarks;
   const PER = 0.8;                                   /* 一家 0.8s —— 与 lab-field22 一致 */
-  const TOTAL = M.order.length * PER;
-  /* 默认**不自动翻页**：进来就是一家「已经长好、停住」的标，点一下换一家。
-     想看它自己跑再按「自动播放」（一家 0.8s，与 lab-field22 同节奏）。
-     ⚠ 「停住」要停对时刻：引擎的 morph 是 [0.34, 0.90]，**u=0.5 时只融了 20%**
-     —— 原来点右栏落在 u=0.5，看到的是"还没拼好的标"，所以像还在动。停 u≈0.95。 */
-  const st = { t: 0, playing: false, reveal: 0.6, mp: null, ms: 0, cur: 0, playOne: null };
-  const SETTLE_U = 0.95;
-  const settledT = i => i * PER + PER * SETTLE_U;
+
+  /* ── 「停在这一家，但字继续动」────────────────────────────────────
+     引擎把「哪一家」**绑死在 t 上**（markplate.js:262 `k = floor(t / actSeconds)`），
+     所以**不能靠"不推进 t"来停住** —— 那样拿到的是一张死帧（用户原话：
+     "这只是暂停在某一帧，我要的是暂停在这个图标，文字浮现的动效继续"）。
+     反过来做：**让 t 一直走，把「哪一家」钉住**。三处只改引擎**读得到**的 opts，
+     引擎本身一个字不改（markplate.js 是逐字节移植件，测试查 sha256）：
+       · `opts.marks` **就地轮转**，把要停的那一家转到**下标 0** —— 数组是同一个引用，
+         引擎读得到；距离场 SD 按 slug 缓存，轮转不会让它重烘；
+       · `actSeconds` 分两段：先用 0.8s 跑完「字自己拼成标 + 阅读波」，再调到 600s ——
+         于是 `k` 恒为 0，而 t 继续走：ripple（字不断浮动）、ox/oy 漂移、呼吸都在动；
+       · `zoom` 在停住段设成 [1,1]：`DUR` 是 create 时算死的（47×0.8 = 37.6），
+         t 一直涨会把推镜放大到离谱。 */
+  const HOLD_ACT = 600;                  /* 停住段的 actSeconds：t 走 600s 才翻到下一家 */
+  const TRANS_END = PER * 0.95;          /* 成形段结束（u=0.95，引擎 morph [0.34,0.90] 已满） */
+  const AUTO_GAP = 4.0;                  /* 自动翻页：停住 4s 后换下一家 */
+  const st = { t: 0, reveal: 0.6, ms: 0, held: 0, phase: 'form', auto: false, autoAt: 0 };
 
   /* 正文：这一页自己用的文案（点墨标准的一句话 + 分工），与 lab-field22 的新闻文案不同 */
   const TEXT = '画面只有墨与纸两种像素，所有中间调由点的面积表达。调子等于墨量，墨量等于点面积之和。'
@@ -142,19 +150,50 @@
     reveal: st.reveal,
   });
   st.mp = mp;
-  st.t = settledT(0);          /* 进来先停在一家「长好了」的标上（不自动翻页） */
+
+  /* 把第 i 家转到下标 0 —— **就地**改数组（引擎持有同一个引用），不重建实例、不重烘距离场 */
+  function rotateTo(i) {
+    const arr = mp.opts.marks, n = arr.length;
+    if (!n) return;
+    i = ((i % n) + n) % n;
+    const rot = arr.slice(i).concat(arr.slice(0, i));
+    for (let k = 0; k < n; k++) arr[k] = rot[k];
+  }
+
+  /* 成形段跑完 → 进停住段：k 钉在 0，t 继续走（字继续浮动） */
+  function enterHold() {
+    mp.opts.actSeconds = HOLD_ACT;
+    mp.opts.morph = [0, 0.001];                      /* u 极小也要判成"已成形" */
+    mp.opts.zoom = [1, 1];                           /* 别让推镜跟着 t 涨 */
+    st.phase = 'hold';
+    st.autoAt = st.t;
+    lastRead = 0;                                    /* 阶段变了，强制刷一次读数 */
+  }
+
+  /* 切到第 i 家：跑一遍「成形 + 阅读波」，然后**停在它上面、字继续动** */
+  function show(i, animate) {
+    const n = M.order.length;
+    i = ((i % n) + n) % n;
+    st.held = i;
+    rotateTo(i);                                     /* 这一家 → 下标 0 */
+    mp.opts.actSeconds = PER;
+    mp.opts.morph = [0.34, 0.90];
+    mp.opts.zoom = [0.98, 1.12];
+    st.phase = 'form';
+    st.t = (animate === false) ? TRANS_END : 0.02;
+    if (st.t >= TRANS_END) enterHold();
+    draw();
+  }
 
   function draw() {
     const t0 = performance.now();
     let info = { act: 0, u: 0, morph: 0, draws: 0 };
     try { info = mp.draw(st.t) || info; } catch (e) { window.__mtypeErr = 'draw 抛错: ' + (e.message || e); }
     st.ms = performance.now() - t0;
-    /* ⚠ 下标必须夹住：第一帧的 rAF 时间戳可能比 performance.now() **早**，dt 为负 → t 为负 →
-       cur = -1 → 下面查 icons 会抛 TypeError → **rAF 循环当场死掉，画面停在 t≈0**（这个坑踩过）。 */
-    st.cur = Math.max(0, Math.min(M.order.length - 1, Math.floor(Math.max(0, st.t) / PER)));
-    const slug = M.order[st.cur], icon = M.icons[slug] || { title: String(slug) };
-    document.querySelectorAll('.cell').forEach((el, i) => el.setAttribute('aria-current', String(i === st.cur)));
-    $('tv').textContent = st.t.toFixed(1) + 's';
+    /* 「哪一家」**不再从 t 推**（`floor(t/actSeconds)` 正是死帧的根）——
+       用 st.held，由 show() 维护，永远夹在合法范围里 */
+    const slug = M.order[st.held], icon = M.icons[slug] || { title: String(slug) };
+    document.querySelectorAll('.cell').forEach((el, i) => el.setAttribute('aria-current', String(i === st.held)));
     readout(info, icon);
   }
 
@@ -174,12 +213,13 @@
     }
     const tot = cv.width * cv.height;
     const rows = [
-      ['这一家', (st.cur + 1) + ' / ' + M.order.length + ' · ' + icon.title, 't = ' + st.t.toFixed(2) + 's'],
-      ['引擎状态', 'act ' + (info.act | 0) + ' · 幕内 u ' + (+info.u || 0).toFixed(2) + ' · 收束 m ' + (+info.morph || 0).toFixed(2), 'markplate 的 draw(t) 是纯函数'],
+      ['这一家', (st.held + 1) + ' / ' + M.order.length + ' · ' + icon.title,
+        st.phase === 'form' ? '成形中（字拼成标 + 阅读波）' : '<b>停住</b>：字继续浮动'],
+      ['引擎状态', 'act ' + (info.act | 0) + ' · 幕内 u ' + (+info.u || 0).toFixed(3) + ' · 收束 m ' + (+info.morph || 0).toFixed(2), 'markplate 的 draw(t) 是纯函数'],
       ['墨 / 纸', (ink / tot * 100).toFixed(2) + '% / ' + (pap / tot * 100).toFixed(2) + '%', ''],
       ['灰阶（非墨非纸）', gray + ' px', gray === 0 ? 'ok' : 'bad'],
       ['单帧耗时', st.ms.toFixed(1) + ' ms', '字场约 20–60ms/帧（离线渲染够用）'],
-      ['reveal', st.reveal.toFixed(2) + 's', '阅读波扫完的秒数'],
+      ['阅读波 reveal', st.reveal.toFixed(2) + 's', '每次换家重扫一遍'],
     ];
     $('readout').innerHTML = rows.map(r =>
       '<tr><td>' + r[0] + '</td><td class="kv">' + r[1] + '</td><td class="kv">' + r[2] + '</td><td class="' + (r[2] === 'ok' ? 'ok' : r[2] === 'bad' ? 'bad' : '') + '">' +
@@ -193,67 +233,48 @@
       const b = document.createElement('button');
       b.className = 'cell';
       b.textContent = (i + 1) + ' ' + (M.icons[s].title || s);
-      b.addEventListener('click', () => goto(i));
+      b.addEventListener('click', () => show(i, true));
       box.appendChild(b);
     });
   }
 
-  function setPlay(on) {
-    st.playing = on;
+  function setAuto(on) {
+    st.auto = on;
+    if (on) st.autoAt = st.t;
     $('play').setAttribute('aria-pressed', String(on));
-    $('play').textContent = on ? '自动播放中' : '自动播放';
+    $('play').textContent = on ? '自动翻页中' : '自动翻页';
   }
 
-  /* 跳到第 i 家并**停住**。`animate=true` 时先跑一遍它的浮现（阅读波），扫到「长好」自动停。 */
-  function goto(i, animate) {
-    i = ((i % M.order.length) + M.order.length) % M.order.length;
-    st.playOne = null;
-    setPlay(false);
-    if (animate) { st.t = i * PER + 0.02; st.playOne = i; setPlay(true); }
-    else st.t = settledT(i);
-    $('scrub').value = Math.round(st.t / TOTAL * 1000);
-    draw();
-  }
-
-  const autoToggle = () => {
-    st.playOne = null;
-    if (st.playing) setPlay(false);
-    else { st.t = settledT(st.cur); setPlay(true); }      /* 从当前这家接着往下翻 */
-  };
-
-  $('play').addEventListener('click', autoToggle);
-  $('scrub').addEventListener('input', e => { st.playOne = null; st.t = +e.target.value / 1000 * TOTAL; setPlay(false); draw(); });
+  $('play').addEventListener('click', () => setAuto(!st.auto));
   $('rev').addEventListener('input', e => {
     st.reveal = +e.target.value / 100;
     $('revV').textContent = st.reveal.toFixed(2) + 's';
     mp.opts.reveal = st.reveal;                    /* 引擎把 opts 暴露出来了 → 热改，不用重建实例 */
-    draw();
+    show(st.held, true);                           /* 立刻按新长度重扫一遍 */
   });
-  $('replay').addEventListener('click', () => goto(st.cur, true));
-  $('step').addEventListener('click', () => goto(st.cur + 1));
+  $('replay').addEventListener('click', () => show(st.held, true));
+  $('step').addEventListener('click', () => show(st.held + 1, true));
   addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight') goto(st.cur + 1);
-    else if (e.key === 'ArrowLeft') goto(st.cur - 1);
-    else if (e.key === ' ') { e.preventDefault(); autoToggle(); }
+    if (e.key === 'ArrowRight') show(st.held + 1, true);
+    else if (e.key === 'ArrowLeft') show(st.held - 1, true);
+    else if (e.key === ' ') { e.preventDefault(); setAuto(!st.auto); }
   });
 
-  let last = performance.now();
+  let last = performance.now(), lastDraw = 0;
   function loop(now) {
     /* dt 必须夹到 [0, 0.1]：首帧时间戳可能早于 performance.now()（负），
        切页面回来时又可能是几秒的大跳 —— 两种都会毁掉播放。 */
     const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
     last = now;
     try {
-      if (st.playing) {
-        st.t += dt;
-        if (st.playOne !== null) {
-          /* 单家浮现：扫到「长好」就**停住** —— 不让自己翻到下一家去。
-             停下的那一刻要**强制刷一次读数**：readout 节流到 250ms，不刷的话
-             牌子会停在半路的 t/u 上（实测停在 t=1.33 / u=0.67，而画面已经是 1.56 / 0.95）。 */
-          if (st.t >= settledT(st.playOne)) { st.t = settledT(st.playOne); st.playOne = null; setPlay(false); lastRead = 0; }
-        } else if (st.t >= TOTAL) st.t -= TOTAL;
-        if (st.t < 0) st.t = 0;
-        $('scrub').value = Math.round(st.t / TOTAL * 1000);
+      if (!document.hidden && now - lastDraw >= 1000 / 30) {   /* 封顶 30fps：字场单帧 20–60ms */
+        lastDraw = now;
+        st.t += dt;                                           /* ★ t **一直走** —— 字才一直动 */
+        if (st.phase === 'form') {
+          if (st.t >= TRANS_END) { st.t = TRANS_END; enterHold(); }
+        } else if (st.auto && st.t - st.autoAt >= AUTO_GAP) {
+          show(st.held + 1, true);                            /* 自动翻页 */
+        }
         draw();
       }
     } catch (e) {
@@ -264,11 +285,11 @@
   }
 
   buildWall();
-  draw();
+  show(0, true);                                          /* 进来先跑第 1 家的浮现，然后停在它上面 */
   requestAnimationFrame(loop);
   /* 47 个标的距离场是**懒建 + 缓存**的：先在后台烘一遍，免得第一次翻到某家时卡一下 */
   setTimeout(() => { try { mp.warm(); } catch (e) {} }, 60);
-  window.__mtype = { st: st, mp: mp, draw: draw, order: M.order, count: M.order.length, total: TOTAL };
+  window.__mtype = { st: st, mp: mp, draw: draw, show: show, order: M.order, count: M.order.length };
 })();
 </script>
 </body>
