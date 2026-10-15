@@ -59,7 +59,8 @@
   <h1 class="display">字版厂标</h1>
   <p>厂标不是画出来的，是<b>用字拼出来的</b> —— 每格一个字，字的大小按厂标的距离场走；
      「阅读波」扫过时，字<b>逐格浮现</b>。</p>
-  <p>47 家 · 一家 0.8s · 一遍 37.6s（与实验区 <code>lab-field22</code> 同节奏）。
+  <p><b>点一下换一家，换过去就停住</b>（默认不自动翻页）—— 想看它自己跑，按「自动播放」：
+     一家 0.8s、一遍 37.6s，与实验区 <code>lab-field22</code> 同节奏。
      引擎 <code>markplate.js</code> 从主库<b>逐字节移植</b>，正文 sha256 与上游一致。</p>
 </section>
 
@@ -67,13 +68,13 @@
   <div class="wrap">
     <div class="stage"><canvas id="cv"></canvas></div>
     <div class="ctl">
-      <label>播放 <button id="play" aria-pressed="true">播放中</button></label>
-      <label>时间 <input type="range" id="scrub" min="0" max="1000" value="0"><span class="kv" id="tv">0.0s</span></label>
-      <label>阅读波 reveal <input type="range" id="rev" min="15" max="300" value="100"><span class="kv" id="revV">1.00s</span></label>
+      <label>换一家 <button id="step">下一家 →</button></label>
       <label>浮现 <button id="replay">重放这一家的浮现</button></label>
-      <label>逐格 <button id="step">下一家 →</button></label>
+      <label>自动播放 <button id="play" aria-pressed="false">自动播放</button></label>
+      <label>时间 <input type="range" id="scrub" min="0" max="1000" value="0"><span class="kv" id="tv">0.0s</span></label>
+      <label>阅读波 reveal <input type="range" id="rev" min="15" max="300" value="60"><span class="kv" id="revV">0.60s</span></label>
     </div>
-    <div class="lab" style="margin-top:10px">← → 换家 · 空格 播放/暂停 · 一家 0.8s（47 家 = 37.6s，与 lab-field22 同节奏）</div>
+    <div class="lab" style="margin-top:10px">← → 换一家 · 空格 自动播放/暂停 · 点右栏任一家直接跳过去 —— <b>默认不自动翻页，换过去就停住</b></div>
   </div>
 
   <aside>
@@ -118,7 +119,13 @@
   const M = window.DotInkMarks;
   const PER = 0.8;                                   /* 一家 0.8s —— 与 lab-field22 一致 */
   const TOTAL = M.order.length * PER;
-  const st = { t: 0, playing: true, reveal: 1.0, mp: null, ms: 0, cur: 0 };
+  /* 默认**不自动翻页**：进来就是一家「已经长好、停住」的标，点一下换一家。
+     想看它自己跑再按「自动播放」（一家 0.8s，与 lab-field22 同节奏）。
+     ⚠ 「停住」要停对时刻：引擎的 morph 是 [0.34, 0.90]，**u=0.5 时只融了 20%**
+     —— 原来点右栏落在 u=0.5，看到的是"还没拼好的标"，所以像还在动。停 u≈0.95。 */
+  const st = { t: 0, playing: false, reveal: 0.6, mp: null, ms: 0, cur: 0, playOne: null };
+  const SETTLE_U = 0.95;
+  const settledT = i => i * PER + PER * SETTLE_U;
 
   /* 正文：这一页自己用的文案（点墨标准的一句话 + 分工），与 lab-field22 的新闻文案不同 */
   const TEXT = '画面只有墨与纸两种像素，所有中间调由点的面积表达。调子等于墨量，墨量等于点面积之和。'
@@ -135,6 +142,7 @@
     reveal: st.reveal,
   });
   st.mp = mp;
+  st.t = settledT(0);          /* 进来先停在一家「长好了」的标上（不自动翻页） */
 
   function draw() {
     const t0 = performance.now();
@@ -185,7 +193,7 @@
       const b = document.createElement('button');
       b.className = 'cell';
       b.textContent = (i + 1) + ' ' + (M.icons[s].title || s);
-      b.addEventListener('click', () => { st.t = i * PER + PER * 0.5; st.playing = false; setPlay(false); draw(); });
+      b.addEventListener('click', () => goto(i));
       box.appendChild(b);
     });
   }
@@ -193,23 +201,40 @@
   function setPlay(on) {
     st.playing = on;
     $('play').setAttribute('aria-pressed', String(on));
-    $('play').textContent = on ? '播放中' : '已暂停';
+    $('play').textContent = on ? '自动播放中' : '自动播放';
   }
 
-  $('play').addEventListener('click', () => setPlay(!st.playing));
-  $('scrub').addEventListener('input', e => { st.t = +e.target.value / 1000 * TOTAL; setPlay(false); draw(); });
+  /* 跳到第 i 家并**停住**。`animate=true` 时先跑一遍它的浮现（阅读波），扫到「长好」自动停。 */
+  function goto(i, animate) {
+    i = ((i % M.order.length) + M.order.length) % M.order.length;
+    st.playOne = null;
+    setPlay(false);
+    if (animate) { st.t = i * PER + 0.02; st.playOne = i; setPlay(true); }
+    else st.t = settledT(i);
+    $('scrub').value = Math.round(st.t / TOTAL * 1000);
+    draw();
+  }
+
+  const autoToggle = () => {
+    st.playOne = null;
+    if (st.playing) setPlay(false);
+    else { st.t = settledT(st.cur); setPlay(true); }      /* 从当前这家接着往下翻 */
+  };
+
+  $('play').addEventListener('click', autoToggle);
+  $('scrub').addEventListener('input', e => { st.playOne = null; st.t = +e.target.value / 1000 * TOTAL; setPlay(false); draw(); });
   $('rev').addEventListener('input', e => {
     st.reveal = +e.target.value / 100;
     $('revV').textContent = st.reveal.toFixed(2) + 's';
     mp.opts.reveal = st.reveal;                    /* 引擎把 opts 暴露出来了 → 热改，不用重建实例 */
     draw();
   });
-  $('replay').addEventListener('click', () => { st.t = st.cur * PER; setPlay(false); draw(); });
-  $('step').addEventListener('click', () => { st.t = (st.cur + 1) % M.order.length * PER + PER * 0.5; setPlay(false); draw(); });
+  $('replay').addEventListener('click', () => goto(st.cur, true));
+  $('step').addEventListener('click', () => goto(st.cur + 1));
   addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight') { st.t = (st.cur + 1) % M.order.length * PER + PER * 0.5; setPlay(false); draw(); }
-    else if (e.key === 'ArrowLeft') { st.t = (st.cur + M.order.length - 1) % M.order.length * PER + PER * 0.5; setPlay(false); draw(); }
-    else if (e.key === ' ') { e.preventDefault(); setPlay(!st.playing); }
+    if (e.key === 'ArrowRight') goto(st.cur + 1);
+    else if (e.key === 'ArrowLeft') goto(st.cur - 1);
+    else if (e.key === ' ') { e.preventDefault(); autoToggle(); }
   });
 
   let last = performance.now();
@@ -221,7 +246,12 @@
     try {
       if (st.playing) {
         st.t += dt;
-        if (st.t >= TOTAL) st.t -= TOTAL;
+        if (st.playOne !== null) {
+          /* 单家浮现：扫到「长好」就**停住** —— 不让自己翻到下一家去。
+             停下的那一刻要**强制刷一次读数**：readout 节流到 250ms，不刷的话
+             牌子会停在半路的 t/u 上（实测停在 t=1.33 / u=0.67，而画面已经是 1.56 / 0.95）。 */
+          if (st.t >= settledT(st.playOne)) { st.t = settledT(st.playOne); st.playOne = null; setPlay(false); lastRead = 0; }
+        } else if (st.t >= TOTAL) st.t -= TOTAL;
         if (st.t < 0) st.t = 0;
         $('scrub').value = Math.round(st.t / TOTAL * 1000);
         draw();
