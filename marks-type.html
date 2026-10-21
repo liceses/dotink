@@ -71,7 +71,7 @@
       <label>换一家 <button id="step">下一家 →</button></label>
       <label>浮现 <button id="replay">重放这一家的浮现</button></label>
       <label>自动翻页 <button id="play" aria-pressed="false">自动翻页</button></label>
-      <label>阅读波 reveal <input type="range" id="rev" min="15" max="300" value="60"><span class="kv" id="revV">0.60s</span></label>
+      <label>阅读波 reveal <input type="range" id="rev" min="15" max="300" value="100"><span class="kv" id="revV">1.00s</span></label>
     </div>
     <div class="lab" style="margin-top:10px">← → 换一家 · 空格 自动翻页/暂停 · 点右栏任一家直接跳过去 —— <b>换过去就停在这一家，字继续浮动</b></div>
   </div>
@@ -116,24 +116,19 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const M = window.DotInkMarks;
-  const PER = 0.8;                                   /* 一家 0.8s —— 与 lab-field22 一致 */
-
-  /* ── 「停在这一家，但字继续动」────────────────────────────────────
-     引擎把「哪一家」**绑死在 t 上**（markplate.js:262 `k = floor(t / actSeconds)`），
-     所以**不能靠"不推进 t"来停住** —— 那样拿到的是一张死帧（用户原话：
-     "这只是暂停在某一帧，我要的是暂停在这个图标，文字浮现的动效继续"）。
-     反过来做：**让 t 一直走，把「哪一家」钉住**。三处只改引擎**读得到**的 opts，
-     引擎本身一个字不改（markplate.js 是逐字节移植件，测试查 sha256）：
-       · `opts.marks` **就地轮转**，把要停的那一家转到**下标 0** —— 数组是同一个引用，
-         引擎读得到；距离场 SD 按 slug 缓存，轮转不会让它重烘；
-       · `actSeconds` 分两段：先用 0.8s 跑完「字自己拼成标 + 阅读波」，再调到 600s ——
-         于是 `k` 恒为 0，而 t 继续走：ripple（字不断浮动）、ox/oy 漂移、呼吸都在动；
-       · `zoom` 在停住段设成 [1,1]：`DUR` 是 create 时算死的（47×0.8 = 37.6），
-         t 一直涨会把推镜放大到离谱。 */
+  /* ── 时间参数（与 lab-field22 / 引擎默认对齐）──────────────────────
+     引擎的阅读波是 `wave = clamp01((t - 0.08) / o.reveal) * (NCELL + 520) - 260`，
+     再按**格序**落到每一格（`markplate.js:296`）—— **标准的 reveal 是 1.0s**。
+     ⚠ 上一版我为了让它塞进 0.8s 的一幕里，私自把 reveal 改成 0.6s —— 波快了 40%，
+       那才是"浮现不对劲"的根。现在：**reveal 回到标准的 1.0s**，改的是**一幕的长度**。
+     一幕放长到 1.25s，于是「波扫完」（t = 0.08 + 1.0 = 1.08）与
+     「收束到 m=1」（u = 0.90 → t = 1.125）**都落在同一幕里** ——
+     不用再偷改任何一个标准参数。morph / zoom / ripple 全部保持 lab-field22 的取值。 */
+  const FORM_ACT = 1.25;                 /* 成形段的 actSeconds（标准是 0.8；这里为容纳 1.0s 的波而放长） */
+  const TRANS_END = 1.15;                /* 成形段结束：波与收束都已完成 */
   const HOLD_ACT = 600;                  /* 停住段的 actSeconds：t 走 600s 才翻到下一家 */
-  const TRANS_END = PER * 0.95;          /* 成形段结束（u=0.95，引擎 morph [0.34,0.90] 已满） */
   const AUTO_GAP = 4.0;                  /* 自动翻页：停住 4s 后换下一家 */
-  const st = { t: 0, reveal: 0.6, ms: 0, held: 0, phase: 'form', auto: false, autoAt: 0 };
+  const st = { t: 0, reveal: 1.0, ms: 0, held: 0, phase: 'form', auto: false, autoAt: 0 };
 
   /* 正文：这一页自己用的文案（点墨标准的一句话 + 分工），与 lab-field22 的新闻文案不同 */
   const TEXT = '画面只有墨与纸两种像素，所有中间调由点的面积表达。调子等于墨量，墨量等于点面积之和。'
@@ -145,40 +140,49 @@
     icons: M.icons,                                  /* 依赖注入：用包内的 marks.js，不引主库 icons.js */
     marks: M.order.map(s => [s, M.icons[s].title || s]),
     text: TEXT,
-    actSeconds: PER,
+    actSeconds: FORM_ACT,
     zoom: [0.98, 1.12],                              /* 47 家翻得快，晃大了看不清（lab-field22 的取值） */
     reveal: st.reveal,
   });
   st.mp = mp;
 
-  /* 把第 i 家转到下标 0 —— **就地**改数组（引擎持有同一个引用），不重建实例、不重烘距离场 */
+  /* 把第 i 家放到下标 0，**并且把下标 1 也设成同一家** —— 就地改数组（引擎持有同一个引用），
+     不重建实例、不重烘距离场。
+     ⚠ 为什么必须复制下标 1：引擎是 A→B 融合 —— `sm = sa·(1−m) + sb·m`，
+       而 `B = markSet((k+1) % marks.length)` 是**下一家**（`markplate.js:284/293`）。
+       收束到 m=1 时画面显示的是 B，**名字**也是 A/B 两家一起画的（`:318`）——
+       实测症状：读数写「1/47 · OpenAI」，画布却写着「Anthropic」，看的一直是下一家。
+       下标 1 同家之后 A 与 B 的 SDF 相同 → 融合是**恒等变换**，
+       于是 morph 可以原样保留 lab-field22 的标准值 [0.34, 0.90]。 */
   function rotateTo(i) {
     const arr = mp.opts.marks, n = arr.length;
     if (!n) return;
     i = ((i % n) + n) % n;
-    const rot = arr.slice(i).concat(arr.slice(0, i));
+    /* 从**规范顺序**重建，不要在上一次轮转的结果上再转（否则复制会越滚越多） */
+    const rot = M.order.slice(i).concat(M.order.slice(0, i))
+      .map(s => [s, M.icons[s].title || s]);
+    rot[1] = rot[0];
     for (let k = 0; k < n; k++) arr[k] = rot[k];
   }
 
-  /* 成形段跑完 → 进停住段：k 钉在 0，t 继续走（字继续浮动） */
+  /* 成形段跑完 → 进停住段：k 钉在 0，t 继续走（字继续浮动）。
+     `morph` **不用改** —— 下标 0/1 同家，融合本来就是恒等变换。 */
   function enterHold() {
     mp.opts.actSeconds = HOLD_ACT;
-    mp.opts.morph = [0, 0.001];                      /* u 极小也要判成"已成形" */
-    mp.opts.zoom = [1, 1];                           /* 别让推镜跟着 t 涨 */
+    mp.opts.zoom = [1, 1];                           /* DUR 是 create 时算死的，别让推镜跟着 t 涨 */
     st.phase = 'hold';
     st.autoAt = st.t;
     lastRead = 0;                                    /* 阶段变了，强制刷一次读数 */
   }
 
-  /* 切到第 i 家：跑一遍「成形 + 阅读波」，然后**停在它上面、字继续动** */
+  /* 切到第 i 家：跑一遍「阅读波浮现」，然后**停在它上面、字继续动** */
   function show(i, animate) {
     const n = M.order.length;
     i = ((i % n) + n) % n;
     st.held = i;
-    rotateTo(i);                                     /* 这一家 → 下标 0 */
-    mp.opts.actSeconds = PER;
-    mp.opts.morph = [0.34, 0.90];
-    mp.opts.zoom = [0.98, 1.12];
+    rotateTo(i);                                     /* 这一家 → 下标 0 与 1（见 rotateTo 注释） */
+    mp.opts.actSeconds = FORM_ACT;
+    mp.opts.zoom = [0.98, 1.12];                     /* lab-field22 的标准取值 */
     st.phase = 'form';
     st.t = (animate === false) ? TRANS_END : 0.02;
     if (st.t >= TRANS_END) enterHold();
@@ -260,15 +264,15 @@
     else if (e.key === ' ') { e.preventDefault(); setAuto(!st.auto); }
   });
 
-  let last = performance.now(), lastDraw = 0;
+  let lastDraw = 0, lastDrawT = performance.now();
   function loop(now) {
-    /* dt 必须夹到 [0, 0.1]：首帧时间戳可能早于 performance.now()（负），
-       切页面回来时又可能是几秒的大跳 —— 两种都会毁掉播放。 */
-    const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
-    last = now;
     try {
       if (!document.hidden && now - lastDraw >= 1000 / 30) {   /* 封顶 30fps：字场单帧 20–60ms */
-        lastDraw = now;
+        /* ⚠ dt 要按**上一次真画**算，不能按上一次 rAF 帧算 ——
+           60Hz 的 rAF 里每两帧才画一次，按帧算的话 t 只走一半：**动画半速**（实测过）。
+           dt 夹到 [0, 0.1]：切页面回来时可能是几秒的大跳。 */
+        const dt = Math.max(0, Math.min(0.1, (now - lastDrawT) / 1000));
+        lastDrawT = now; lastDraw = now;
         st.t += dt;                                           /* ★ t **一直走** —— 字才一直动 */
         if (st.phase === 'form') {
           if (st.t >= TRANS_END) { st.t = TRANS_END; enterHold(); }
