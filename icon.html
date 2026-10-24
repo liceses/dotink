@@ -105,6 +105,10 @@
   </div>
 </footer>
 
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
 <script src="dotink.js"></script>
 <script>
 (function () {
@@ -126,7 +130,7 @@
     };
     const inst = DotInk.create({
       canvas: cv, cssW: S, cssH: S, scale: 1, cols: N, rows: N, cell: cell,
-      maxFrac: MAXFRAC, areaMap: true, floor: 0, gain: 1, hud: false, caption: null,
+      maxFrac: MAXFRAC, areaMap: true, floor: 0, gain: 1,
       shutter: 0, duration: 1, field: field,
     });
     inst.draw(0);

@@ -1,7 +1,7 @@
 ---
 name: dotink
 description: 点墨（Dot Ink）—— 1-bit 成像标准：画面只有墨与纸两种像素，所有中间调由点的面积表达。用户要做「点墨 / 网点 / 半调 / 1-bit 图 / 传真感 / 印刷感 / 点阵画 / 用点把一张图或一段字画出来」，或提到点距、点径、覆盖率、墨量、装饰墨/信息墨、净空、抖动(dither)、Floyd–Steinberg、Bayer，或要求"把某张图/某句话变成点阵"时，落点就是这里。
-whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点阵画面是否成立（点读不读得成点、覆盖够不够、墨量分配是否失衡）。**判据唯一真相在 STANDARD.md**；实现是 dotink.js；判据计算器是 preview.html。
+whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点阵画面是否成立（点读不读得成点、覆盖够不够、墨量分配是否失衡）。**判据唯一真相在 STANDARD.md**；实现是 fields.js + render.js + judge.js + host.js（dotink.js 只做汇总）；判据计算器是 preview.html。
 ---
 
 # 点墨 · AI 入口（先读这一页，再动手）
@@ -41,7 +41,7 @@ TypeField.create({
 ```
 
 `fieldAt` 是给 typefield 加的**加法式**钩子（不传 = 行为逐字节不变，已用同帧 SHA256 验证）。
-`dotink.js` 只在需要**自包含**时用（它的 HUD 与 typefield 同规格同源）。
+`dotink.js` 只在需要**自包含**时用（HUD/字幕在可选的 `hud.js`，与 typefield 同规格同源）。
 
 > ⚠ 加载顺序：`dotink.js` → `pheno.js`。**八个 phenomena 实例不要同时活着**：
 > 每个 1920×1080 实例约占 16MB 缓冲，八个会把浏览器拖到 30s/帧 —— 懒建 + 换幕即释放
@@ -57,7 +57,11 @@ TypeField.create({
 
 ```html
 <canvas id="cv" style="width:560px;height:315px;image-rendering:pixelated"></canvas>
-<script src="dotink.js"></script>      <!-- 经典脚本，不是 ESM（file:// 下 import 会被 CORS 拦死） -->
+<script src="fields.js"></script>      <!-- 经典脚本，不是 ESM（file:// 下 import 会被 CORS 拦死） -->
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
+<script src="dotink.js"></script>      <!-- 汇总入口：必须最后 -->
 <script>
 const COLS = 47, ROWS = 26;             // = round(cssW/cell) / round(cssH/cell)
 const inst = DotInk.create({
@@ -72,6 +76,9 @@ inst.draw(3.5);                          // 纯函数：同一个 t 画两次逐
 inst.judge();                            // 逐条读数（M1/M2 互斥，怎么读见 STANDARD §4）
 </script>
 ```
+
+> **要 HUD / 字幕**：核心不认识它们。加 `<script src="hud.js"></script>`，再传
+> `overlays: [DotInk.hud(), DotInk.caption({ x, y, px, texts })]`（属装饰墨，净空判据会算进去）。
 
 > ⚠ 两件 `dotink.js` **不管**的事：① `scale` 取 `devicePixelRatio`（写死 1.5 在 DPR 1.65 的机器上，
 > 屏幕上 **24.46% 的像素既不是墨也不是纸**）；② `image-rendering:pixelated` + 尺寸变了要重建。

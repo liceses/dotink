@@ -123,6 +123,10 @@
   </div>
 </footer>
 
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
 <script src="dotink.js"></script>
 <script src="pheno.js"></script>
 <script>
@@ -209,12 +213,12 @@
         const src = fn(t);
         const pts = new Float32Array(src.length);
         for (let k = 0; k < src.length; k += 3) { pts[k] = src[k] * 56 / 160; pts[k + 1] = src[k + 1] * 32 / 90; pts[k + 2] = .6; }
-        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 40, rows: 23, cell: 1.4, hud: false, shutter: 0, pointsAt: () => pts });
+        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 40, rows: 23, cell: 1.4, shutter: 0, pointsAt: () => pts });
       } else {
         /* 缩略图是"辨识用"，不是微缩：格子必须**粗**、点必须**大**，才读得成图案
            （按 8px 配方微缩到 56px 只会糊成黑块 —— 实测过两轮） */
         const g = p.mk(16, 9);
-        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9, cell: 3.5, hud: false, shutter: 0, gain: .9, maxFrac: .30, areaMap: false, field: g.field });
+        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9, cell: 3.5, shutter: 0, gain: .9, maxFrac: .30, areaMap: false, field: g.field });
       }
       inst.draw(t);
     } catch (e) { /* 缩略图失败不影响画廊 */ }
@@ -250,7 +254,7 @@
     st.inst = DotInk.create(Object.assign({
       canvas: cv, cssW: W, cssH: H, scale: S, cols: cols, rows: rows, cell: cell,
       gain: st.gain, maxFrac: st.mf, areaMap: st.areaMap,
-      hud: false, caption: null, shutter: 0, duration: p.span,
+      shutter: 0, duration: p.span,
     }, g));
     $('headline').textContent = p.name.replace(/（.*?）/, '');
     $('fml').textContent = p.fml;

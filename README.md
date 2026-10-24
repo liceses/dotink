@@ -38,7 +38,7 @@
 | **② 自然现象展示 + 整套代码** | 九个现象现场渲染的画廊 + 场库 + 参考配方成片与静帧 | [`docs/02-phenomena.md`](docs/02-phenomena.md) · [`gallery.html`](gallery.html) · [`pheno.js`](pheno.js) |
 | **③ 字符 logo 系统** | 字版厂标（字拼成标）· 点墨版厂标墙 · 即插即用 logo 组件 | [`docs/03-marks-logo.md`](docs/03-marks-logo.md) · [`logo-demo.html`](logo-demo.html) · [`marks-type.html`](marks-type.html) |
 
-> 三块**共用一个核心**（[`dotink.js`](dotink.js) 的全局 `DotInk`）与一份第三方口径（[`NOTICE.md`](NOTICE.md)）。
+> 三块**共用一个核心**（全局 `DotInk`；核心由 [`fields.js`](fields.js) / [`render.js`](render.js) / [`judge.js`](judge.js) / [`host.js`](host.js) 组成，[`dotink.js`](dotink.js) 只做汇总）与一份第三方口径（[`NOTICE.md`](NOTICE.md)）。
 > 成片走 **Release 附件**（仓内只留 GIF 与 1:1 静帧）：本地放在 `media/_release/`（已 gitignore）。
 
 **画面只有墨与纸两种像素；所有中间调由点的面积表达。**
@@ -74,7 +74,12 @@
 | 文件 | 作用 |
 |---|---|
 | [`STANDARD.md`](STANDARD.md) | **判据唯一真相**：令牌 / 三个几何量 / 面积映射 / 两种模式 / 墨量净空 / 动 / 禁令 / 自查表（每条判据带实测出处与状态）；§13 是"与 typefield 的分工" |
-| [`dotink.js`](dotink.js) | 参考实现（零依赖，经典脚本）。渲染、**场的构造器**（干涉/噪声/渐变/距离场/真图/1-bit 位图）、判据自检、独立短片宿主 |
+| [`fields.js`](fields.js) | **场构造器**（零依赖）：干涉 / 噪声 / 渐变 / 距离场 / 真图 / 1-bit 位图；静态 `Float32Array` 与 `(i,x,y,t)` 两种形态 |
+| [`render.js`](render.js) | **渲染核心**：场 → 1-bit 帧（解析圆盘 · 面积映射 · 纯函数 `draw(t)` · `overlays` 钩子） |
+| [`judge.js`](judge.js) | **判据**：`measure` / `judge`（M1/M2/M3 互斥门禁）· 真读画布数灰阶 |
+| [`host.js`](host.js) | **独立短片宿主**：`__meta` / `__ready` / `__seek`（两套渲染器的契约差异在这里抹平） |
+| [`dotink.js`](dotink.js) | **汇总入口**：装配 `DotInk.create`（渲染 + 判据）并导出；装载顺序 `fields → render → judge → host → dotink` |
+| [`hud.js`](hud.js) | **可选叠加层**：尺 / 进度 / 5×7 点阵时间码 / 实墨字幕 —— 核心不认识 HUD，用 `overlays: [DotInk.hud(), …]` 显式挂上 |
 | [`pheno.js`](pheno.js) | **自然现象场库**：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`（八个都是 `(cols, rows, opts) → (i,x,y,t) → 0..1`） |
 | [`preview.html`](preview.html) | **判据计算器与实验台**：8 条判据实时算、A/B 对照（√ vs 线性）、**1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **现象画廊（视觉产品）**：九项现象现场渲染 + 实时判据（M1/M2/M3 分开报）+ 映射 A/B + 1:1 放大镜 |
@@ -125,7 +130,11 @@ node tools/make-icon.mjs --print    # 只打印几何与判据
 
 ```html
 <canvas id="cv" style="width:560px;height:315px;image-rendering:pixelated"></canvas>
-<script src="dotink.js"></script>   <!-- 经典脚本，不是 ESM：file:// 下 import 会被 CORS 拦死 -->
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
+<script src="dotink.js"></script>   <!-- 汇总入口，必须最后；经典脚本不是 ESM：file:// 下 import 会被 CORS 拦死 -->
 <script>
 const COLS = 47, ROWS = 26;                     // = round(cssW/cell) / round(cssH/cell)
 const inst = DotInk.create({
@@ -141,6 +150,10 @@ inst.judge();        // 逐条读数：pass 按模式算，M1/M2 互斥 → 结�
 </script>
 ```
 
+**要 HUD / 字幕**：核心不认识它们 —— 加 `<script src="hud.js"></script>`，然后
+`overlays: [DotInk.hud(), DotInk.caption({ x: 96, y: 596, px: 40, texts })]`。
+两件都是 `(api, t) => void` 的叠加层，属**装饰墨**（会被 `judge()` 的净空判据计入）。
+
 > **两件 `dotink.js` 不管、必须自己管的事**（都在实测里栽过）：
 > 1. **`scale` 取 `devicePixelRatio`，不要写死 1.5** —— backing 要**等于物理像素**才是 1:1。
 >    实测 DPR 1.65 的机器上按 `1.5` 建：屏幕上 **24.46% 的像素既不是墨也不是纸**（252 种灰）。
@@ -152,6 +165,10 @@ inst.judge();        // 逐条读数：pass 按模式算，M1/M2 互斥 → 结�
 
 ```html
 <div id="stage"></div>
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
 <script src="dotink.js"></script>
 <script>
   DotInk.host({ duration: 21, cell: 12, field: DotInk.fields.interferenceFn(106, 60, { k: .5, w: .2 }) });

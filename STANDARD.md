@@ -325,6 +325,8 @@ TypeField.create({
 **② 直接用 `dotink.js` 出画**（判据幕的做法）：`DotInk.create({...})`，八条判据用 `judge()` 实时算。
 它的 HUD 与 typefield 的**同规格同源**（ruleY 40 / progY 690 / tcY 12 + 5×7 点阵），
 但本包**只在需要自包含时**才用它——产线里优先用 typefield 的（少一套要维护的东西）。
+> 本包 v2 起 HUD/字幕**不在核心里**：`dotink.js` 只负责"场 → 1-bit 帧"，
+> 尺与字幕在可选脚本 [`hud.js`](hud.js)，用 `overlays: [DotInk.hud(), DotInk.caption(...)]` 显式挂上。
 
 ### 13.2 为什么不是"到处都画点"
 

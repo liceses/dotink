@@ -3,6 +3,35 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 2.0.0 — 2026-10-25
+
+**拆件：核心分成四个脚本 + 一个可选叠加层，`dotink.js` 只做汇总**（**破坏性**：页面要多引 `<script>`）
+- 起因：`dotink.js` 一个文件里混了四件事 —— 场构造器 / 渲染 / 判据 / HUD+字幕 / 宿主。
+  HUD 尤其别扭：它是**画面上的装饰墨**，却长在核心里，还要参与净空判据；
+  而 §13 的口径本来就是"场归 dotink，画面仪表归 typefield" —— 第二套 HUD 不该由核心维护。
+- 现在：
+  | 文件 | 负责 |
+  |---|---|
+  | `fields.js` | 场构造器（`ramp` / `noise` / `interference(Fn)` / `sdf` / `fromImageData` / `bits`）+ `_mulberry32` |
+  | `render.js` | 渲染核心：缓冲 / 解析圆盘 / 字形栅格化 / 面积映射 / `draw(t)` / **`overlays` 钩子** / `inst.core` |
+  | `judge.js` | `measure` / `judge` / `countNonBinary` / `autoMode`（只读 `inst.core`） |
+  | `host.js` | 独立短片宿主（`__meta` / `__ready` / `__seek`；两套渲染器契约在这里抹平） |
+  | `dotink.js` | **汇总**：装配 `DotInk.create`（render + judge 挂回实例）、导出、CJS `require` |
+  | `hud.js` | **可选**：`DotInk.hud(opts)` / `DotInk.caption(opts)` —— 尺 / 进度 / 5×7 点阵时间码 / 实墨字幕 |
+- **硬切**（按设计选择）：`DEFAULTS` 里删掉 `hud` / `hudC` / `caption`；核心不再认识 HUD。
+  要仪表就显式挂：`overlays: [DotInk.hud(), DotInk.caption({...})]`（单个函数或数组）。
+  叠加层只拿到 `{ dot, glyph, opts, cols, rows, cell, rMax, scale, cssW, cssH, devW, devH }`，
+  在 `compose()` 之后画进同一张 1-bit 帧 —— 不影响场的求值。
+- 装载顺序（浏览器）：`fields.js → render.js → judge.js → host.js → dotink.js`（**最后**；可选 `hud.js`）。
+  缺件时 `dotink.js` 会抛错并列出缺哪一个，不再静默出空帧。
+- Node/CJS：`require('./dotink.js')` 自己按序 `require` 兄弟文件，`require('dotink').DotInk` 仍可用。
+- 调用点同步改造：`gallery` / `hero` / `icon` / `marks` 删掉无意义的 `hud:false`；
+  `preview.html` 的"加装饰"开关改成 `overlays: hudOn ? [DotInk.hud(hudC)] : null`；
+  `demo/index.html` 改成 `overlays: [DotInk.hud(), DotInk.caption(caption)]`（+ 引 `hud.js`）。
+- 自查加三条：拆件装配（核心不认识 HUD）/ 整条管线（假画布跑 `draw`→`judge`，验证 1-bit、确定性、
+  `overlays` 只加墨）/ 页面装载顺序（四个核件必须排在 `dotink.js` 之前）。
+- 行为等价：无 `overlays` 时出帧与 v1.7 逐字节相同（同一套 `dot()` / `compose()` / 面积映射）。
+
 ## 1.7.0 — 2026-10-13
 
 **新增：一套共用设计系统（`ink.css`）—— 六页合成一组宣传页**

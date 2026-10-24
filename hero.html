@@ -120,6 +120,10 @@
   <div class="readout" id="readout"></div>
 </header>
 
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
 <script src="dotink.js"></script>
 <script>
 /* 把点墨当**网站视觉重心**的完整写法（README「三十秒上手」是它的最小版）。
@@ -200,7 +204,7 @@
       maxFrac: MAXFRAC,
       areaMap: true,                                   // 场是物理量原样 → 面积映射（§3 配对）
       gain: 1.05, gamma: 1.0, floor: 0.075,
-      hud: false, caption: null, shutter: 0,
+      shutter: 0,
       field: makeField(cols, rows, vertical),
     });
     costs.length = 0; intervals.length = 0; prevDraw = 0;

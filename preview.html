@@ -121,7 +121,12 @@
   </div>
 </footer>
 
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
 <script src="dotink.js"></script>
+<script src="hud.js"></script>
 <script>
 (function () {
   'use strict';
@@ -166,7 +171,7 @@
     const hudOn = $('hud').getAttribute('aria-pressed') === 'true';
     const hudC = { ruleY: 5 * cell, progY: (rows - 2) * cell, tcY: 1 * cell, ruleLen: Math.min(W - 96, 90 * cols / 12) };
 
-    const common = { cssW: W, cssH: H, scale: S, cols: cols, rows: rows, cell: cell, gain: gain, gamma: gamma, floor: floor, maxFrac: maxFrac, duration: 21, shutter: 0, regions: regions, hud: hudOn, hudC: hudC };
+    const common = { cssW: W, cssH: H, scale: S, cols: cols, rows: rows, cell: cell, gain: gain, gamma: gamma, floor: floor, maxFrac: maxFrac, duration: 21, shutter: 0, regions: regions, overlays: hudOn ? [DotInk.hud(hudC)] : null };
     A = DotInk.create(Object.assign({ canvas: $('cvA'), field: f, areaMap: true }, common));
     B = DotInk.create(Object.assign({ canvas: $('cvB'), field: f, areaMap: false }, common));
     tick();

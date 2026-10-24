@@ -114,6 +114,10 @@
   </div>
 </footer>
 
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
 <script src="dotink.js"></script>
 <script src="marks.js"></script>
 <script>
@@ -165,7 +169,7 @@
     cv.width = cv.height = Math.round(cssSize * SCALE);
     const inst = DotInk.create({
       canvas: cv, cssW: cssSize, cssH: cssSize, scale: SCALE, cols: cols, rows: rows, cell: cell,
-      field: v, areaMap: false, maxFrac: 0.48, floor: 0.02, gain: 1, hud: false, shutter: 0, duration: 1,
+      field: v, areaMap: false, maxFrac: 0.48, floor: 0.02, gain: 1, shutter: 0, duration: 1,
     });
     inst.draw(0);                       /* ⚠ 建了实例必须画：漏了这句画布是空的（实测过） */
     return inst;
@@ -274,7 +278,7 @@
       const out = { ctorName: v.constructor.name, isF32: v instanceof Float32Array, isView: ArrayBuffer.isView(v), len: v.length, v0: +v[0].toFixed(3) };
       const cv = document.createElement('canvas'); cv.width = cv.height = 840;
       const inst = DotInk.create({ canvas: cv, cssW: 560, cssH: 560, scale: 1.5, cols: 70, rows: 70, cell: 8,
-        field: v, areaMap: true, hud: false, shutter: 0, floor: 0.02, gain: 1 });
+        field: v, areaMap: true, shutter: 0, floor: 0.02, gain: 1 });
       out.optsIsSameArray = inst.opts.field === v;
       out.typeofPointsAt = typeof inst.opts.pointsAt;
       out.pointsAtSrc = inst.opts.pointsAt ? String(inst.opts.pointsAt).slice(0, 90) : null;

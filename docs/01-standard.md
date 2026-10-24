@@ -3,6 +3,11 @@
 > 判据唯一真相在 [`STANDARD.md`](../STANDARD.md)；这一页是**用法、参数、判据、出处与边界**。
 > 最小可跑示例：[`preview.html`](../preview.html)（8 条判据实时算 + A/B + 1:1 放大镜）·
 > 接到自己页面上：[`hero.html`](../hero.html)（自适应 `scale` / 后台暂停 / `reduced-motion`）。
+>
+> **源码是拆件的**（v2）：[`fields.js`](../fields.js)（场）· [`render.js`](../render.js)（渲染核心）·
+> [`judge.js`](../judge.js)（判据）· [`host.js`](../host.js)（短片宿主）·
+> [`dotink.js`](../dotink.js) 只做汇总（按此顺序放 `<script>`，它必须最后）。
+> HUD / 字幕在可选脚本 [`hud.js`](../hud.js)，通过 `overlays` 挂上。
 
 ---
 
@@ -20,7 +25,7 @@
 | `gain` `gamma` `floor` | 1 / 1 / 0.035 | `w = min(1, v·gain)`；`v = field^gamma`；`v·gain < floor` 当纸 |
 | `field` | — | `(i, cx, cy, t) => 0..1`，或 `Float32Array` |
 | `shutter` | 1/28 | 运动模糊（两帧叠）。0 = 关 |
-| `hud` `hudC` `caption` | true / … / null | 自绘尺与读数、字幕。**都算装饰墨**（见净空） |
+| `overlays` | null | 叠加层 `(api, t) => void`（单个或数组），在 `compose()` 之后画进同一张 1-bit 帧。`api = { dot, glyph, opts, cols, rows, cell, rMax, scale, cssW, cssH, devW, devH }`。**HUD / 字幕不在核心里**：见 [`hud.js`](../hud.js) 的 `DotInk.hud()` / `DotInk.caption()`（都算装饰墨，见净空） |
 | `regions` | null | 分区的**格坐标** `{info:[…], deco:[…]}` → `measure()` 给出装饰:信息 |
 
 **场的构造器**：`interferenceFn`（活的干涉）、`noise` + `scrollFn`（噪声整格滚动）、`ramp`、

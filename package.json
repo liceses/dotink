@@ -1,13 +1,18 @@
 {
   "name": "dotink",
-  "version": "1.7.0",
-  "description": "点墨 · 1-bit 成像标准与参考实现 + 现象画廊 + 厂标墙 + 字版厂标 + 即插即用 logo 组件 + hero 示例",
+  "version": "2.0.0",
+  "description": "点墨 · 1-bit 成像标准与参考实现（场 / 渲染 / 判据 / 宿主 拆件 + 可选 HUD 叠加层）+ 现象画廊 + 厂标墙 + 字版厂标 + 即插即用 logo 组件 + hero 示例",
   "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks", "typeplate", "logo-overlay", "hero"],
   "license": "MIT",
   "type": "commonjs",
   "main": "dotink.js",
   "exports": {
     ".": "./dotink.js",
+    "./fields.js": "./fields.js",
+    "./render.js": "./render.js",
+    "./judge.js": "./judge.js",
+    "./host.js": "./host.js",
+    "./hud.js": "./hud.js",
     "./pheno.js": "./pheno.js",
     "./marks.js": "./marks.js",
     "./markplate.js": "./markplate.js",
@@ -15,7 +20,7 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dotink.js", "pheno.js",
+    "dotink.js", "fields.js", "render.js", "judge.js", "host.js", "hud.js", "pheno.js",
     "gallery.html", "hero.html", "preview.html", "marks.html", "marks-type.html", "logo-demo.html", "icon.html",
     "marks.js", "markplate.js", "logo.js",
     "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png",

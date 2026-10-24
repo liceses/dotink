@@ -16,7 +16,12 @@
 <body>
 <div id="stage"></div>
 <div id="hint">点墨 · DOT INK · 1-BIT ｜ 加 ?play 播放 ｜ 定格用 ?t=9.5</div>
+<script src="../fields.js"></script>
+<script src="../render.js"></script>
+<script src="../judge.js"></script>
+<script src="../host.js"></script>
 <script src="../dotink.js"></script>
+<script src="../hud.js"></script>
 <script>
 (function () {
   'use strict';
@@ -45,12 +50,13 @@
     ],
   };
 
-  /* 宿主：建画布 + 实现 __seek/__ready/__meta/__seekInit（两套渲染器的契约差异在 dotink.js 里抹平） */
+  /* 宿主：建画布 + 实现 __seek/__ready/__meta/__seekInit（两套渲染器的契约差异在 host.js 里抹平） */
   const inst = DotInk.host({
     cssW: 1280, cssH: 720, scale: 1.5,
     cols: cols, rows: rows, cell: 12.07,
     field: field, gain: 1, gamma: 1, floor: 0.035, maxFrac: 0.48,
-    duration: DUR, shutter: 1 / 28, hud: true, caption: caption,
+    duration: DUR, shutter: 1 / 28,
+    overlays: [DotInk.hud(), DotInk.caption(caption)],
   });
 
   window.__dotink = function () { return inst.judge(); };
