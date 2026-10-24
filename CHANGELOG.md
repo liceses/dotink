@@ -31,6 +31,8 @@
 - 自查加三条：拆件装配（核心不认识 HUD）/ 整条管线（假画布跑 `draw`→`judge`，验证 1-bit、确定性、
   `overlays` 只加墨）/ 页面装载顺序（四个核件必须排在 `dotink.js` 之前）。
 - 行为等价：无 `overlays` 时出帧与 v1.7 逐字节相同（同一套 `dot()` / `compose()` / 面积映射）。
+- **站点**：GitHub Pages 上线 —— 根路径 [`index.html`](index.html) 带查询串跳 `hero.html`，
+  `.nojekyll` 关掉 Jekyll（否则下划线开头的路径会被吞）。在线：<https://liceses.github.io/dotink/>
 
 ## 1.7.0 — 2026-10-13
 
