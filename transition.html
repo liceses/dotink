@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · 场转场（擦除 / 径向 / 溶解）</title>
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="ink.css">
+<style>
+  /* 站点头 / 页头 / 页脚 / 交互件全部来自 ink.css —— 这里只留本页的布局 */
+  .tr{display:grid;grid-template-columns:minmax(0,1fr) 372px;align-items:stretch;max-width:1600px;margin:0 auto}
+  @media (max-width:1080px){ .tr{grid-template-columns:minmax(0,1fr)} }
+
+  .tr-stagecol{padding:clamp(12px,2.4vw,28px);border-right:2px solid var(--ink);min-width:0}
+  @media (max-width:1080px){ .tr-stagecol{border-right:0;border-bottom:2px solid var(--ink)} }
+  /* 宽屏：右栏比画面长，滚参数时画面钉在视口里，改了什么当场看得见 */
+  @media (min-width:1081px){ .tr-sticky{position:sticky;top:64px} }
+
+  /* 画布框：画布本身由脚本按「物理像素 = backing」定尺寸（1:1），框只负责边线 */
+  .tr-stage{margin:0;max-width:964px}
+  .tr-frame{position:relative;border:2px solid var(--ink);background:var(--paper);line-height:0}
+  .tr-frame:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  #cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+  .tr-cap{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:8px;
+    font:500 12px/1.4 var(--f-m);color:var(--mute)}
+  .tr-cap b{color:var(--ink);font-weight:700}
+  .tr-cap .arrow{color:var(--ink)}
+  .tr-cap .enc{margin-left:auto}
+
+  /* 走带：按钮 + 进度条。窄屏下进度条独占一行 */
+  .tr-transport{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}
+  .tr-scrub{flex:1 1 220px;display:flex;align-items:center;gap:10px;min-width:0}
+  .tr-scrub output{font:600 12px/1 var(--f-m);font-variant-numeric:tabular-nums;min-width:4.4em;text-align:right}
+  /* 窄屏：四个按钮排成 2×2，进度条独占一行 —— 不留一颗孤零零的按钮 */
+  @media (max-width:560px){
+    .tr-transport{display:grid;grid-template-columns:1fr 1fr}
+    .tr-scrub{grid-column:1 / -1}
+  }
+
+  .tr-state{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:12px}
+  .tr-read{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;margin-top:12px;
+    border-top:1px solid var(--hair)}
+  .tr-read div{padding:8px 10px 8px 0;border-bottom:1px solid var(--hair);font:500 11px/1.45 var(--f-m);color:var(--mute)}
+  .tr-read b{display:block;font:600 13px/1.3 var(--f-m);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .tr-read b.bad{color:var(--accent)}
+
+  .tr-aside{padding:4px clamp(14px,2.4vw,24px) 20px;min-width:0}
+  .tr-aside .ink-panel:first-child{border-top:0}
+  .tr-modes{margin-bottom:14px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+  .tr-modes .ink-tab{padding:8px 6px;text-align:center;min-width:0}
+  .tr-modes .ink-tab small{letter-spacing:.06em;overflow:hidden;text-overflow:clip}
+  @media (max-width:420px){ .tr-modes .ink-tab small{display:none} }
+  .tr-pane[hidden]{display:none}
+  .tr-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+  .tr-row .ink-btn{white-space:normal;text-align:left;line-height:1.35;padding-top:6px;padding-bottom:6px;max-width:100%}
+  .tr-hint{margin:2px 0 0;font-size:12px;line-height:1.6;color:var(--mute)}
+  .tr-hint code{font:500 11.5px var(--f-m);background:var(--panel);padding:1px 4px}
+  .tr-legend{display:flex;flex-wrap:wrap;gap:6px}
+  .tr-keys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:12.5px;align-items:center}
+  .tr-keys dt{white-space:nowrap}
+  .tr-keys dd{margin:0;color:#2A2D2E}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+    <nav class="site-nav" aria-label="站点">
+      <a href="gallery.html">现象画廊</a>
+      <a href="transition.html" aria-current="page">场转场</a>
+      <a href="preview.html">判据计算器</a>
+      <a href="marks-type.html">字版厂标</a>
+      <a href="marks.html">点墨厂标</a>
+      <a href="icon.html">品牌图标</a>
+      <a href="logo-demo.html">logo 组件</a>
+      <a href="STANDARD.md">标准</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-intro">
+  <h1 class="display">场转场</h1>
+  <p>同一张网格上，两张<b>同编码</b>的场 A → B：<b>定向擦除</b>、<b>径向揭示</b>、<b>种子溶解</b>，以及按<b>墨量显影</b>、沿<b>字形 / logo 轮廓</b>生长的遮罩揭示。
+     进度 <code>p</code> 走 0 → 1，画面只是 <code>p</code> 的函数：端点逐格就是 A / B，可以倒放、随便拖。</p>
+  <p>默认<b>逐格选取</b>：每一格每一刻都恰好是 A 的墨或 B 的墨，不经过白纸、不插形状、不造新调子。
+     画布是 1-bit 的墨与纸；周围的控件是普通界面。</p>
+</section>
+
+<main class="tr">
+  <div class="tr-stagecol"><div class="tr-sticky">
+    <figure class="tr-stage">
+      <div class="tr-frame" id="frame" tabindex="0" role="group"
+           aria-roledescription="转场画布" aria-label="转场画布。空格播放或暂停，左右方向键逐步拖动，Home 回到 A，End 到 B，R 反向">
+        <canvas id="cv" aria-hidden="true"></canvas>
+      </div>
+      <figcaption class="tr-cap">
+        <span>A <b id="capA">—</b></span><span class="arrow" id="capDir">→</span><span>B <b id="capB">—</b></span>
+        <span class="enc" id="capEnc"></span>
+      </figcaption>
+    </figure>
+
+    <div class="tr-transport" role="group" aria-label="走带">
+      <button class="ink-btn is-primary" id="play" type="button" aria-keyshortcuts="Space">播放</button>
+      <button class="ink-btn" id="dir" type="button" aria-keyshortcuts="R" aria-pressed="false">方向 A→B</button>
+      <button class="ink-btn" id="toA" type="button" aria-keyshortcuts="Home">回到 A</button>
+      <button class="ink-btn" id="toB" type="button" aria-keyshortcuts="End">跳到 B</button>
+      <label class="tr-scrub">
+        <span class="sr">进度</span>
+        <input class="ink-range" id="scrub" type="range" min="0" max="1000" step="1" value="0" aria-label="进度">
+        <output id="scrubV" for="scrub">0.000</output>
+      </label>
+    </div>
+
+    <div class="tr-state">
+      <span class="ink-status" id="state" data-state="at-a" role="status" aria-live="polite">停在 A</span>
+      <span class="tr-hint" id="motionNote"></span>
+    </div>
+
+    <div class="tr-read" id="read">
+      <div>进度 u / 缓动后 p<b id="rP">0.000 / 0.000</b></div>
+      <div>已换成 B 的格<b id="rB">0 / 0</b></div>
+      <div>网格 · 点距<b id="rGrid">—</b></div>
+      <div>单帧耗时<b id="rMs">—</b></div>
+      <div>画布 1:1（backing = CSS × DPR）<b id="r11">—</b></div>
+      <div>1-bit（停下时读回画布）<b id="rBit">—</b></div>
+    </div>
+  </div></div>
+
+  <aside class="tr-aside" aria-label="参数">
+    <section class="ink-panel">
+      <h2>模式</h2>
+      <div class="ink-tabs tr-modes" role="tablist" aria-label="转场模式" id="tabs">
+        <button class="ink-tab" role="tab" id="tab-wipe" aria-controls="pane-wipe" aria-selected="true" tabindex="0" data-mode="wipe" title="定向擦除">擦除<small>wipe</small></button>
+        <button class="ink-tab" role="tab" id="tab-radial" aria-controls="pane-radial" aria-selected="false" tabindex="-1" data-mode="radial" title="径向揭示">径向<small>radial</small></button>
+        <button class="ink-tab" role="tab" id="tab-dissolve" aria-controls="pane-dissolve" aria-selected="false" tabindex="-1" data-mode="dissolve" title="种子溶解">溶解<small>dissolve</small></button>
+        <button class="ink-tab" role="tab" id="tab-tone" aria-controls="pane-tone" aria-selected="false" tabindex="-1" data-mode="tone" title="按墨量显影">显影<small>tone</small></button>
+        <button class="ink-tab" role="tab" id="tab-mask" aria-controls="pane-mask" aria-selected="false" tabindex="-1" data-mode="mask" title="字形 / logo 遮罩揭示">遮罩<small>mask</small></button>
+      </div>
+
+      <div class="tr-pane" role="tabpanel" id="pane-wipe" aria-labelledby="tab-wipe">
+        <label class="ink-param"><span>方向角</span>
+          <input class="ink-range" id="angle" type="range" min="0" max="345" step="15" value="0">
+          <output id="angleV" for="angle">0°</output></label>
+        <p class="tr-hint">0° 从左往右，90° 从上往下（屏幕 y 向下）。前沿是格坐标里的一条直线。</p>
+      </div>
+      <div class="tr-pane" role="tabpanel" id="pane-radial" aria-labelledby="tab-radial" hidden>
+        <label class="ink-param"><span>圆心 x</span>
+          <input class="ink-range" id="cx" type="range" min="0" max="100" step="1" value="50">
+          <output id="cxV" for="cx">0.50</output></label>
+        <label class="ink-param"><span>圆心 y</span>
+          <input class="ink-range" id="cy" type="range" min="0" max="100" step="1" value="50">
+          <output id="cyV" for="cy">0.50</output></label>
+        <div class="ink-param"><span>方向</span>
+          <div class="ink-seg wide" role="radiogroup" aria-label="径向方向">
+            <label><input type="radio" name="inv" value="0" checked><span>由内向外</span></label>
+            <label><input type="radio" name="inv" value="1"><span>由外向内</span></label>
+          </div></div>
+      </div>
+      <div class="tr-pane" role="tabpanel" id="pane-dissolve" aria-labelledby="tab-dissolve" hidden>
+        <label class="ink-param"><span>种子</span>
+          <input id="seed" type="number" min="0" max="4294967295" step="1" value="1" inputmode="numeric">
+          <button class="ink-btn" id="reseed" type="button" aria-keyshortcuts="D" title="种子 + 1">换</button></label>
+        <label class="ink-param"><span>颗粒</span>
+          <input class="ink-range" id="grain" type="range" min="1" max="8" step="1" value="1">
+          <output id="grainV" for="grain">1 格</output></label>
+        <p class="tr-hint">同一个种子永远同一个格序；B 的格数精确跟着进度走（块数均分）。</p>
+      </div>
+      <div class="tr-pane" role="tabpanel" id="pane-tone" aria-labelledby="tab-tone" hidden>
+        <div class="ink-param"><span>依据</span>
+          <div class="ink-seg wide" role="radiogroup" aria-label="按哪张场的墨量排序">
+            <label><input type="radio" name="by" value="to" checked><span>目标 B</span></label>
+            <label><input type="radio" name="by" value="from"><span>源 A</span></label>
+          </div></div>
+        <div class="ink-param"><span>顺序</span>
+          <div class="ink-seg wide" role="radiogroup" aria-label="显影顺序">
+            <label><input type="radio" name="invTone" value="0" checked><span>先暗后亮</span></label>
+            <label><input type="radio" name="invTone" value="1"><span>先亮后暗</span></label>
+          </div></div>
+        <div class="tr-row"><button class="ink-btn" id="demoTone" type="button">载入示例：字形「纸」→ 同心环 · 场域混合</button></div>
+        <p class="tr-hint" id="toneNote">墨量 = 每格真正落到纸上的墨面积：覆盖率编码取场值，已标定编码取场值²。墨多的先显，同墨量按种子打散。</p>
+      </div>
+      <div class="tr-pane" role="tabpanel" id="pane-mask" aria-labelledby="tab-mask" hidden>
+        <label class="ink-param"><span>形状</span>
+          <select id="maskKey" class="wide"></select></label>
+        <div class="ink-param"><span>方向</span>
+          <div class="ink-seg wide" role="radiogroup" aria-label="遮罩方向">
+            <label><input type="radio" name="invMask" value="0" checked><span>从轮廓向外</span></label>
+            <label><input type="radio" name="invMask" value="1"><span>向轮廓收拢</span></label>
+          </div></div>
+        <div class="tr-row"><button class="ink-btn" id="demoMask" type="button">载入示例：干涉 → OpenAI 标 · 同形遮罩</button></div>
+        <p class="tr-hint" id="maskNote"></p>
+      </div>
+    </section>
+
+    <section class="ink-panel">
+      <h2>过渡带</h2>
+      <label class="ink-param"><span>带宽 edge</span>
+        <input class="ink-range" id="edge" type="range" min="0" max="50" step="1" value="12">
+        <output id="edgeV" for="edge">0.12</output></label>
+      <div class="ink-param"><span>带内</span>
+        <div class="ink-seg wide" role="radiogroup" aria-label="带内取值">
+          <label><input type="radio" name="blend" value="select" checked><span>逐格选取</span></label>
+          <label><input type="radio" name="blend" value="mix"><span>场域混合</span></label>
+        </div></div>
+      <p class="tr-hint"><b>逐格选取</b>：带内每格在一个带种子的时刻从 A 翻成 B，读起来是网点渐变。
+        <b>场域混合</b>：带内对场值线性插值（在场里插，不在半径里插），所以 A/B 必须同编码。</p>
+    </section>
+
+    <section class="ink-panel">
+      <h2>图案与编码</h2>
+      <label class="ink-param"><span>A</span>
+        <select id="patA" class="wide"></select></label>
+      <label class="ink-param"><span>B</span>
+        <select id="patB" class="wide"></select></label>
+      <div class="tr-row"><button class="ink-btn" id="swap" type="button" aria-keyshortcuts="S">交换 A ⇄ B</button></div>
+      <label class="ink-param"><span>编码</span>
+        <select id="enc" class="wide">
+          <option value="coverage">覆盖率原样 → r = rMax·√w</option>
+          <option value="calibrated">已标定（γ） → r = rMax·w</option>
+        </select></label>
+      <p class="tr-hint" id="encNote"></p>
+    </section>
+
+    <section class="ink-panel">
+      <h2>节奏</h2>
+      <label class="ink-param"><span>时长</span>
+        <input class="ink-range" id="dur" type="range" min="4" max="40" step="1" value="16">
+        <output id="durV" for="dur">1.6 s</output></label>
+      <div class="ink-param"><span>缓动</span>
+        <div class="ink-seg wide" role="radiogroup" aria-label="缓动">
+          <label><input type="radio" name="ease" value="inOut" checked><span>缓入缓出</span></label>
+          <label><input type="radio" name="ease" value="linear"><span>匀速</span></label>
+        </div></div>
+    </section>
+
+    <section class="ink-panel">
+      <h2>状态示例</h2>
+      <div class="tr-legend" aria-label="状态签的六种取值">
+        <span class="ink-status" data-state="at-a">停在 A</span>
+        <span class="ink-status" data-state="playing">播放中 A→B</span>
+        <span class="ink-status" data-state="reversing">倒放中 B→A</span>
+        <span class="ink-status" data-state="paused">暂停 0.42</span>
+        <span class="ink-status" data-state="at-b">停在 B</span>
+        <span class="ink-status" data-state="reduced">已直接切换</span>
+      </div>
+    </section>
+
+    <section class="ink-panel">
+      <h2>键盘（焦点在画布或页面上时）</h2>
+      <dl class="tr-keys">
+        <dt><kbd class="ink-kbd">Space</kbd></dt><dd>播放 / 暂停（到头再按 = 往回放）</dd>
+        <dt><kbd class="ink-kbd">←</kbd> <kbd class="ink-kbd">→</kbd></dt><dd>逐步 1%（按住 Shift 为 10%）</dd>
+        <dt><kbd class="ink-kbd">Home</kbd> <kbd class="ink-kbd">End</kbd></dt><dd>回到 A / 跳到 B</dd>
+        <dt><kbd class="ink-kbd">R</kbd></dt><dd>反向</dd>
+        <dt><kbd class="ink-kbd">1</kbd> … <kbd class="ink-kbd">5</kbd></dt><dd>擦除 / 径向 / 溶解 / 显影 / 遮罩</dd>
+        <dt><kbd class="ink-kbd">S</kbd> <kbd class="ink-kbd">D</kbd></dt><dd>交换 A⇄B / 换种子</dd>
+      </dl>
+    </section>
+  </aside>
+</main>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>API 与动效规范：<a href="docs/04-transitions.md">docs/04-transitions.md</a> · 实现：<a href="transition.js">transition.js</a></span>
+    <span class="links">
+      <span>零依赖 · 离线 · 同一 p 两次逐像素一致</span>
+      <a href="README.md">包说明</a>
+      <a href="STANDARD.md">标准</a>
+    </span>
+  </div>
+</footer>
+
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
+<script src="dotink.js"></script>
+<script src="transition.js"></script>
+<script src="marks.js"></script>   <!-- 遮罩形状复用仓库里的 47 家厂标路径（不另加素材） -->
+<script>
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const TR = DotInk.transition;
+  const CELL = 8;                                   /* 点距（CSS px）—— §14 参考配方 */
+  const MAXFRAC = 0.42;
+
+  /* ── 图案：全部按"覆盖率原样"生成；"已标定"编码时再过一次 γ=0.5（字形走 fromImageData 的默认） ── */
+  const ss = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+  const PATTERNS = {
+    interference: { name: '干涉条纹', mk: (c, r) => DotInk.fields.interference(c, r, { k: 55 / c, s1: [c * 0.3, r * 0.5], s2: [c * 0.7, r * 0.5] }) },
+    noise: { name: '噪声云', mk: (c, r) => {
+      const v = DotInk.fields.noise(c, r, { seed: 9, octaves: 3, base: 3 });
+      for (let i = 0; i < v.length; i++) v[i] = ss(0.30, 0.72, v[i]);
+      return v; } },
+    rings: { name: '同心环', mk: (c, r) => {
+      const v = new Float32Array(c * r), per = Math.max(4, r / 3.2);
+      for (let y = 0; y < r; y++) for (let x = 0; x < c; x++) {
+        const d = Math.hypot(x + 0.5 - c / 2, y + 0.5 - r / 2);
+        v[y * c + x] = (0.5 + 0.5 * Math.cos(2 * Math.PI * d / per)) * (1 - ss(r * 0.35, r * 0.95, d));
+      }
+      return v; } },
+    ramp: { name: '斜向渐变', mk: (c, r) => {
+      const v = new Float32Array(c * r);
+      for (let y = 0; y < r; y++) for (let x = 0; x < c; x++) v[y * c + x] = Math.min(1, Math.max(0, 1 - (0.75 * x / (c - 1) + 0.25 * y / (r - 1))));
+      return v; } },
+    glyphInk: { name: '字形「墨」', glyph: '墨' },
+    glyphPaper: { name: '字形「纸」', glyph: '纸' },
+    markOpenai: { name: 'OpenAI 标', mark: 'openai' },
+  };
+  function glyphField(ch, cols, rows, enc) {
+    const W = cols * 4, H = rows * 4;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#000'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '800 ' + Math.round(H * 0.84) + 'px ' + getComputedStyle(document.body).fontFamily;
+    g.fillText(ch, W / 2, H * 0.53);
+    const d = g.getImageData(0, 0, W, H).data;
+    /* ★ 编码在这里定，而且只定一次：
+       coverage   → gamma 1 / gain 1：每格深色占比原样，交给 √ 映射；
+       calibrated → fromImageData 的默认 γ .45 / ×1.6（它本来就是标定过的场），配线性。
+       千万别"默认参数 + √"：那是把 gamma 记两次（STANDARD §3）。 */
+    return enc === 'coverage'
+      ? DotInk.fields.fromImageData(d, W, H, cols, rows, { thr: 0.62, gamma: 1, gain: 1 })
+      : DotInk.fields.fromImageData(d, W, H, cols, rows);
+  }
+  function buildPattern(key, cols, rows, enc) {
+    const P = PATTERNS[key];
+    if (P.glyph) return glyphField(P.glyph, cols, rows, enc);
+    if (P.mark) {                                      /* 厂标当图案：覆盖率原样；已标定编码同样把 γ=0.5 记在场上 */
+      const v = markMask(P.mark, cols, rows);
+      if (enc === 'calibrated') for (let i = 0; i < v.length; i++) v[i] = Math.sqrt(v[i]);
+      return v;
+    }
+    const v = P.mk(cols, rows);
+    if (enc === 'calibrated') for (let i = 0; i < v.length; i++) v[i] = Math.sqrt(v[i]);   /* γ = 0.5 记在场上 */
+    return v;
+  }
+
+  /* ── 遮罩形状：只用仓库里已有的东西 —— 演示页的字形栅格、marks.js 的厂标路径、fields.sdf 口径的距离函数 ── */
+  const MARKS = window.DotInkMarks || null;
+  const MASKS = {
+    glyphInk: { name: '字形「墨」' },
+    openai: { name: 'OpenAI 标', mark: 'openai' },
+    anthropic: { name: 'Anthropic 标', mark: 'anthropic' },
+    huggingface: { name: 'Hugging Face 标', mark: 'huggingface' },
+    ring: { name: '圆环（fields.sdf 距离函数）', sdf: true },
+  };
+  function markMask(slug, cols, rows) {
+    const W = cols * 4, H = rows * 4, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#000';
+    const s = H * 0.78 / MARKS.viewBox;                /* 标占画幅高 78%，居中 */
+    g.setTransform(s, 0, 0, s, (W - MARKS.viewBox * s) / 2, (H - MARKS.viewBox * s) / 2);
+    g.fill(new Path2D(MARKS.icons[slug].d));
+    /* 遮罩只看"形内 / 形外"（≥0.5 为形内），用覆盖率原样（gamma 1），与编码无关 */
+    return DotInk.fields.fromImageData(g.getImageData(0, 0, W, H).data, W, H, cols, rows, { thr: 0.62, gamma: 1, gain: 1 });
+  }
+  let maskCache = { key: '', v: null };
+  function maskFor(key, cols, rows) {
+    const id = key + '|' + cols + 'x' + rows;
+    if (maskCache.key === id) return maskCache.v;
+    const M = MASKS[key];
+    let v;
+    if (M.sdf) {                                       /* 直接交距离函数：fields.sdf(cols, rows, shape) 用的就是它 */
+      const R = rows * 0.30, w = Math.max(1.6, rows * 0.07);
+      v = (x, y) => Math.abs(Math.hypot(x - cols / 2, y - rows / 2) - R) - w;
+    } else if (M.mark && MARKS && MARKS.icons[M.mark]) v = markMask(M.mark, cols, rows);
+    else v = glyphField('墨', cols, rows, 'coverage');
+    maskCache = { key: id, v: v };
+    return v;
+  }
+
+  /* ── 状态（唯一真相）── */
+  const st = {
+    by: 'to', invTone: false, maskKey: 'glyphInk', invMask: false,
+    mode: 'wipe', angle: 0, cx: 0.5, cy: 0.5, invert: false, seed: 1, grain: 1,
+    edge: 0.12, blend: 'select', dur: 1.6, easing: 'inOut', enc: 'coverage',
+    aKey: 'interference', bKey: 'glyphInk',
+    u: 0, dir: 1, playing: false, reducedHit: false,
+  };
+  const reducedMQ = matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* ── 画布 / 实例 / 场 ── */
+  const cv = $('cv'), frame = $('frame');
+  let inst = null, tr = null, A = null, B = null, cols = 0, rows = 0, dpr = 1, cssW = 0, cssH = 0;
+  let frameMs = 0, settleTimer = 0;
+  /* 写成两步：`ease[k](u)` 这种 `](` 字样会被 tools/check-links.mjs 当成 Markdown 链接 */
+  const easeFn = () => TR.ease[st.easing];
+  const pOf = u => easeFn()(u);
+
+  function buildTransition() {
+    const inv = st.mode === 'tone' ? st.invTone : st.mode === 'mask' ? st.invMask : st.invert;
+    tr = TR.create({
+      cols: cols, rows: rows, from: A, to: B, encoding: st.enc,
+      mode: st.mode, edge: st.edge, blend: st.blend,
+      angle: st.angle, cx: st.cx, cy: st.cy, invert: inv, seed: st.seed, grain: st.grain,
+      by: st.by, mask: st.mode === 'mask' ? maskFor(st.maskKey, cols, rows) : undefined,
+    });
+    modeNotes();
+  }
+  /* 退化情形要说出来（遮罩为空 / 全满 / 墨量处处相同 → 按种子次序，等于溶解） */
+  const FALLBACK = { flat: '依据场墨量处处相同 → 按种子次序（等于溶解）。', 'empty-mask': '遮罩为空 → 按种子次序（等于溶解）。', 'full-mask': '遮罩铺满 → 按种子次序（等于溶解）。' };
+  function modeNotes() {
+    const fb = tr && tr.info.fallback ? FALLBACK[tr.info.fallback] : '';
+    if (st.mode === 'mask') {
+      $('maskNote').textContent = fb || (st.invMask
+        ? 'B 从画幅四周沿轮廓的等距线往里收，字形最后合上。'
+        : 'B 先从字形骨架长满字形，再沿轮廓的等距线向外长 —— 前沿一直是轮廓的形状。');
+    }
+    if (st.mode === 'tone') {
+      $('toneNote').textContent = fb || ('墨量 = 每格真正落到纸上的墨面积：' + (st.enc === 'coverage' ? '覆盖率编码，取场值' : '已标定编码，取场值²') +
+        '（只换算一次）。' + (st.invTone ? '墨少的先换' : '墨多的先显') + '，同墨量按种子打散。');
+    }
+  }
+  function buildFields() {
+    A = buildPattern(st.aKey, cols, rows, st.enc);
+    B = buildPattern(st.bKey, cols, rows, st.enc);
+    buildTransition();
+  }
+  /* 尺寸 / 编码变了才重建实例（缓冲随 backing 走）；换模式、换参数只换 tr —— 渲染实例里的场函数
+     读的是**当前** tr，所以切模式不建新实例、更不起第二个循环。 */
+  function buildInstance() {
+    const avail = Math.max(120, frame.parentElement.clientWidth - 4);   /* 减掉 2px 边框 ×2 */
+    dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const DW = Math.floor(Math.min(avail, 960) * dpr), DH = Math.round(DW * 9 / 16);
+    cssW = DW / dpr; cssH = DH / dpr;                 /* 反推 CSS 尺寸 → backing 恰好 = 物理像素（1:1） */
+    cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px';
+    cols = Math.max(16, Math.round(cssW / CELL)); rows = Math.max(9, Math.round(cssH / CELL));
+    buildFields();
+    cv.width = 0; cv.height = 0;                      /* 先释放旧缓冲 */
+    inst = DotInk.create(Object.assign({
+      canvas: cv, cssW: cssW, cssH: cssH, scale: dpr, cols: cols, rows: rows,
+      maxFrac: MAXFRAC, floor: 0.02, duration: 1,
+      field: (i, x, y, p) => tr.value(i, p, x, y, p),
+    }, tr.renderHints));                              /* areaMap 跟编码配对；gamma 1；shutter 0 */
+    render(true);
+  }
+
+  /* ── 一帧（唯一的出画入口）── */
+  function render(settle) {
+    const p = pOf(st.u);
+    const t0 = performance.now();
+    inst.draw(p);
+    frameMs = performance.now() - t0;
+    readout(p);
+    if (settle) scheduleSettle();
+  }
+  function scheduleSettle() {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {                  /* 停下来才读回画布数灰阶（每次约百万像素，别在播放里做） */
+      if (st.playing || !inst) return;
+      const j = inst.judge(null, { mode: 'M2' });
+      const c = j.checks.find(x => x.name === '1-bit 无灰阶');
+      const el = $('rBit');
+      el.textContent = c ? (c.ok ? '0 灰阶 ✓' : c.value + ' ✗') : '未测';
+      el.className = c && c.ok ? '' : 'bad';
+      window.__tr.lastBit = c ? { ok: c.ok, value: c.value } : null;
+    }, 220);
+  }
+
+  /* ── 读数 / 状态 ── */
+  const STATE_TEXT = {
+    'at-a': () => '停在 A', 'at-b': () => '停在 B',
+    playing: () => '播放中 A→B', reversing: () => '倒放中 B→A',
+    paused: () => '暂停 ' + st.u.toFixed(2), reduced: () => '已直接切换（减少动效）',
+  };
+  let lastState = '';
+  function stateKey() {
+    if (st.playing) return st.dir > 0 ? 'playing' : 'reversing';
+    if (st.reducedHit) return 'reduced';
+    if (st.u <= 0) return 'at-a';
+    if (st.u >= 1) return 'at-b';
+    return 'paused';
+  }
+  function readout(p) {
+    const k = stateKey(), el = $('state');
+    const txt = STATE_TEXT[k]();
+    if (k !== lastState || (k === 'paused' && el.textContent !== txt)) {
+      el.dataset.state = k; el.textContent = txt; lastState = k;    /* aria-live 只在状态变化时说话 */
+    }
+    $('play').textContent = st.playing ? '暂停' : '播放';
+    $('play').setAttribute('aria-label', st.playing ? '暂停' : (playTarget() > 0 ? '播放到 B' : '播放回 A'));
+    $('scrub').value = Math.round(st.u * 1000);
+    $('scrub').setAttribute('aria-valuetext', '进度 ' + Math.round(st.u * 100) + '%，' + txt);
+    $('scrubV').textContent = st.u.toFixed(3);
+    $('rP').textContent = st.u.toFixed(3) + ' / ' + p.toFixed(3);
+    $('rB').textContent = tr.countB(p) + ' / ' + tr.n;
+    $('rGrid').textContent = cols + '×' + rows + ' · ' + (cssW / cols).toFixed(2) + 'px';
+    $('rMs').textContent = frameMs.toFixed(1) + ' ms';
+    const shownW = cv.getBoundingClientRect().width * dpr;
+    const ok11 = Math.abs(shownW - cv.width) < 0.5;
+    $('r11').textContent = cv.width + '×' + cv.height + ' @' + dpr.toFixed(2) + (ok11 ? ' ✓' : ' ✗ ' + shownW.toFixed(1));
+    $('r11').className = ok11 ? '' : 'bad';
+    $('capA').textContent = PATTERNS[st.aKey].name; $('capB').textContent = PATTERNS[st.bKey].name;
+    $('capDir').textContent = st.dir > 0 ? '→' : '←';
+    $('capEnc').textContent = (tr.renderHints.areaMap ? 'areaMap √' : 'areaMap 线性') + ' · γ 1 · shutter 0';
+    $('dir').textContent = '方向 ' + (st.dir > 0 ? 'A→B' : 'B→A');
+    $('dir').setAttribute('aria-pressed', String(st.dir < 0));
+    window.__tr.state = k; window.__tr.u = st.u; window.__tr.p = p;
+  }
+
+  /* ── 播放：全页只有一个 rAF 句柄。开新的之前一定先停旧的 → 切换永不叠加 ── */
+  let raf = 0, lastTs = 0;
+  const dbg = { starts: 0, ticks: 0, inflight: 0, maxInflight: 0 };
+  function request() { raf = requestAnimationFrame(tick); dbg.inflight++; dbg.maxInflight = Math.max(dbg.maxInflight, dbg.inflight); }
+  function stopLoop() { if (raf) { cancelAnimationFrame(raf); dbg.inflight--; raf = 0; } }
+  function tick(ts) {
+    dbg.inflight--; raf = 0; dbg.ticks++;
+    if (!st.playing) return;
+    const dt = lastTs ? Math.min(0.1, Math.max(0, (ts - lastTs) / 1000)) : 0;
+    lastTs = ts;
+    st.u = Math.min(1, Math.max(0, st.u + st.dir * dt / st.dur));
+    const done = st.dir > 0 ? st.u >= 1 : st.u <= 0;
+    if (done) { st.playing = false; render(true); return; }
+    render(false);
+    request();
+  }
+  /* 往哪播：在终点上再按播放 = 往回放（不用先按反向） */
+  function playTarget() {
+    if (st.dir > 0 && st.u >= 1) return -1;
+    if (st.dir < 0 && st.u <= 0) return 1;
+    return st.dir;
+  }
+  function play() {
+    st.dir = playTarget();
+    st.reducedHit = false;
+    if (reducedMQ.matches) {                          /* 减少动效：不演过程，直接落到终点 */
+      stopLoop(); st.playing = false;
+      st.u = st.dir > 0 ? 1 : 0; st.reducedHit = true;
+      render(true); return;
+    }
+    stopLoop();
+    st.playing = true; lastTs = 0; dbg.starts++;
+    render(false);
+    request();
+  }
+  function pause() { stopLoop(); st.playing = false; render(true); }
+  function toggle() { st.playing ? pause() : play(); }
+  function seek(u) { stopLoop(); st.playing = false; st.reducedHit = false; st.u = Math.min(1, Math.max(0, u)); render(true); }
+  function reverse() {
+    st.dir = -st.dir; st.reducedHit = false;
+    if (st.playing) { lastTs = 0; render(false); }   /* 播放中反向：同一个循环接着走，不重启 */
+    else render(true);
+  }
+
+  /* ── 改参数：只重建 tr（或场），当前帧按同一进度重画；播放中由循环自己出下一帧 ── */
+  function changed(kind) {
+    if (kind === 'fields') buildFields(); else buildTransition();
+    if (!st.playing) render(true);
+  }
+
+  function setMode(m, focus) {
+    st.mode = m;
+    document.querySelectorAll('#tabs [role=tab]').forEach(t => {
+      const on = t.dataset.mode === m;
+      t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+      $(t.getAttribute('aria-controls')).hidden = !on;
+      if (on && focus) t.focus();
+    });
+    $('edge').disabled = false;
+    changed('tr');
+  }
+
+  function encNote() {
+    $('encNote').innerHTML = st.enc === 'coverage'
+      ? '场是每格深色占比原样 → 半径开方，墨面积 ∝ 场值。字形走 <code>fromImageData(…, {gamma:1, gain:1})</code>。'
+      : '场已带 γ（图案过 √，字形用 <code>fromImageData</code> 默认 γ .45 / ×1.6）→ 半径线性。两头只记一次 γ。';
+  }
+
+  /* ── 控件接线 ── */
+  const opts = Object.keys(PATTERNS).map(k => '<option value="' + k + '">' + PATTERNS[k].name + '</option>').join('');
+  $('patA').innerHTML = opts; $('patB').innerHTML = opts;
+  $('patA').value = st.aKey; $('patB').value = st.bKey;
+  $('patA').addEventListener('change', e => { st.aKey = e.target.value; changed('fields'); });
+  $('patB').addEventListener('change', e => { st.bKey = e.target.value; changed('fields'); });
+  $('swap').addEventListener('click', () => {
+    const k = st.aKey; st.aKey = st.bKey; st.bKey = k;
+    $('patA').value = st.aKey; $('patB').value = st.bKey;
+    changed('fields');
+  });
+  $('enc').addEventListener('change', e => { st.enc = e.target.value; encNote(); buildInstance(); });
+
+  $('play').addEventListener('click', toggle);
+  $('dir').addEventListener('click', reverse);
+  $('toA').addEventListener('click', () => seek(0));
+  $('toB').addEventListener('click', () => seek(1));
+  $('scrub').addEventListener('input', e => seek(+e.target.value / 1000));
+
+  const bindRange = (id, fmt, apply) => {
+    const el = $(id), out = $(id + 'V');
+    el.addEventListener('input', () => { apply(+el.value); if (out) out.textContent = fmt(+el.value); });
+  };
+  bindRange('angle', v => v + '°', v => { st.angle = v; changed('tr'); });
+  bindRange('cx', v => (v / 100).toFixed(2), v => { st.cx = v / 100; changed('tr'); });
+  bindRange('cy', v => (v / 100).toFixed(2), v => { st.cy = v / 100; changed('tr'); });
+  bindRange('grain', v => v + ' 格', v => { st.grain = v; changed('tr'); });
+  bindRange('edge', v => (v / 100).toFixed(2), v => { st.edge = v / 100; changed('tr'); });
+  bindRange('dur', v => (v / 10).toFixed(1) + ' s', v => { st.dur = v / 10; });
+  $('seed').addEventListener('change', e => {
+    const v = Math.max(0, Math.min(4294967295, Math.floor(+e.target.value || 0)));
+    e.target.value = v; st.seed = v; changed('tr');
+  });
+  function reseed() { st.seed = (st.seed + 1) >>> 0; $('seed').value = st.seed; changed('tr'); }
+  $('reseed').addEventListener('click', reseed);
+  document.querySelectorAll('input[name=inv]').forEach(r => r.addEventListener('change', e => { st.invert = e.target.value === '1'; changed('tr'); }));
+  document.querySelectorAll('input[name=blend]').forEach(r => r.addEventListener('change', e => { st.blend = e.target.value; changed('tr'); }));
+  document.querySelectorAll('input[name=by]').forEach(r => r.addEventListener('change', e => { st.by = e.target.value; changed('tr'); }));
+  document.querySelectorAll('input[name=invTone]').forEach(r => r.addEventListener('change', e => { st.invTone = e.target.value === '1'; changed('tr'); }));
+  document.querySelectorAll('input[name=invMask]').forEach(r => r.addEventListener('change', e => { st.invMask = e.target.value === '1'; changed('tr'); }));
+  $('maskKey').innerHTML = Object.keys(MASKS).filter(k => !MASKS[k].mark || (MARKS && MARKS.icons[MASKS[k].mark]))
+    .map(k => '<option value="' + k + '">' + MASKS[k].name + '</option>').join('');
+  $('maskKey').value = st.maskKey;
+  $('maskKey').addEventListener('change', e => { st.maskKey = e.target.value; changed('tr'); });
+
+  /* 示例：一键把两种新效果摆到最能看出差别的组合上，停在 40% 让人先看清中间帧 */
+  const setRadio = (name, val) => { const r = document.querySelector('input[name=' + name + '][value="' + val + '"]'); if (r) r.checked = true; };
+  function preset(o) {
+    stopLoop(); st.playing = false;
+    Object.assign(st, o);
+    $('patA').value = st.aKey; $('patB').value = st.bKey; $('maskKey').value = st.maskKey;
+    $('edge').value = Math.round(st.edge * 100); $('edgeV').textContent = st.edge.toFixed(2);
+    setRadio('blend', st.blend); setRadio('by', st.by);
+    setRadio('invTone', st.invTone ? 1 : 0); setRadio('invMask', st.invMask ? 1 : 0);
+    buildFields();
+    setMode(o.mode);
+    seek(0.4);
+  }
+  $('demoTone').addEventListener('click', () => preset({ mode: 'tone', aKey: 'glyphPaper', bKey: 'rings', by: 'to', invTone: false, blend: 'mix', edge: 0.3 }));
+  $('demoMask').addEventListener('click', () => preset({ mode: 'mask', aKey: 'interference', bKey: 'markOpenai', maskKey: 'openai', invMask: false, blend: 'select', edge: 0.08 }));
+  document.querySelectorAll('input[name=ease]').forEach(r => r.addEventListener('change', e => { st.easing = e.target.value; if (!st.playing) render(true); }));
+
+  /* tabs：点击 + 方向键漫游（WAI-ARIA tabs 模式，自动激活） */
+  const tabs = Array.from(document.querySelectorAll('#tabs [role=tab]'));
+  tabs.forEach((t, k) => {
+    t.addEventListener('click', () => setMode(t.dataset.mode));
+    t.addEventListener('keydown', e => {
+      let n = -1;
+      if (e.key === 'ArrowRight') n = (k + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') n = (k + tabs.length - 1) % tabs.length;
+      else if (e.key === 'Home') n = 0; else if (e.key === 'End') n = tabs.length - 1;
+      if (n >= 0) { e.preventDefault(); e.stopPropagation(); setMode(tabs[n].dataset.mode, true); }
+    });
+  });
+
+  /* 全局快捷键：焦点在表单控件上时让给控件（滑块自己吃方向键、按钮自己吃空格） */
+  addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const tg = e.target, tag = tg && tg.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON' || (tg && tg.isContentEditable)) return;
+    const step = e.shiftKey ? 0.1 : 0.01;
+    let hit = true;
+    switch (e.key) {
+      case ' ': case 'k': case 'K': toggle(); break;
+      case 'ArrowRight': seek(st.u + step); break;
+      case 'ArrowLeft': seek(st.u - step); break;
+      case 'Home': seek(0); break;
+      case 'End': seek(1); break;
+      case 'r': case 'R': reverse(); break;
+      case '1': setMode('wipe'); break;
+      case '2': setMode('radial'); break;
+      case '3': setMode('dissolve'); break;
+      case '4': setMode('tone'); break;
+      case '5': setMode('mask'); break;
+      case 's': case 'S': $('swap').click(); break;
+      case 'd': case 'D': reseed(); break;
+      default: hit = false;
+    }
+    if (hit) e.preventDefault();
+  });
+
+  /* 减少动效：跟系统走，运行中切换也跟上 */
+  function motionNote() {
+    $('motionNote').textContent = reducedMQ.matches
+      ? '系统开了「减少动效」：播放直接落到终点，拖动与逐步照常。'
+      : '';
+    if (reducedMQ.matches && st.playing) { st.playing = false; stopLoop(); st.u = st.dir > 0 ? 1 : 0; st.reducedHit = true; render(true); }
+  }
+  if (reducedMQ.addEventListener) reducedMQ.addEventListener('change', motionNote); else reducedMQ.addListener(motionNote);
+
+  /* 尺寸变了 → 防抖重建（保持进度与播放状态，循环不重启） */
+  let rt = 0, lastW = 0;
+  const onResize = () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => {
+      const w = frame.parentElement.clientWidth, d = window.devicePixelRatio || 1;
+      if (w === lastW && d === dpr) return;
+      lastW = w; buildInstance();
+    }, 140);
+  };
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe(frame.parentElement); else addEventListener('resize', onResize);
+  addEventListener('resize', onResize);               /* 只缩放（DPR 变）时 ResizeObserver 不一定触发 */
+
+  window.__tr = { st: st, dbg: dbg, get tr() { return tr; }, get inst() { return inst; }, play: play, pause: pause, seek: seek, reverse: reverse, setMode: setMode };
+  encNote(); motionNote();
+  lastW = frame.parentElement.clientWidth;
+  buildInstance();
+})();
+</script>
+</body>
+</html>

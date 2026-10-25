@@ -35,7 +35,8 @@
     cell: 12,              /* 点距（CSS px）。格 = cell×cell */
     cols: null, rows: null,/* 不给则按 cssW/cssH ÷ cell 推 */
     maxFrac: 0.48,         /* 满墨半径 rMax = maxFrac·cell。**上限 0.5**（点径=点距 → 相切，覆盖率≈π/4≈79%） */
-    areaMap: true,         /* ★ r = rMax·√w（面积映射）。false = 线性 r = rMax·w → 中间调偏亮，只在对照试验里用 */
+    areaMap: true,         /* ★ r = rMax·√w（面积映射）配**原样**场；false = 线性 r = rMax·w 配**已标定**场
+                              （pheno.js、fromImageData 默认 γ.45/×1.6）。按 STANDARD §3 配对，γ 只记一头 */
 
     /* 调子映射 */
     gain: 1.0,             /* w = min(1, v·gain) */

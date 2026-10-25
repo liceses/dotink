@@ -18,6 +18,7 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 | [`pheno.js`](pheno.js) | **自然现象场库**八个：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`，统一 `(cols, rows, opts) → (i,x,y,t) → 0..1` |
 | [`preview.html`](preview.html) | 判据计算器 + 参数实验台（双击即开），带 **1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **画廊（视觉产品）**：九项现象**现场渲染**（8px 真圆盘 · 线性半径 · 每屏一句大字标题）+ 实时判据（**M1/M2/M3 分开报**）+ **映射 A/B** + 1:1 放大镜 —— 想知道"配方长什么样"就开它 |
+| [`transition.js`](transition.js) · [`transition.html`](transition.html) | **场转场**：两张同网格、同编码的场之间 `wipe / radial / dissolve / tone（按墨量显影）/ mask（沿字形·logo 轮廓揭示）`；`p` 的纯函数、端点严格、可倒放；`tr.renderHints` 给出与编码配对的 render 选项（γ 恒 1、shutter 0）。**不是** markplate 的 morph（插形状）/ reveal（从纸上浮现）。规范 [`docs/04-transitions.md`](docs/04-transitions.md) |
 | [`hero.html`](hero.html) | **hero 示例**：把点墨当**网站视觉重心**的完整写法（自适应 `scale` = DPR + 像素预算 · 后台暂停 · `reduced-motion` 定格 · 实时判据读数）—— 想知道"接到自己页面上要补哪几件事"就开它 |
 | [`logo.js`](logo.js) · [`logo-demo.html`](logo-demo.html) | **字版 logo 组件（即插即用）**：三行引脚本 + 一次 `mount`，把「字拼成的标 + 阅读波浮现 + 字不断浮动」挂到**任意视频/网页**上；支持内置 47 家 / 自备 SVG；见 §「字版 logo 组件」 |
 | [`marks-type.html`](marks-type.html) · [`markplate.js`](markplate.js) | **字版厂标（移植自主库 markplate）**：厂标用**字**拼出来（每格一个字，字的大小按距离场走），`reveal` = 阅读波 → **字逐格浮现**；47 家 · 0.8s/家 · 37.6s 一遍 |
@@ -88,7 +89,7 @@ inst.judge();                            // 逐条读数（M1/M2 互斥，怎么
 
 | # | 判据 | 门限 |
 |---|---|---|
-| 1 | **面积映射** | `r = rMax·√w`（**不是**线性；线性让中间调偏亮） |
+| 1 | **映射与场编码配对**（§3） | 原样场 → `r = rMax·√w`（`areaMap:true`）；已标定场（`pheno.js`、`fromImageData` 默认 γ.45/×1.6）→ `r = rMax·w`（`areaMap:false`）。**γ 只记一头**：标定场再开方 = 双重校正 |
 | 2 | 点径上限 | `maxFrac ≤ 0.5` → 点径 ≤ 点距 |
 | 3 | M1 网点：点距 : 点径（中位） | **≥ 3 : 1** |
 | 4 | M2 面场：区域覆盖率 | **≥ 8%**（地板 2%，天花板 55%） |
