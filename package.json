@@ -17,11 +17,12 @@
     "./marks.js": "./marks.js",
     "./markplate.js": "./markplate.js",
     "./logo.js": "./logo.js",
+    "./transition.js": "./transition.js",
     "./package.json": "./package.json"
   },
   "files": [
-    "dotink.js", "fields.js", "render.js", "judge.js", "host.js", "hud.js", "pheno.js",
-    "gallery.html", "hero.html", "preview.html", "marks.html", "marks-type.html", "logo-demo.html", "icon.html",
+    "dotink.js", "fields.js", "render.js", "judge.js", "host.js", "hud.js", "pheno.js", "transition.js",
+    "gallery.html", "hero.html", "preview.html", "marks.html", "marks-type.html", "logo-demo.html", "icon.html", "transition.html", "ink.css",
     "marks.js", "markplate.js", "logo.js",
     "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png",
     "tools", "check", "docs", "demo",
@@ -35,7 +36,7 @@
     "marks-type": "node -e \"console.log('open marks-type.html in a browser')\"",
     "logo": "node -e \"console.log('open logo-demo.html in a browser')\"",
     "preview": "node -e \"console.log('open preview.html in a browser')\"",
-    "check": "node --test check/core.mjs && node tools/check-links.mjs",
+    "check": "node --test check/core.mjs check/transition.mjs && node tools/check-links.mjs",
     "prepublishOnly": "npm run check"
   },
   "private": false

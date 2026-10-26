@@ -89,7 +89,9 @@
       return v;
     },
     /* 真图 → 覆盖率场（img2field v2 的口径：**先二值化再算每格深色占比**，绝不做面积平均）
-     * 为什么：白底细线的图做面积平均会被平均成 8%，整张图消失（踩过）。 */
+     * 为什么：白底细线的图做面积平均会被平均成 8%，整张图消失（踩过）。
+     * ⚠ 默认 gamma .45 / gain 1.6 = **已标定**的场 → 配 areaMap:false（线性）。
+     *   要配 render 默认的 √，传 {gamma: 1, gain: 1}；两个默认直接相接是双重校正（STANDARD §3）。 */
     fromImageData(data, w, h, cols, rows, o) {
       o = o || {};
       const thr = o.thr === undefined ? 0.62 : o.thr;   /* 亮度阈值（0..1） */

@@ -3,6 +3,28 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 未发布（2026-10-24 · 第一批扩展：场转场）
+
+**新增：场转场 `transition.js`（可选脚本，不进汇总入口）+ 演示页 `transition.html`**
+- 三种转场：`wipe`（任意角度）/ `radial`（圆心可调、可由外向内）/ `dissolve`（种子 + 颗粒）。
+  全部是进度 `p` 的纯函数；`p ≤ 0` / `p ≥ 1` 走分支 → 端点逐字节等于源场；无内部播放状态 → 倒放、随机 seek 免费。
+- 默认 `blend: 'select'`：每格每刻恰为 A 或 B，不造新调子；`mix` 只在过渡带内对场值插值。
+- `encoding: 'coverage' | 'calibrated'` → `renderHints = { areaMap, gamma: 1, gain: 1, shutter: 0 }`。
+- 自查 `check/transition.mjs`（12 项）；规范 `docs/04-transitions.md`。
+- **第二批（同日）**：加两种模式 `tone`（按墨量显影，`by: 'to'|'from'`、`invert` 先亮后暗；墨量按编码换算一次：coverage 取 v、calibrated 取 v²）与 `mask`（按到字形 / logo 轮廓的带符号距离揭示，`mask` 收 `fields.sdf` 式距离函数或覆盖率数组，数组走精确 EDT；形内 / 形外分段分配进度；`invert` 向轮廓收拢）。
+  退化情形明确：墨量处处相同 / 空遮罩 / 满遮罩 → 种子次序，`tr.info.fallback` 报出。新增 `orderMap()`、`params.by` / `params.mask`、`BYS`；`transition.js` 内部版本 1.1.0。
+  演示页加「显影」「遮罩」两个页签、两个一键示例（字形「纸」→ 同心环；干涉 → OpenAI 标）、键盘 4 / 5；遮罩形状复用页面字形栅格与 `marks.js` 厂标路径。自查增至 19 项。
+- 提交前修正两处边界：`at(p, out)` 拒绝与源场共享且重叠的字节区间（同 buffer 的不重叠视图仍可复用）；编码校验只接受自有键，拒绝 `toString` / `__proto__` 等继承属性。新增两项回归，自查共 21 项。
+- `ink.css` 新增可复用交互件（全带 `ink-` 前缀，不影响旧页）：`ink-btn` / `ink-tabs` + `ink-tab` /
+  `ink-seg` / `ink-panel` + `ink-param` / `ink-range` / `ink-status`（六种状态）/ `ink-kbd`。
+
+**修正：§3 映射配对与 §9 / §10 / SKILL / docs/01 的冲突**（文档与注释，**代码行为不变**）
+- §9-2、§10 自查表、`SKILL.md` §2-1、`docs/01-standard.md` 原写"必须 √、线性只作对照"，与 §3 的配对规则矛盾 → 统一成"按场编码配对"。
+- 写明 `fields.fromImageData` 默认 `gamma .45 / gain 1.6` 是**已标定**场：配 `areaMap:false`；
+  要配 √ 传 `{gamma:1, gain:1}`。默认值直接相接 = 双重校正。`fromImageData` 的默认值**未改**（`marks.html` / `preview.html` 依赖它）。
+- 打包接入：`package.json` 的 `exports` 加 `./transition.js`，`files` 加 `transition.js` / `transition.html` / `ink.css`（`check/`、`docs/` 原已整目录收录）；`check` 脚本并入 `check/transition.mjs`。无新依赖，版本号仍 2.0.0。
+- 导航：七个页面的站点头（hero 是页内 `.nav`）在「现象画廊」后加「场转场」；`transition.html` 自己的导航末项与其它页对齐为「标准」。
+
 ## 2.0.0 — 2026-10-25
 
 **拆件：核心分成四个脚本 + 一个可选叠加层，`dotink.js` 只做汇总**（**破坏性**：页面要多引 `<script>`）

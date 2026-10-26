@@ -83,6 +83,7 @@
 | [`host.js`](host.js) | **独立短片宿主**：`__meta` / `__ready` / `__seek`（两套渲染器的契约差异在这里抹平） |
 | [`dotink.js`](dotink.js) | **汇总入口**：装配 `DotInk.create`（渲染 + 判据）并导出；装载顺序 `fields → render → judge → host → dotink` |
 | [`hud.js`](hud.js) | **可选叠加层**：尺 / 进度 / 5×7 点阵时间码 / 实墨字幕 —— 核心不认识 HUD，用 `overlays: [DotInk.hud(), …]` 显式挂上 |
+| [`transition.js`](transition.js) · [`transition.html`](transition.html) | **场转场**（可选脚本，零依赖）：同网格同编码的两张场 A→B —— 定向擦除 / 径向揭示 / 种子溶解 / 按墨量显影 / 字形·logo 遮罩揭示；进度 `p` 的纯函数，端点逐字节就是 A/B，可倒放、可随机 seek；演示页带 A/B 图案、模式参数、播放/拖动、键盘、`reduced-motion`。规范见 [`docs/04-transitions.md`](docs/04-transitions.md) |
 | [`pheno.js`](pheno.js) | **自然现象场库**：`chladni / sunflower / deJong / grayScott / dla / kuramoto / bifurcation / interference`（八个都是 `(cols, rows, opts) → (i,x,y,t) → 0..1`） |
 | [`preview.html`](preview.html) | **判据计算器与实验台**：8 条判据实时算、A/B 对照（√ vs 线性）、**1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **现象画廊（视觉产品）**：九项现象现场渲染 + 实时判据（M1/M2/M3 分开报）+ 映射 A/B + 1:1 放大镜 |

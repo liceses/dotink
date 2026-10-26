@@ -2,8 +2,9 @@
 
 ```powershell
 node --test check/core.mjs      # 14 项：公式 / 场 / 现象确定性 / 厂标数据 / 拆件装配 / 整条管线 / 版本 / 文件表 / 页面装载顺序
+node --test check/transition.mjs  # 21 项：五种场转场、端点 / 值域 / 种子 / seek 与倒放 / 源内存保护 / 编码校验 / 管线
 node tools/check-links.mjs      # 文档与页面里的相对链接不许悬空
-# 或者一条：npm run check
+# 或者一条：npm run check（core.mjs + transition.mjs + 链接）
 ```
 
 ## 它守什么、不守什么
