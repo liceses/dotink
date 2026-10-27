@@ -3,7 +3,7 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
-## 未发布（2026-10-24 · 第一批扩展：场转场）
+## 2.1.0 — 2026-10-28
 
 **新增：场转场 `transition.js`（可选脚本，不进汇总入口）+ 演示页 `transition.html`**
 - 三种转场：`wipe`（任意角度）/ `radial`（圆心可调、可由外向内）/ `dissolve`（种子 + 颗粒）。
@@ -22,7 +22,7 @@
 - §9-2、§10 自查表、`SKILL.md` §2-1、`docs/01-standard.md` 原写"必须 √、线性只作对照"，与 §3 的配对规则矛盾 → 统一成"按场编码配对"。
 - 写明 `fields.fromImageData` 默认 `gamma .45 / gain 1.6` 是**已标定**场：配 `areaMap:false`；
   要配 √ 传 `{gamma:1, gain:1}`。默认值直接相接 = 双重校正。`fromImageData` 的默认值**未改**（`marks.html` / `preview.html` 依赖它）。
-- 打包接入：`package.json` 的 `exports` 加 `./transition.js`，`files` 加 `transition.js` / `transition.html` / `ink.css`（`check/`、`docs/` 原已整目录收录）；`check` 脚本并入 `check/transition.mjs`。无新依赖，版本号仍 2.0.0。
+- 打包接入：`package.json` 的 `exports` 加 `./transition.js`，`files` 加 `transition.js` / `transition.html` / `ink.css`（`check/`、`docs/` 原已整目录收录）；`check` 脚本并入 `check/transition.mjs`。无新依赖；版本号 **2.1.0**（合入后定稿）。
 - 导航：七个页面的站点头（hero 是页内 `.nav`）在「现象画廊」后加「场转场」；`transition.html` 自己的导航末项与其它页对齐为「标准」。
 
 ## 2.0.0 — 2026-10-25

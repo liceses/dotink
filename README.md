@@ -33,15 +33,17 @@
 
 ---
 
-## 三块内容（各自独立可读）
+## 四块内容（各自独立可读）
 
 | 块 | 是什么 | 从哪开始 |
 |---|---|---|
 | **① 规范** | 判据唯一真相 + 参考实现 + 判据计算器 | [`STANDARD.md`](STANDARD.md) · [`docs/01-standard.md`](docs/01-standard.md) · [`preview.html`](preview.html) |
 | **② 自然现象展示 + 整套代码** | 九个现象现场渲染的画廊 + 场库 + 参考配方成片与静帧 | [`docs/02-phenomena.md`](docs/02-phenomena.md) · [`gallery.html`](gallery.html) · [`pheno.js`](pheno.js) |
 | **③ 字符 logo 系统** | 字版厂标（字拼成标）· 点墨版厂标墙 · 即插即用 logo 组件 | [`docs/03-marks-logo.md`](docs/03-marks-logo.md) · [`logo-demo.html`](logo-demo.html) · [`marks-type.html`](marks-type.html) |
+| **④ 场转场** | 两张**同网格、同编码**的场之间的替换：定向擦除 / 径向揭示 / 种子溶解 / 按墨量显影 / 字形·logo 遮罩揭示 | [`docs/04-transitions.md`](docs/04-transitions.md) · [`transition.html`](transition.html) · [`transition.js`](transition.js) |
 
-> 三块**共用一个核心**（全局 `DotInk`；核心由 [`fields.js`](fields.js) / [`render.js`](render.js) / [`judge.js`](judge.js) / [`host.js`](host.js) 组成，[`dotink.js`](dotink.js) 只做汇总）与一份第三方口径（[`NOTICE.md`](NOTICE.md)）。
+> 四块**共用一个核心**（全局 `DotInk`；核心由 [`fields.js`](fields.js) / [`render.js`](render.js) / [`judge.js`](judge.js) / [`host.js`](host.js) 组成，[`dotink.js`](dotink.js) 只做汇总）与一份第三方口径（[`NOTICE.md`](NOTICE.md)）。
+> [`transition.js`](transition.js) 是**可选**脚本 —— 不依赖汇总入口，放在它之前或之后都行。
 > 成片走 **Release 附件**（仓内只留 GIF 与 1:1 静帧）：本地放在 `media/_release/`（已 gitignore）。
 
 **画面只有墨与纸两种像素；所有中间调由点的面积表达。**

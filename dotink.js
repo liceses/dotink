@@ -45,7 +45,7 @@
     return inst;
   }
 
-  global.DotInk = Object.assign(D, { version: '2.0.0', create: create });
+  global.DotInk = Object.assign(D, { version: '2.1.0', create: create });
 
   if (typeof module === 'object' && module && module.exports) {
     module.exports = global.DotInk;

@@ -22,6 +22,10 @@
 共同参数：`edge`（过渡带宽，进度单位 0..1）、`blend`（`'select'` | `'mix'`）、`encoding`（`'coverage'` | `'calibrated'`）。
 五种模式**只差"每格次序 m 从哪来"**；进度、缓动、`edge` 抖动、`select`/`mix`、端点分支、`renderHints` 全部共用同一条路径。
 
+> ⚠ `invert` **只在 `radial` / `tone` / `mask` 上生效**：`wipe` 的次序由 `angle` 决定、`dissolve` 是纯种子次序，
+> 两者都没有"由内向外 / 由外向内"之分 —— 传了会被忽略。`params.invert` 仍按传入值读回（便于复现参数），
+> 但它不影响这两种模式的画面。
+
 **不是**（不要重复造，也不要混用名字）：
 
 | 已有 | 做什么 | 与转场的区别 |
