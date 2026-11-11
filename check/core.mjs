@@ -73,6 +73,7 @@ test('现象场库：八个 + 沙粒版都在，且都能构造', () => {
   const names = ['chladni', 'sunflower', 'deJong', 'grayScott', 'dla', 'kuramoto', 'bifurcation', 'interference'];
   for (const n of names) assert.equal(typeof D.pheno[n], 'function', '缺 ' + n);
   assert.equal(typeof D.pheno.sandChladniPoints, 'function', '缺沙粒版');
+assert.equal(typeof D.pheno.kuramotoRing, 'function', '缺相位环版（06 的点列体裁）');
   const opts = {
     chladni: { period: 16 }, sunflower: { seeds: 400, span: 26 },
     deJong: { sets: [[1.641, 1.902, 0.316, 1.525], [1.4, -2.3, 2.4, -2.1]], span: 30, iter: 8000 },
@@ -115,6 +116,35 @@ test('沙粒版：点列通道返回 [x,y,r] 三元组，且随时间走', () =>
   for (let i = 0; i < a.length; i += 3) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) > 0.5) moved++;
   assert.ok(moved > 10, '沙粒应随时间移动（实测动了 ' + moved + ' 颗）');
   for (let i = 0; i < a.length; i += 3) assert.ok(a[i] >= 0 && a[i] <= 160 && a[i + 1] >= 0 && a[i + 1] <= 90, '点应落在画幅内');
+});
+
+test('相位环：点列三元组、都在圆周上、锁相收拢、指针长度跟着序参量', () => {
+  const CW = 1280, CH = 720, N = 200, SPAN = 26;
+  const f = D.pheno.kuramotoRing(160, 90, { cssW: CW, cssH: CH, N: N, frames: 120, span: SPAN });
+  const a = Float32Array.from(f(0.5)), b = Float32Array.from(f(SPAN * 0.98));
+  assert.equal(a.length, (N + 6) * 3, '点列应是 (N + 指针点数) × 3');
+  /* 振子必须落在同一个圆上：半径恒定、圆心在画幅中心 */
+  const cx = CW / 2, cy = CH / 2;
+  let rMin = 1e9, rMax = 0;
+  for (let i = 0; i < N * 3; i += 3) { const r = Math.hypot(a[i] - cx, a[i + 1] - cy); rMin = Math.min(rMin, r); rMax = Math.max(rMax, r); }
+  assert.ok(rMax - rMin < 1e-3, '所有振子应在同一半径上（实测 ' + rMin.toFixed(3) + '..' + rMax.toFixed(3) + '）');
+  /* 锁相 = 相位分布变窄：用序参量（相位点的圆周散布）量，散相时 r≈0，锁相时 r→1 */
+  const order = (P, from) => {
+    let sx = 0, sy = 0;
+    for (let i = from; i < from + N * 3; i += 3) { sx += P[i] - cx; sy += P[i + 1] - cy; }
+    return Math.hypot(sx, sy) / N / (rMax || 1);
+  };
+  const r0 = order(a, 0), r1 = order(b, 0);
+  assert.ok(r1 > r0 + 0.15, 'K 爬升后应明显更同步（实测 ' + r0.toFixed(3) + ' → ' + r1.toFixed(3) + '）');
+  /* 指针：从圆心出发，长度 = 序参量 × R；锁相后应显著更长 */
+  const pinLen = (P) => {
+    const i0 = N * 3;
+    return Math.hypot(P[i0] - cx, P[i0 + 1] - cy);
+  };
+  assert.ok(pinLen(b) > pinLen(a), '锁相后指针应变长（' + pinLen(a).toFixed(1) + ' → ' + pinLen(b).toFixed(1) + '）');
+  /* 复用同一个数组：不拷就永远"没动"（本库踩过一次） */
+  const again = f(0.5);
+  assert.ok(again === f(0.5), '应复用同一个 Float32Array');
 });
 
 test('厂标数据：47 家、顺序一致、路径非空、名字不重', () => {

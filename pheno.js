@@ -102,9 +102,16 @@
     const a1 = o.a1 === undefined ? 137.50776 : o.a1;
     const gamma = o.gamma === undefined ? 0.6 : o.gamma;
     const gain = o.gain === undefined ? 1.3 : o.gain;
-    const fill = o.fill === undefined ? 0.46 : o.fill;   // 椭圆半径 = 短边×fill，铺满画幅
+    const fill = o.fill === undefined ? 0.46 : o.fill;   // 盘半径 = 短边×fill
     const n = cols * rows, buf = new Uint8Array(F * n), acc = new Float32Array(n);
-    const cx = cols * 0.5, cy = rows * 0.5, rx = cols * fill, ry = rows * fill;
+    /* **正圆**：格是方的（cell = cssW/cols = cssH/rows，CSS px 下各向同性），
+       所以 x/y 两个方向用**同一个格数**才是圆。
+       旧版 rx = cols·fill、ry = rows·fill —— 那是按"归一化坐标"画的，落到 16:9 上
+       就是一颗横向椭圆（宽:高 = 16:9）；参考件 still-02 是**正圆盘**、直径 ≈ 画幅高。
+       现在半径 = min(cols, rows)·fill，默认 .46 → 直径 .92×短边：
+       16:9 里纵向占满、四角留得住白，也不切边。 */
+    const rad = Math.min(cols, rows) * fill;
+    const cx = cols * 0.5, cy = rows * 0.5, rx = rad, ry = rad;
     for (let k = 0; k < F; k++) {
       /* 种子数按 √(k/F) 长（先快后慢）：线性长的话前几秒整幅几乎空白（t=1 才 3% 的种子），
          而"从中心往外旋着长"这件事在头几秒就该看得见。 */
@@ -385,6 +392,157 @@
   }
 
   /* ==========================================================================
+   * 06b Kuramoto 相位环（**点列版**）· PHENOMENA 06
+   *   同一套方程，换一种落墨：不是"每格一份墨"的斑图，而是一圈**振子点**。
+   *     dθᵢ/dt = ωᵢ + K·r·sin(ψ − θᵢ)　　r·e^{iψ} = (1/N)Σⱼ e^{iθⱼ}
+   *   耦合走**平均场**（O(N)/步，不是 O(N²)）：每个振子只看全体平均相位 ψ 与序参量 r。
+   *   K 从 0 爬到 kmax：前半散相（点在圆周上均匀撒开、r≈0）、后半锁相（点聚成一束、r→0.6~0.8）。
+   *   画面上的**读数**就是序参量本身：从圆心伸出的一根指针，长度 = r·R —— 同步了没有，看它长度。
+   *
+   *   为什么另开一个函数而不是改 kuramoto()：
+   *     kuramoto() 是**格点版**（每格一个振子、四邻耦合），出来是"迷宫墙"式的斑图；
+   *     参考件 still-06 是**细圆环 + 指针**的点列体裁。两者不是参数差，是体裁差 ——
+   *     接口也不一样（格点版返回 (i,x,y,t)=>v，这里返回 (t)=>Float32Array，给 pointsAt）。
+   *
+   *   纪律（与库一致）：
+   *     · **构造时把 F 帧全算完**，渲染路径零随机、t 只查表 + 相邻帧插值；
+   *     · 同一 t 两次调用**逐元素相同**（无 Math.random / Date.now）；
+   *     · 返回的数组**复用同一个** Float32Array（与 sandChladniPoints 一致，省分配）——
+   *       要留两帧对比必须自己 Float32Array.from() 拷一份。
+   *
+   *   参数（默认值都是量出来的，见 .visual-audit/probe-pheno.html 的对照）：
+   *     N 520 振子 · R = min(cssW,cssH)×0.42（CSS px，16:9 里直径 0.84 画幅高）· span 26 · F 200 帧
+   *     圆点半径 1.15 CSS px：R=302 时圆周 1897px → 相邻点间距 3.65px vs 点径 2.3px，
+   *       比值 1.59 → 散相时读成**一圈点**（不是一条实线）。实测（1280×720/1.5 倍）：
+   *       t=13 → 整屏墨量 0.19% · t=25.7 → 0.16%；526 点；掩膜包围盒 607×607 CSS px
+   *       （正圆，aspect 1.000），环直径 0.84×画幅高。
+   *       ⚠ 点径 1.15 是**按你的口径**（1.0–1.3，读成一圈点）。参考件 still-06 的环其实更重：
+   *       连通块面积反推线宽 5.78px / 744 = **0.78% 画幅高**（我这里是 0.32%），1° 角度分箱占 86%
+   *       —— 那是"细实线"不是"一圈点"。要对齐参考件的份量用 dotR≈2.9 + radius≈0.379×短边
+   *       （实测墨量 0.63%，环读成细实线、只在锁相段加粗），但那与"读成一圈点"的要求相反。
+   *     r(t) 实测（默认参数，0→26s，21 个采样）：0.026 · 0.039 · 0.045 · 0.001 · 0.024 ·
+   *       0.042 · 0.028 · 0.062 · 0.064 · 0.069 · 0.103 · 0.043 · 0.193 · 0.230 · 0.384 ·
+   *       0.515 · 0.591 · 0.597 · 0.619 · 0.626 · 0.632 —— 前 50% 散相（r≈0.03–0.1，点在整圈
+   *       均匀铺开），50%–80% 锁相长起来，80% 后稳定在 **0.63**（指针长度 = 0.63R ≈ 190px）。
+   *       终点 0.63 与解析 r_∞=√(1−K_c/K)=√(1−1.4/2.2)=0.60 一致，也与参考件的 0.58 对得上。
+   *   ⚠ 已知取舍（量过，不是猜）：锁相后 520 点挤进一段弧（t=25.7 时最大角隙 21°，
+   *      即 94% 的相位落在 339° 里），局部点间距掉到 0.2px
+   *      < 点径 2.3px → **那一段必然并成一笔实线弧**。这不是渲染糊了，是"同步"本身
+   *      （参考件 still-06 的环也是连续细线，r≈0.58）。要让全程都读成离散点，只有三条路：
+   *      ① 减小 N（但 N=380 也不够，束内密度涨 15 倍）；② 压住 K 让 r 只到 0.3（指针没了读数）；
+   *      ③ 按局部间距缩点径（束内点会缩到亚像素 = 等于没画）。**所以保留并笔**，
+   *      并把"同步了没有"这件事交给指针长度（r·R）—— 那才是这一版的可读读数。
+   *      
+   *   ======================================================================== */
+  function kuramotoRing(cols, rows, o) {
+    o = o || {};
+    const CW = o.cssW || 1280, CH = o.cssH || 720;
+    const N = o.N || 520;
+    const RAD = o.radius === undefined ? Math.min(CW, CH) * 0.42 : o.radius;  /* 环半径（CSS px） */
+    const DOTR = o.dotR === undefined ? 1.15 : o.dotR;                        /* 环上点半径（CSS px） */
+    const F = o.frames || 200, span = o.span || 26;
+    const kmax = o.K === undefined ? 2.2 : o.K;
+    const spread = o.spread === undefined ? 0.7 : o.spread;    /* ω 的 Lorentz 半宽 γ */
+    /* ω 的分布：**洛伦兹（Cauchy）**，尾部在 ±clampTails·γ 处截断。
+       为什么不是均匀分布（实测过，两次）：
+         · 均匀 [−γ,γ] 的临界耦合 K_c = 4γ/π，但**过了 K_c 就整体雪崩** —— 实测 r 从 0.07
+           一步跳到 0.95（中间没有"部分锁相"这段），指针直接顶到环上；
+         · 洛伦兹分布才有解析的**部分锁相**：r_∞ = √(1 − K_c/K)，K_c = 2γ。
+           γ=0.7、K=2.2 → r_∞ = √(1−1.4/2.2) = 0.60，**与参考件 still-06 量到的 r=0.58 对上**
+           （参考件指针 163.7px / 环半径 282px = 0.580）。
+       截断只为有界（Cauchy 的方差是发散的，不截会有振子以近乎恒定的速度绕圈、积分步长也难受）；
+       截在 ±8γ 之外的概率 < 4%，对 r_∞ 的影响在第三位小数（实测 clamp 6/8/12γ 三档 r_∞ 一致）。
+       9 档离散是更早的写法：K 一过临界全体一起锁上，r 饱和 0.96 —— 留 levels≥2 做对照，默认关闭。 */
+    const levels = o.levels === undefined ? 0 : o.levels;
+    const clampTails = o.clampTails === undefined ? 8 : o.clampTails;
+    const mean = o.mean === undefined ? 0.22 : o.mean;         /* 整体平均频率：锁相后整束慢慢转 */
+    const dt = o.dt === undefined ? 0.04 : o.dt;
+    const sub = o.substeps || 8;                               /* 每帧之间的积分子步 */
+    const seed = o.seed === undefined ? 8642 : o.seed;
+    const LOOP = o.loop === true;                              /* 默认**停在末态**（循环会跳回散相） */
+    /* 指针：PIN 个圆排成一串（默认 6，按"别超过 6 个点"给的），半径沿程 1.3→3.6px 收成一支锥。
+       ⚠ 这里是**量出来的取舍**，不是没试：
+         · 想让 6 个圆"连成一根实线"，半径必须 ≥ 半间距。r=0.6 时针长 175px、6 点间距 29px
+           → 半径得 15px 以上，画出来是一根 **39px 宽的粗条**（实测渲染过，读成一条黑虫，
+           比"点线"更不像针）。数学上逃不掉：6 个圆覆盖 190px，平均直径就得 32px。
+         · 参考件的针是**细实线**（根部 ~1px、尖 ~4px、长 163.7px，实测为独立连通块）。
+           那需要约 48 个点 —— **实测 pinDots:48 渲染出来与参考件几乎一致**（一根细实针），
+           但默认不能是 48：check/core.mjs 里 Lead 的断言是 (N+6)*3（那是 Lead 的写域，我不改）。
+         · 所以默认取"细锥 + 6 点"：整幅 1:1 看是**一支指向锁相簇的锥形指针**（不是糊成一片），
+           长度严格 = r·R，读数成立。要"实线针"就传 pinDots:48（那时请 Lead 把断言改成
+           (N+pinDots)*3）。 */
+    const PIN = Math.max(1, o.pinDots === undefined ? 6 : o.pinDots);
+    const PIN0 = o.pinR0 === undefined ? 1.3 : o.pinR0;        /* 指针根部半径（CSS px） */
+    const PIN1 = o.pinR1 === undefined ? 3.6 : o.pinR1;        /* 指针尖端半径（CSS px） */
+
+    const rnd = mulberry32(seed);
+    const th = new Float64Array(N), om = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      th[i] = rnd() * TAU;                                     /* 起手完全不相干 → 圆周上均匀一片 */
+      /* 本征频率：洛伦兹（Cauchy）抽样 tan(π(u−½))，尾部截到 ±clampTails·spread；
+         levels≥2 时退回离散档（对照用）。rnd() 可能返回 0 → 夹一个小量避免 tan(±π/2)=±∞ */
+      const u0 = Math.min(1 - 1e-12, Math.max(1e-12, rnd()));
+      om[i] = mean + spread * (levels >= 2
+        ? (2 * Math.min(levels - 1, (u0 * levels) | 0) / (levels - 1) - 1)
+        : Math.max(-clampTails, Math.min(clampTails, Math.tan(PI * (u0 - 0.5)))));
+    }
+    const TH = new Float32Array(F * N);                        /* 帧表：F×N 个相位 */
+    let fr = 0;
+    const steps = (F - 1) * sub;
+    for (let st = 0; st <= steps; st++) {
+      if (st % sub === 0) {
+        const b = fr++ * N;
+        for (let i = 0; i < N; i++) TH[b + i] = th[i];
+      }
+      if (st === steps) break;
+      /* 平均场：一次求和拿到 r 与 ψ（恒等变形，不是近似） */
+      let sx = 0, sy = 0;
+      for (let i = 0; i < N; i++) { sx += Math.cos(th[i]); sy += Math.sin(th[i]); }
+      /* K 在**前 80%** 线性爬到 kmax、后 20% 保持 —— 纯线性的话临界点落在 64% 处，
+         而临界附近的弛豫很慢，r 会挤在最后 10% 才长起来（实测：u=0.9 时 r 还只有 0.32）。
+         提前到 80% 让"锁相"占满后五分之一，同时保留前半段的散相。 */
+      const K = kmax * Math.min(1, (st / steps) / 0.8);
+      const rr = Math.hypot(sx, sy) / N, psi = Math.atan2(sy, sx);
+      const Kp = K * rr;
+      for (let i = 0; i < N; i++) th[i] += dt * (om[i] + Kp * Math.sin(psi - th[i]));
+    }
+
+    const out = new Float32Array((N + PIN) * 3);
+    const cx = CW * 0.5, cy = CH * 0.5;
+    return function (t) {
+      let u = t / span;
+      u = LOOP ? u - Math.floor(u) : (u < 0 ? 0 : u > 1 ? 1 : u);
+      const kf = u * (F - 1);
+      const k0 = Math.min(F - 2, kf | 0), f = kf - k0;
+      const b0 = k0 * N, b1 = b0 + N;
+      /* 逐位插值（走最短弧：相位是模 2π 的，直接线性插值会绕远路整圈扫过去） */
+      let sx = 0, sy = 0;
+      for (let i = 0; i < N; i++) {
+        const a = TH[b0 + i];
+        let d = TH[b1 + i] - a;
+        d -= TAU * Math.round(d / TAU);
+        const v = a + d * f;
+        out[i * 3] = cx + RAD * Math.cos(v);
+        out[i * 3 + 1] = cy + RAD * Math.sin(v);
+        out[i * 3 + 2] = DOTR;
+        sx += Math.cos(v); sy += Math.sin(v);
+      }
+      /* 指针：长度 = r·R（r 是**这一帧**的序参量，与上面的点严格同一时刻） */
+      const rr = Math.hypot(sx, sy) / N;
+      const L = rr * RAD, ang = Math.atan2(sy, sx);
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      for (let k = 0; k < PIN; k++) {
+        const q = (k + 0.5) / PIN;                       /* 沿程 0→1（两端各留半步，不顶到圆心/环上） */
+        const w = PIN > 1 ? k / (PIN - 1) : 1;
+        out[(N + k) * 3] = cx + ca * L * q;
+        out[(N + k) * 3 + 1] = cy + sa * L * q;
+        out[(N + k) * 3 + 2] = PIN0 + (PIN1 - PIN0) * w;  /* 1.3 → 3.6 CSS px 的锥 */
+      }
+      return out;
+    };
+  }
+
+  /* ==========================================================================
    * 07 倍周期分叉 / Feigenbaum · PHENOMENA 07
    *   x_{n+1} = r·x_n(1−x_n) ，r ∈ [2.4, 4]
    *   画面：满幅分叉树 —— 主干 → 一分为二 → 级联 →（约 3.56995 之后）混沌的海，
@@ -479,12 +637,19 @@
    *   （字幕写"沙自己走到该在的地方"，所以必须真让沙走过去，而不是画一条算出来的节线带）
    *
    *   参数直接取自 lab-field4（里程碑 v0.3.1-phenomena-8-sand）的 simCHL()：
-   *     CH_N=3200 颗 · CH_SNAP=200 快照 · CH_STEP=12 子步 · CH_DRIFT=30 · CH_JITTER=1.0
+   *     CH_N=3200 颗 · CH_SNAP=200 快照 · CH_STEP=12 子步 · CH_DRIFT=**120**（lab 原值 30，见下面①的标定）
+   *     · CH_JITTER=1.0
    *     模式扫 [[2,3],[3,5],[4,7],[5,6],[3,8]]，α 在每档里 +1 → −1（简并模的线性组合在拧）
    *
    *   ⚠ 两条来自 lab 的坑，照抄：
    *     ① 漂移系数不能照搬"贝塞尔场"那套：方板 φ 的空间频率高一个量级，同样 8px 差分出来的
-   *        梯度大一截 —— 30 是实测标定值（mean|φ| 0.413 → 0.091，且密度图**成线**）；
+   *        梯度大一截。**标定（160×90 / 8px 格、3200 颗、t=7.2 → 快照 119、模 [4,7]）**，
+   *        用的是"最终快照上每颗粒的 |φ|"（独立复算，不读中间量）：
+   *          drift  30 → mean|φ| 0.0917，|φ|<0.10 的颗粒 67.3%　（散点多、节线断成一截一截）
+   *          drift  60 → 0.0694 / 73.3%
+   *          drift 120 → 0.0540 / 85.7%　**← 默认**：节线连得起来，成本一分不增（步数不变）
+   *          drift 200 → 0.0492 / 88.0%　（只再多 2.3 个点 → 收益递减，不再往上加）
+   *        jitter（1.0）与 grains（3200）对这条曲线**没有影响**（实测扫过）—— 别去调它们。
    *     ② 场必须**按快照**算：α 在连续漂，只按模式算就把"拧动"丢了。
    *
    *   落墨走**点列**（不是每格一份墨）：3200 颗各走各的，塞进网格会丢掉颗粒感。
@@ -497,7 +662,7 @@
     const CW = o.cssW || 1280, CH = o.cssH || 720;
     const PITCH = CW / NX;                                  /* 8px（配方）；漂移系数按它标定 */
     const GRAINS = o.grains || 3200, SNAP = o.snaps || 200, STEP = o.substeps || 12;
-    const DRIFT = o.drift === undefined ? 30 : o.drift;
+    const DRIFT = o.drift === undefined ? 120 : o.drift;   /* 标定见上（30 太散，200 无增益） */
     const JIT = o.jitter === undefined ? 1.0 : o.jitter;
     const R = o.r === undefined ? 0.97 : o.r;                /* 颗粒半径（CSS px）≈ lab 的 1.45 设备px */
     const SPAN = o.span || 12, LOOP = o.loop !== false;
@@ -562,6 +727,8 @@
     dla: dla, kuramoto: kuramoto, bifurcation: bifurcation, interference: interference,
     /* 01 的沙粒版（点列通道）—— 与 chladni 同一现象，落墨方式不同 */
     sandChladniPoints: sandChladniPoints,
+    /* 06 的相位环版（点列通道）—— 与 kuramoto 同一现象，体裁不同（细圆环 + 指针） */
+    kuramotoRing: kuramotoRing,
   };
-  global.DotInk.pheno.version = '1.1.0';
+  global.DotInk.pheno.version = '1.2.0';
 })(typeof window !== 'undefined' ? window : globalThis);
