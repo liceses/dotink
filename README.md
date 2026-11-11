@@ -22,14 +22,12 @@
 >
 > **示例 B · 标准自检片**（本包渲染，用来**量判据**，不是拿来看的）：
 > [`1010-dotink-demo-1080p.mp4`](https://github.com/liceses/dotink/releases)（**Release 附件**） —— 61.0 s，判据幕 + 现象幕；
-> 同一批公式，**表现力明显不如示例 A** —— 差在哪、怎么补，见下节「同一批公式，差在哪」。
+> 同一批公式，**表现力明显不如示例 A** —— 差在哪、怎么补，见 [`docs/02-phenomena.md`](docs/02-phenomena.md) 的「同一批公式，差在哪（实测对照）」。
 >
 > **仓库**：https://github.com/liceses/dotink · **成片（Release 附件）**：https://github.com/liceses/dotink/releases
 >
 > *(Dot Ink: a 1-bit imaging standard — paper and ink only, tone expressed by dot area.
 > `r = rMax·√w` so ink area is proportional to tone. See [`STANDARD.md`](STANDARD.md).)*
-
----
 
 ---
 
@@ -45,32 +43,6 @@
 > 四块**共用一个核心**（全局 `DotInk`；核心由 [`fields.js`](fields.js) / [`render.js`](render.js) / [`judge.js`](judge.js) / [`host.js`](host.js) 组成，[`dotink.js`](dotink.js) 只做汇总）与一份第三方口径（[`NOTICE.md`](NOTICE.md)）。
 > [`transition.js`](transition.js) 是**可选**脚本 —— 不依赖汇总入口，放在它之前或之后都行。
 > 成片走 **Release 附件**（仓内只留 GIF 与 1:1 静帧）：本地放在 `media/_release/`（已 gitignore）。
-
-**画面只有墨与纸两种像素；所有中间调由点的面积表达。**
-
-调子 = 墨量，墨量 = 点面积之和。不是"加一层纹理"，是一套**成像方式**：
-1-bit 二值、可逐帧确定性渲染、断网双击就能播。
-
-![《公式就是画面》自然八拍 · 40.8 秒](media/phenomena-8/demo.gif)
-
-> **示例 A · 参考配方**（从实验区里程碑**直接取，逐字节未改**）：
-> **《公式就是画面》自然八拍** —— 40.8 s · 1920×1080 · 30fps · 无声 · 1224 帧
->
-> 成片 `lab-field4-1080p.mp4`（**Release 附件**，仓内只留 GIF 与 1:1 静帧） ·
-> 八拍接触印样 [`contact-sheet.png`](media/phenomena-8/contact-sheet.png) ·
-> 1:1 静帧 [`still-01…08`](media/phenomena-8) ·
-> **出处与参数** [`SOURCE.md`](media/phenomena-8/SOURCE.md)
->
-> 八拍：克拉德尼（**沙粒版**）· 向日葵 · de Jong · Gray-Scott · DLA · Kuramoto · 倍周期分叉 · 两源干涉
->
-> **示例 B · 标准自检片**（本包渲染，用来**量判据**，不是拿来看的）：
-> `1010-dotink-demo-1080p.mp4`（**Release 附件**） —— 61.0 s，判据幕 + 现象幕；
-> 同一批公式，**表现力明显不如示例 A** —— 差在哪、怎么补，见下节「同一批公式，差在哪」。
->
-> *(Dot Ink: a 1-bit imaging standard — paper and ink only, tone expressed by dot area.
-> `r = rMax·√w` so ink area is proportional to tone. See [`STANDARD.md`](STANDARD.md).)*
-
----
 
 ---
 
@@ -103,8 +75,6 @@
 
 ---
 
----
-
 ## 品牌图标
 
 <img src="icon-512.png" width="112" alt="点墨 · Dot Ink 图标">
@@ -127,8 +97,6 @@ node tools/make-icon.mjs --print    # 只打印几何与判据
 
 > ⚠ 图标是**网屏**，缩下去点会并拢：覆盖率 512px **31.8%** → 192px 32.7% → 64px 48.4% → 32px **74.7%**。
 > 所以 favicon 用 64px 那档；16px 时它读成"纸上一块墨" —— 这是半调的本性，不是 bug。
-
----
 
 ---
 
@@ -190,8 +158,6 @@ inst.judge();        // 逐条读数：pass 按模式算，M1/M2 互斥 → 结�
 > `host()` 把 `__ready` 做成"**函数 + thenable**"，并补最小宿主位与单幕 `scenes`，两边都认。
 > ⚠ 宿主页**渲染时不许留 DOM 覆盖层**（提示行/角标是反锯齿文字，会被拍进帧，1-bit 破功）——
 > 按 `?render` 藏掉，见 [`demo/index.html`](demo/index.html)。
-
----
 
 ---
 

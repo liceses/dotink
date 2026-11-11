@@ -3,6 +3,77 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 2.2.0 — 2026-11-12
+
+**修正：字形被双重缩放（有效字号成了 `px²/20`）—— §7-2 与 §14 的共同根因**
+- `render.js` 旧版把 `px` 栅格到固定 256×256，再乘 `f = min(cap, px/20)`：`px=20` 恰好对，40 变 2 倍、80 变 3.8 倍；
+  而 advance 仍按 `px` 算 → 整行字幕重叠成一块墨。实测（单字「墨」，量墨框 CSS 高）：px 12/20/40/80 → 旧 6.5/18/72/240，
+  现在 11/18/36/73，`hCss/px` 恒 0.91。"字大一点"只是表象：§7-2 的实墨字走不通、§14 的每屏一句大字标题也只能退回 DOM 覆盖层。
+- 现在：按**设备像素字号**栅格化（缓存键含实际栅格尺寸与字体）→ 贴图 1:1；advance 取 `measureText().width`；
+  新增 `measureGlyph(ch, px, wt, font?) → { w, h, adv, top, bot }`（全 CSS px）；横按墨框居中、纵按 em 框定位
+  （逐字按各自墨框居中会让基线上下跳）。
+- ⚠ 语义变化：`api.glyph(ch, cx, cy, px, …)` 的 `px` 现在**就是** CSS 字号。旧代码里靠 `px=20` 蒙对的调用不变，
+  写了 `px≠20` 的地方字号会变 —— 那正是 bug 所在。
+- `hud.js` 的 `caption()` 同步：排字改用 `measureGlyph().adv`、删掉 `ci·px·0.5` 的猜法，新增 `wt` / `tracking` / `lineH` / `align`。
+
+**新增：`DotInk.plate()` —— 画布内版式叠加层（§14 的落点）**
+- 左上三行小字（kicker / 公式 / 来源）+ 下带**大字标题**；标题按**墨框底对齐** `cssH − bottom`，多行往上叠，
+  整行超宽按 6% 步长缩字号（下限 16 px，不压字距）。参数见 [`hud.js`](hud.js)。
+- 配套 `render.js` 新增叠加层 `api.clear(x, y, w, h)`：擦出一块纸。三样一起写 —— MASK 归零、
+  PX 的 RGB 回落纸色、alpha 255（只清 alpha 会被下一次 `compose()` 重新记成墨）。
+- `plate({ knock: true })` 先用 `clear()` 擦出小字区与标题区的净空；标题区上界按**首行墨框**算，不按 `px` 猜。
+
+**修正：站点在显示环节破 1-bit（backing ≠ 显示设备像素）**
+- `gallery.html`：backing 1920 装进 1014 的盒（devPerCss 1.893）→ 浏览器重采样，裁画布量到 **0.36%** 非墨非纸。
+  现在 `pickScale()` 让 backing = 显示宽 × dpr，且**不取整到两位**（0.79×1280=1011≠盒子 1014 就又破），
+  实测 devPerCss 1.00000、九屏 **0.000%**；加 `ResizeObserver` 防抖重建。
+- `demo/index.html`：backing 1920 / 显示盒 1440×810 + `#stage` 挂 `matrix(1.125)` → 1.333，**12.93%** 非墨非纸。
+  现在 backing 与显示盒同除一个整数 D（`canvas.width/rect.width ≡ D` 精确），1440×810 与 1024×640 下都是 **0.00%**；
+  `?t=` 定格与 `__seek` / `__ready` / `__meta` 契约零改动。已知取舍：预算降级时 D < dpr
+  （`image-rendering:pixelated` 保住硬边，锐度略降）。
+
+**新增：`pheno.kuramotoRing()` —— 06 换体裁（点列相位环）**
+- 旧版走 field 网格，整屏墨 **20.83%**、读成一面迷宫墙（参考件 still-06 是 3.33%）。
+- 现在 520 个振子排在圆周上、洛伦兹分布的 ω、平均场耦合、K 在 80% 内爬到 2.2，圆心伸出**序参量指针**（长度 = r·R）。
+  实测 r 终点 **0.632**，与解析 r∞ = √(1−Kc/K) = 0.60 及参考件量到的 0.580 同量级；整屏墨 **3.79%**。
+- ⚠ 已知取舍：锁相后 520 点挤进一段弧，局部间距 < 点径 → 那一段必然并成一笔实线弧（同步本身如此）；
+  「同步了没有」交给指针长度，不靠点是否分开。
+
+**修正：两处现象参数（都是量出来的）**
+- `sandChladniPoints`：DRIFT 默认 **30 → 120**。贴节线比例（|φ|<0.10）**71.1% → 85.7%**，mean|φ| 0.0842 → 0.0540，
+  构造耗时不变（步数不变）。drift 200 只再多 2.3 个百分点（收益递减）。
+  **颗粒数与抖动对这条曲线没有影响** —— 之前把「沙散成虚线」归因到颗粒数是错的。
+- `sunflower`：`rx = cols·fill` / `ry = rows·fill` → `rx = ry = min(cols, rows)·fill`。掩膜 aspect **1.771 → 1.000**
+  （旧版在 16:9 里是横椭圆）。注意盘是边长出来的：末帧直径/画幅高 0.946，fill 加到 0.50 会切边。
+
+**新增：`render` 的 `minPointDev`（点列通道的点半径设备像素下限）**
+- 点列的 r 是 CSS px；画布缩到 1014 CSS 宽时 0.97 CSS px 只剩 0.77 设备像素 → 一串沙读不出颗粒。
+- `minPointDev: 1.35` 只把**比下限更小**的点抬到下限，大点一个不动（可见性下限，不是调幅）。
+
+**画廊 `gallery.html`**
+- 删掉 `.headline` / `.fml` 两个 **DOM 覆盖层**，标题改由 `DotInk.plate()` 画在画布上（§14「画面区域不压 DOM」+ §7-1）。
+  九屏各配 `no` 与 `title`（取自参考件字幕原句），`.stage` 加 `max-width:1280px`（只有显示 1280 CSS px 时点距才真是 8 px）。
+- 07 分叉树显式声明 `jm: "M3"`：整屏覆盖率 4.55%，在 M2 下会被判死，而树本身读得清（§14 明说勾线走 M3）。
+- 读数的状态列改成**只从 `judge()` 的 gate 行取**。此前页面自己又算了一套，两处都错：M1 屏把「覆盖率 ≥8%」
+  （judge 里的参考行 `gate:false`）涂红，M3 屏又把「点距:点径」涂红。判据只有一个真源。
+- 缩略图：点列屏的母函数返回的是 1280×720 **设计空间**坐标，直接塞进 56×32 会全落在画外 → 第 1、7 格**空白**；
+  向日葵整盘高值 → 第 3 格糊成黑块。现在统一走 `p.mk()` + `thumbPoints()`（按设计空间缩放、半径给下限）+ 逐现象 `tg` 增益。
+
+**文档**
+- `README.md`：删掉第 49–71 行整段重复（同一段文字 + 同一张 demo.gif + 同一组「示例 A/B」出现两次），200 → 166 行。
+- 死指针：`README.md:25` 与 `STANDARD.md:374` 都写「见本包 README 的『同一批公式，差在哪』」，而该节实际在
+  [`docs/02-phenomena.md`](docs/02-phenomena.md) 第 32 行 → 两处都改指过去。
+- `logo-demo.html` / `marks-type.html` / `marks.html`：静态正文里字面露出的 `**` 与反引号换真 `<b>` / `<code>`；
+  `logo-demo.html` 页头 kicker 折成两行 → 本页覆盖 `ink.css` 的 `max-width`，≥320 px 单行（300 px 以下仍两行）。
+- `docs/01-standard.md`：`overlays` 的 api 补 `measureGlyph` / `clear`，写清 `glyph` 的 `px` 语义；新增 `minPointDev`。
+- `STANDARD.md` §14：标题字号标成参考件量到的 55–100 CSS px 级（原文写 18–40 px 级，偏低）。
+
+**自查**
+- `check/core.mjs` 新增两条：**画布内版式 plate**（标题墨框底落在 `cssH−bottom`、同 t 两次点位一致、超宽自动缩字号、
+  knock 的擦除范围必须上下盖住标题墨框）与**相位环**（三元组、同半径、锁相收拢、指针跟着序参量变长、复用同一 Float32Array）。
+- `tools/check-links.mjs` 跳过 `.dsh` / `.visual-audit` 这类**点目录**，与 `check/core.mjs` 的「页面装载顺序」测试口径一致
+  （否则模板里引用一个尚未生成的 `data.js` 会让 `npm run check` 报断链）。
+- 现状：`npm run check` **38 test 全过 · 链接 255 条全在**。
 ## 2.1.0 — 2026-10-28
 
 **新增：场转场 `transition.js`（可选脚本，不进汇总入口）+ 演示页 `transition.html`**

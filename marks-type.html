@@ -86,13 +86,13 @@
 
     <div class="lab" style="margin-top:16px">这个效果怎么做出来的</div>
     <div class="kv" style="font-size:12px">
-      ① **字版**：每格放一个字，`cell 24 / cols 52 / rows 25`；字比格距大（`textPx 26–44`）才咬得住、成墨块；<br>
-      ② **形**：厂标路径先烘成**距离场**（`markPx 700`）—— 每格的字**多大**由距离场决定；<br>
-      ③ **收束**：一幕里 `morph [0.34, 0.90]` 把字的大小/高度混到标上，于是**字自己拼成标**；<br>
-      ④ **浮现**：`reveal` 是"阅读波"扫完的秒数 —— 波扫到哪一格，哪一格的**格子值才翻一次**（所以自带"慢"，不会闪）；<br>
-      ⑤ **动**：只有 `ripple`（格子值翻转）+ `zoom [0.98,1.12]`（推镜）—— **不能把静态图挪一挪**；<br>
-      ⑥ 下层：名字（实墨点阵）+ 尺与读数（`caption:false / hud:false` 可整层关掉）。<br>
-      引擎 <code>markplate.js</code> 是**从主库逐字节移植**的（sha256 与上游一致），见 <code>tools/vendor-markplate.mjs</code>。
+      ① <b>字版</b>：每格放一个字，<code>cell 24 / cols 52 / rows 25</code>；字比格距大（<code>textPx 26–44</code>）才咬得住、成墨块；<br>
+      ② <b>形</b>：厂标路径先烘成<b>距离场</b>（<code>markPx 700</code>）—— 每格的字<b>多大</b>由距离场决定；<br>
+      ③ <b>收束</b>：一幕里 <code>morph [0.34, 0.90]</code> 把字的大小/高度混到标上，于是<b>字自己拼成标</b>；<br>
+      ④ <b>浮现</b>：<code>reveal</code> 是"阅读波"扫完的秒数 —— 波扫到哪一格，哪一格的<b>格子值才翻一次</b>（所以自带"慢"，不会闪）；<br>
+      ⑤ <b>动</b>：只有 <code>ripple</code>（格子值翻转）+ <code>zoom [0.98,1.12]</code>（推镜）—— <b>不能把静态图挪一挪</b>；<br>
+      ⑥ 下层：名字（实墨点阵）+ 尺与读数（<code>caption:false / hud:false</code> 可整层关掉）。<br>
+      引擎 <code>markplate.js</code> 是<b>从主库逐字节移植</b>的（sha256 与上游一致），见 <code>tools/vendor-markplate.mjs</code>。
     </div>
   </aside>
 </main>

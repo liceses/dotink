@@ -6,7 +6,10 @@
 <style>
   html,body{margin:0;height:100%;background:#F2F3F2;overflow:hidden}
   #stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0}
-  canvas#bleed{display:block}
+  /* ★ backing 与物理像素 1:1 由下面的 geom() 保证（见注释）。
+     image-rendering:pixelated 是**兜底**：万一 devPerCss ≠ dpr（预算降级、dpr>2 的屏），
+     至少让浏览器用最近邻放大，不把 1-bit 的硬边插值成灰。 */
+  canvas#bleed{display:block;image-rendering:pixelated}
   #hint{position:absolute;right:10px;bottom:8px;font:500 12px ui-monospace,monospace;color:#5A5F61;
         letter-spacing:.06em;z-index:9}
   /* 渲染/截图时必须藏掉这行提示 —— 它是 DOM 反锯齿文字，会被拍进帧里，破坏 1-bit（实测 2403 像素） */
@@ -25,17 +28,19 @@
 <script>
 (function () {
   'use strict';
-  /* 自适应：把 1280×720 的舞台按窗口缩放（只影响观看，不影响渲染） */
-  function fit() {
-    const s = Math.min(innerWidth / 1280, innerHeight / 720);
-    const st = document.getElementById('stage');
-    st.style.transform = 'scale(' + s + ')';
-    st.style.left = ((innerWidth - 1280 * s) / 2) + 'px';
-    st.style.top = ((innerHeight - 720 * s) / 2) + 'px';
-  }
-  addEventListener('resize', fit); fit();
 
+  const CW = 1280, CH = 720;                    /* 设计画布（CSS 单位）：场/字幕/尺的坐标都按它写 */
   const DUR = 21.0, cols = 106, rows = 60;      /* cell = 1280/106 ≈ 12.07px */
+  const BUDGET = 2073600;                       /* backing 像素预算 = 1920×1080（沿 hero 的 2.0e6 量级；
+                                                   取这个整数是为了让 1920×1080 的窗口恰好 1:1，不因差 3.6% 掉档） */
+  const TAIL = [1.5, 1, 0.75, 0.5];              /* 超预算时 devPerCss 依次退到的值（都 ≤ dpr；0.5 = 4K 屏的兜底） */
+
+  const q = new URLSearchParams(location.search);
+  const WANT_PLAY = q.has('play');
+  const FROZEN = q.has('t') ? (parseFloat(q.get('t')) || 0) : null;   /* ?t=9.5 定格 */
+  if (q.has('render')) document.documentElement.setAttribute('data-render', '1');  /* 渲染器会带 ?render */
+
+  const stage = document.getElementById('stage');
 
   /* 场：双源干涉（活的）——相位随时间走，格子值在翻，所以"在动" */
   const field = DotInk.fields.interferenceFn(cols, rows, { k: 0.5, w: 0.20, speed: 1.1, drift: 0.6 });
@@ -43,6 +48,10 @@
   /* 字幕：字是实墨，不过网屏 */
   const caption = {
     x: 96, y: 596, px: 40,
+    /* knock：字幕带先擦一条纸。场是铺满的双源干涉，字直接压上去会互相咬 ——
+       实测同一块（1440×810、px 40）墨量 45.51% / 横向墨列段 21 段 → 擦后 12.69% / 13 段
+       （13 = 12 个字 + 标点）。参考件也是「母题绕开标题」，不是「标题压在母题上」。 */
+    knock: true,
     texts: [
       { t0: 0.0, t1: 6.0, lines: ['只有墨与纸两种像素'] },
       { t0: 6.0, t1: 13.0, lines: ['中间调由点的面积表达'] },
@@ -50,20 +59,126 @@
     ],
   };
 
-  /* 宿主：建画布 + 实现 __seek/__ready/__meta/__seekInit（两套渲染器的契约差异在 host.js 里抹平） */
-  const inst = DotInk.host({
-    cssW: 1280, cssH: 720, scale: 1.5,
+  const OPTS = {
+    cssW: CW, cssH: CH,
     cols: cols, rows: rows, cell: 12.07,
     field: field, gain: 1, gamma: 1, floor: 0.035, maxFrac: 0.48,
     duration: DUR, shutter: 1 / 28,
     overlays: [DotInk.hud(), DotInk.caption(caption)],
-  });
+  };
 
-  window.__dotink = function () { return inst.judge(); };
-  const q = new URLSearchParams(location.search);
-  if (q.has('render')) document.documentElement.setAttribute('data-render', '1');   /* 渲染器会带 ?render */
-  if (q.has('t')) inst.draw(parseFloat(q.get('t')) || 0);   /* ?t=9.5 定格（渲染/截图用） */
-  else if (!q.has('play')) inst.draw(6.0);                  /* 默认定格在一个好看的时刻 */
+  /* ── 几何：让 backing 恰好等于**物理像素** ─────────────────────────────────
+     旧写法把 scale 写死 1.5（backing 恒 1920×1080）再用 CSS transform 缩到窗口：
+     1440 宽的窗口里 devPerCss = 1920/1440 = 1.333… → 浏览器把 1-bit 硬边重采样成灰
+     （实测画布区 other = 12.93%）。STANDARD §7-1 要的是"画面只有墨与纸两种像素"。
+
+     现在按**实际显示尺寸**定 backing：
+       · backing = 16m × 9m（整数、严格 16:9，m 是"每 16 设计像素一行"的格数）
+       · 显示盒 = 16m/D × 9m/D（CSS px），#stage 的 scale = m/(80D)
+       ⇒ canvas.width / getBoundingClientRect().width ≡ D（精确），D = dpr 时就是 1:1。
+     D 的挑选：先取 dpr（零重采样）；超 BUDGET 就按 TAIL 往下压（整数比，压下去靠
+     pixelated 保住 1-bit）。舞台左上角再对齐到整数**设备**像素 —— 亚像素偏移同样会重采样。 */
+  function geom() {
+    const iw = innerWidth, ih = innerHeight;
+    const dpr = window.devicePixelRatio || 1;       /* 真实 dpr：只用来把左上角对到设备像素 */
+    const d = Math.min(2, Math.max(1, dpr));        /* 选比例用的 dpr（与 hero 同口径） */
+    const fit = Math.min(iw / CW, ih / CH);         /* 理想适配缩放（CSS） */
+    const ratios = [d];
+    for (let i = 0; i < TAIL.length; i++) if (TAIL[i] < d - 1e-9) ratios.push(TAIL[i]);
+
+    /* 从 dpr 往下退，取**第一个装得进预算**的比值；m 始终 = ⌊80·fit·D⌋，
+       于是显示盒恒等于"窗口内最大的 16:9 矩形" —— 画面永远铺满，只是 backing 变粗。
+       连最低档都超预算（超宽屏）就用最低档，宁可超一点也不让画面掉出窗口/比例错乱。 */
+    let D = ratios[ratios.length - 1], m = Math.max(1, Math.floor(80 * fit * D));
+    for (let i = 0; i < ratios.length; i++) {
+      const mm = Math.floor(80 * fit * ratios[i]);   /* floor：显示盒绝不越出窗口 */
+      if (mm >= 1 && 144 * mm * mm <= BUDGET) { D = ratios[i]; m = mm; break; }
+    }
+    if (m < 1) m = 1;
+    const W = 16 * m, H = 9 * m;
+    const dispW = W / D, dispH = H / D;
+    return {
+      dpr: dpr, devPerCss: D, m: m, backingW: W, backingH: H,
+      scale: m / 80,                                 /* backing / 设计单位 = 16m / 1280 */
+      tf: m / (80 * D),                              /* #stage 的 scale = dispW / 1280 */
+      left: Math.round(((iw - dispW) / 2) * dpr) / dpr,
+      top: Math.round(((ih - dispH) / 2) * dpr) / dpr,
+    };
+  }
+
+  let facade = null;   /* host.js 建的那个实例：__seek / __seekInit / ?play 的循环都指着它 */
+  let live = null;     /* 真正在画的实例（重建时换掉） */
+  let G = null;
+
+  function place(g) {
+    stage.style.transform = 'scale(' + g.tf + ')';
+    stage.style.left = g.left + 'px';
+    stage.style.top = g.top + 'px';
+  }
+
+  /* 重建后立刻补一帧，别留一帧空白（新画布的 backing 刚被重置）：
+     · ?t= 定格 → 还是那个 t（纯函数，逐像素一致）
+     · 默认不播 → 还是 6.0
+     · ?play → 用**刚画过的那个 t** 续上；墙钟本身在 host.js 的 rAF 循环里
+       （它按 performance.now() 算 t），下一帧自然接着走，所以 t 是连续的 */
+  function drawNow(prevT) {
+    if (FROZEN !== null) live.draw(FROZEN);
+    else if (!WANT_PLAY) live.draw(6.0);
+    else if (prevT !== null && prevT !== undefined) live.draw(prevT);
+  }
+
+  function build() {
+    const g = geom();
+    G = g;
+    place(g);
+    const prevT = (live && live.core) ? live.core.lastT() : null;   /* 重建前画到哪儿了 */
+    const opts = Object.assign({}, OPTS, { scale: g.scale });
+    if (!facade) {
+      /* 首次：交给 host.js —— 建 canvas#bleed，并装好 __seek / __seekInit / __ready / __meta */
+      facade = DotInk.host(opts);
+      live = facade;
+    } else {
+      /* 重建：**保留 host 那个实例当门面**（渲染器与墙钟循环已经抓着它了），
+         只把 draw / core 指到新实例。于是 window.__seek、__seekInit、?play 的循环
+         都自动跟到新尺寸上，契约一行没改。 */
+      live = DotInk.create(Object.assign({}, opts, { canvas: facade.canvas }));
+      /* 门面上所有"跟着尺寸走"的读数都指向新实例（judge/measure 只读 core；
+         cols/rows/cell/rMax 是设计单位量、本来就不变，一并同步省得留旧值） */
+      facade.draw = function (t) { return live.draw(t); };
+      facade.core = live.core;
+      facade.opts = live.opts;
+      facade.cols = live.cols; facade.rows = live.rows;
+      facade.cell = live.cell; facade.rMax = live.rMax;
+      facade.draws = live.draws;
+    }
+    drawNow(prevT);
+  }
+
+  /* 窗口缩放（防抖）：只有 m / devPerCss / dpr 真变了才重建实例；只是位置变了就挪一下
+     （左上角对齐用的是**设备**像素，所以 dpr 变了哪怕尺寸没变也要重新摆一次） */
+  let rt = 0;
+  function relayout() {
+    clearTimeout(rt);
+    rt = setTimeout(function () {
+      const g = geom();
+      if (facade && G && g.m === G.m && g.devPerCss === G.devPerCss && g.dpr === G.dpr) { G = g; place(g); return; }
+      build();
+    }, 160);
+  }
+  addEventListener('resize', relayout);
+  /* 拖到另一块 dpr 不同的屏 / 改浏览器缩放时，不保证有 resize 事件 —— 再挂一道 media query */
+  (function watchDpr() {
+    if (!window.matchMedia) return;
+    const mq = matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+    const on = function () {
+      if (mq.removeEventListener) mq.removeEventListener('change', on); else if (mq.removeListener) mq.removeListener(on);
+      relayout(); watchDpr();
+    };
+    if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on);
+  })();
+
+  window.__dotink = function () { return live.judge(); };
+  build();
 })();
 </script>
 </body>

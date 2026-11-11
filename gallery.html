@@ -21,12 +21,14 @@
   @media (max-width:1180px){main{grid-template-columns:1fr}}
   .stagewrap{padding:20px;border-right:2px solid var(--ink)}
   @media (max-width:1180px){.stagewrap{border-right:0;border-bottom:2px solid var(--ink)}}
-  .stage{position:relative;border:2px solid var(--ink);background:var(--paper)}
+  /* 画幅上限 = 设计宽 1280：只有显示在 1280 CSS px 时点距才真是 8px（参考配方），
+     再宽就是把 1-bit 帧放大 —— 那不是"看得更清"，是"看得更糊"。 */
+  .stage{position:relative;border:2px solid var(--ink);background:var(--paper);max-width:1280px}
   .stage canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
-  .headline{position:absolute;left:22px;bottom:18px;font:900 clamp(22px,3.2vw,44px)/1.05 var(--f-d);letter-spacing:-.02em;
-            background:var(--paper);padding:2px 12px 4px;border:2px solid var(--ink)}
-  .fml{position:absolute;left:24px;top:16px;font:500 12px/1.5 var(--f-m);color:var(--mute);
-       background:var(--paper);padding:4px 8px;border:1px solid var(--hair);max-width:60%}
+  /* ⚠ 标题与公式**不在 DOM 里**：它们画在画布上（DotInk.plate）。
+     ① STANDARD §14「画面区域不压 DOM」；② §7-1 实测：DOM 字是反锯齿的，
+     逐帧渲染器会把它一起拍进帧（一行 12px 提示 = 2403 个灰阶像素）。
+     参考件 media/phenomena-8/still-0*.png 的标题也是画布内的实墨（占下带 11–14% 墨量）。 */
   .ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:14px}
   .ctl label{display:flex;flex-direction:column;gap:3px;font:500 12px var(--f-m);color:var(--mute)}
   input[type=range]{width:132px}
@@ -78,8 +80,6 @@
   <div class="stagewrap">
     <div class="stage" id="stage">
       <canvas id="cv" width="1920" height="1080" style="aspect-ratio:16/9"></canvas>
-      <div class="fml" id="fml"></div>
-      <div class="headline" id="headline"></div>
     </div>
     <div class="ctl">
       <label>点距
@@ -92,7 +92,7 @@
       <label>播放 <button id="play" aria-pressed="true">播放中</button></label>
       <label>1:1 放大镜 <canvas id="zoom" width="240" height="135"></canvas></label>
     </div>
-    <div class="note">点距 8px = 160×90 = <b>14,400 格</b>（参考配方）。放大镜是**设备像素 1:1**：细节必须 1:1 看，缩略图既藏缺陷也造假缺陷。</div>
+    <div class="note">点距 8px = 160×90 = <b>14,400 格</b>（参考配方）。放大镜是<b>设备像素 1:1</b>：细节必须 1:1 看，缩略图既藏缺陷也造假缺陷。</div>
   </div>
 
   <aside>
@@ -130,66 +130,98 @@
 <script src="host.js"></script>
 <script src="dotink.js"></script>
 <script src="pheno.js"></script>
+<script src="hud.js"></script>
 <script>
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  const W = 1280, H = 720, S = 1.5;
+  const W = 1280, H = 720;
+  /* ── 渲染比例：**跟着画布在屏幕上的真实设备像素走** ────────────────────────────
+     以前写死 S = 1.5（backing 1920×1080）。实测这一页的画布 CSS 盒是 1014×570，
+     于是 devPerCss = 1920/1014 = 1.893 —— **非整数缩放**。浏览器重采样把 1-bit 硬边
+     混成灰阶：裁画布区域量到的"非墨非纸"像素就是证据（真 1-bit 的画布应该是 0）。
+     点距 8px 是 **CSS px** 的约定（§14：1280×720 = 160×90 格），与渲染比例无关；
+     所以只要让 backing = 显示宽 × dpr，网格仍是 8 CSS px，屏幕上就是 1:1 设备像素。 */
+  let S = 1.5;
+  function pickScale() {
+    const cv = $('cv');
+    /* 用 getBoundingClientRect（**布局盒**）：clientWidth 会把边框/小数宽吃掉几个像素，
+       而浏览器合成的就是这个 rect —— 差 3px 就是 devPerCss 0.997，仍然会重采样。 */
+    const w = cv.getBoundingClientRect().width || cv.clientWidth || W;
+    const dpr = window.devicePixelRatio || 1;
+    const s = (w * dpr) / W;
+    /* 不要四舍五入到两位小数：0.79 会把 1280 乘成 1011，而盒子是 1014 → 又破了 1-bit。
+       比例越接近真实的 rect/W，屏幕上的 1 个 CSS px 就越等于 dpr 个设备像素。 */
+    S = Math.max(0.5, Math.min(3, s));
+  }
 
   /* ── 九个条目：沙粒与节线是同一个现象的两种落墨方式（点列 / 网屏）──────────── */
   const PHEN = [
-    { id: 'sand', name: '克拉德尼（沙粒）', tag: '点列 · 3200 颗',
+    { id: 'sand', no: '01', name: '克拉德尼（沙粒）', tag: '点列 · 3200 颗', title: '沙自己走到该在的地方',
       fml: 'φ = cos(mπx)cos(nπy) + α·cos(nπx)cos(mπy)　沙沿 −∇|φ| 迁移',
       src: 'Chladni 1787 · lab/PHENOMENA.md §01（沙粒版：lab-field4 里程碑 v0.3.1）',
       why: '**兑现字幕**：字幕写"沙自己走到该在的地方"，所以真让 3200 颗沙沿 −∇|φ| 走过去 —— 腹点被甩起来、节线留下，α 一拧沙就跟着流。',
       span: 12,
       mk: (cols, rows, scale) => ({ pointsAt: DotInk.pheno.sandChladniPoints(cols, rows, { cssW: W, cssH: H, span: 12 }) }) },
-    { id: 'chladni', name: '克拉德尼（节线）', tag: '网屏 · 调幅',
+    { id: 'chladni', no: '01b', name: '克拉德尼（节线）', tag: '网屏 · 调幅', title: '哪里不动，沙就停在哪里',
       fml: 'φ = cos(mπu)cos(nπv) + α·cos(nπu)cos(mπv)　节线 {|φ|<ε}',
       src: 'Chladni 1787 · lab/PHENOMENA.md §01',
       why: '节线本身就是墨线：**数一下就知道是哪个模**（m、n 是整数档，只能扫 α 与换模式，绝不能插值）。',
+      tg: 1.2,
       span: 18,
       mk: (cols, rows) => ({ field: DotInk.pheno.chladni(cols, rows, { modes: [[4,3],[5,4],[3,5],[6,5]], eps: .22, period: 16 }) }) },
-    { id: 'sunflower', name: '向日葵', tag: '叶序 · 黄金角',
+    { id: 'sunflower', no: '02', name: '向日葵', tag: '叶序 · 黄金角', title: '叶子为什么绕着长',
       fml: 'r = c·√n　θ = n · 137.50776°',
       src: 'Vogel 1979 · lab/PHENOMENA.md §02',
       why: '34/55 两条旋臂**数得出来** —— 点阵正好承载叶序；θ 从 135° 扫到真黄金角，8 条直臂拧成螺旋密堆。',
+      tg: .6,
       span: 26,
       mk: (cols, rows) => ({ field: DotInk.pheno.sunflower(cols, rows, { seeds: 2600, span: 26, fill: .46 }) }) },
-    { id: 'dejong', name: 'de Jong 吸引子', tag: '占用直方图',
+    { id: 'dejong', no: '03', name: 'de Jong 吸引子', tag: '占用直方图', title: '一个公式决定的命运',
       fml: "x' = sin(a·y) − cos(b·x)　y' = sin(c·x) − cos(d·y)",
       src: 'de Jong / Bourke · lab/PHENOMENA.md §03',
       why: '**不是把点画上去**，是统计每格被穿过多少次 → 密度 → 点大小。两组参数在同一帧里各迭代一段（中间值会退化成两颗点，所以不能插值）。',
+      tg: 1.0,
       span: 30,
       mk: (cols, rows) => ({ field: DotInk.pheno.deJong(cols, rows, { sets: [[1.641,1.902,.316,1.525],[1.4,-2.3,2.4,-2.1]], span: 30, iter: 60000 }) }) },
-    { id: 'grayscott', name: 'Gray-Scott 斑图', tag: '反应扩散',
+    { id: 'grayscott', no: '04', name: 'Gray-Scott 斑图', tag: '反应扩散', title: '两种东西互相喂',
       fml: '∂u/∂t = Du∇²u − u·v² + F(1−u)　∂v/∂t = Dv∇²v + u·v² − (F+k)v',
       src: 'Pearson 1993 · lab/PHENOMENA.md §04',
       why: '**两种东西互相喂**：孤立斑点 → 吞并 → 满幅迷宫。(F,k) 一旦落进稳定区画面就死了 —— 参考值 F .042 / k .061。',
+      tg: 1.0,
       span: 36,
       mk: (cols, rows) => ({ field: DotInk.pheno.grayScott(cols, rows, { F: .042, k: .061, steps: 1600, every: 10, warm: 150, span: 36 }) }) },
-    { id: 'dla', name: '扩散限制凝聚', tag: '随机游走',
+    { id: 'dla', no: '05', name: '扩散限制凝聚', tag: '随机游走', title: '随机走，碰到就留下',
       fml: '随机行走的粒子碰到团簇就粘住',
       src: 'Witten & Sander 1981 · lab/PHENOMENA.md §05',
       why: '**屏蔽效应**让内枝被饿死，只留下外缘在长 —— 分维度看得见。',
+      tg: 1.4,
       span: 44,
       mk: (cols, rows) => ({ field: DotInk.pheno.dla(cols, rows, { particles: 2600, seed: 11, span: 44 }) }) },
-    { id: 'kuramoto', name: 'Kuramoto 同步', tag: '相位环',
+    { id: 'kuramoto', no: '06', name: 'Kuramoto 同步', tag: '相位环', title: '互相看见，就同步了',
       fml: 'dθᵢ/dt = ωᵢ + (K/N)·Σ sin(θⱼ − θᵢ)',
       src: 'Kuramoto 1975 · lab/PHENOMENA.md §06',
       why: '散相时是一片**沙沙响的细环**，锁相时收成一束**刚性旋转** —— 第一版做成"仪表盘"被打回，现在是纯视觉。',
-      span: 46,
-      mk: (cols, rows) => ({ field: DotInk.pheno.kuramoto(cols, rows, { K: 3.2, steps: 700, every: 5, seed: 7, span: 46 }) }) },
-    { id: 'bifurcation', name: '倍周期分叉', tag: 'Feigenbaum',
+      span: 26,
+      /* 点列体裁（参考件 still-06 是细圆环 + 中心指针，不是铺满的相位迷宫）：
+         520 个振子排在圆周上，K 线性爬升，圆心伸出一根序参量指针（长度 = r·R）。
+         旧版是「仪表盘」→ 被打回；中间版是 field 网格 → 实测整屏覆盖率 20.83%，
+         糊成迷宫墙（参考件只有 3.33%）。点列通道才是对的落墨方式。 */
+      mk: (cols, rows) => ({ pointsAt: DotInk.pheno.kuramotoRing(cols, rows, { cssW: W, cssH: H, N: 520, span: 26 }) }) },
+    { id: 'bifurcation', no: '07', name: '倍周期分叉', tag: 'Feigenbaum', title: '一分二，二分四，然后乱',
       fml: 'xₙ₊₁ = r · xₙ · (1 − xₙ)',
       src: 'Feigenbaum 1978 · lab/PHENOMENA.md §07',
       why: '主干 → 一分为二 → 级联 → **混沌海与白窗**。不做"缩放看自相似"：深层是 Cantor 尘，拉起来像条形码。',
-      span: 24,
+      tg: 1.5,
+      /* §14：勾线（分叉树）走 M3 —— 整屏覆盖率 4.55% 在 M2 下会被判死，而树本身读得清。
+         auto 不会替你解释这件事，必须这一屏自己声明。 */
+      span: 24, jm: 'M3',
       mk: (cols, rows) => ({ field: DotInk.pheno.bifurcation(cols, rows, { bins: 512, rHi: 3.9995, period: 24 }) }) },
-    { id: 'interference', name: '两源干涉', tag: '同心波 + 双曲线',
+    { id: 'interference', no: '08', name: '两源干涉', tag: '同心波 + 双曲线', title: '波在动，条纹不动',
       fml: 'A = Σᵢ sin(k·rᵢ − ωᵢt)/√rᵢ',
       src: 'lab/PHENOMENA.md §08',
       why: '**波在动，条纹不动**；两源分开 → 条纹变密。零模拟、零随机、纯解析 —— 用 6px 点距才分辨得出条纹。',
+      tg: .8,
       span: 24,
       mk: (cols, rows) => ({ field: DotInk.pheno.interference(cols, rows, { lam: .056, d0: .07, d1: .48, period: 24, omega: 1.2 }) }) },
   ];
@@ -198,6 +230,20 @@
   /* 默认**线性**半径：参考配方（lab-field4）就是线性，而 pheno.js 的场自带 gamma 0.5–0.6 标定 ——
      半径映射要和"场自带的 gamma"配对（见 STANDARD §3）：场已做感知标定 → 线性；
      场是物理量原样（覆盖率/密度）→ √ 才让调子线性。按钮可随时 A/B。 */
+
+  /* 缩略图的点列通道：母函数返回的是**设计空间**（1280×720）的坐标，
+     直接塞进 56×32 的缩略图画布就全落在画外 → 空白块（实测：第 1 与第 7 格就是空白）。
+     所以按 56/1280 缩过来，半径给一个下限（0.55 CSS px）让颗粒在小图上还看得见。 */
+  function thumbPoints(fn, t) {
+    const src = fn(t);
+    const sx = 56 / 1280, sy = 32 / 720;
+    const out = new Float32Array(src.length);
+    for (let k = 0; k + 2 < src.length; k += 3) {
+      out[k] = src[k] * sx; out[k + 1] = src[k + 1] * sy;
+      out[k + 2] = Math.max(0.55 / 1.5, src[k + 2] * Math.min(sx, sy) * 1.6);
+    }
+    return out;
+  }
 
   function buildThumb(p) {
     const c = document.createElement('canvas');
@@ -209,17 +255,20 @@
     const t = p.t0 === undefined ? p.span * 0.6 : p.t0;
     try {
       let inst;
-      if (p.id === 'sand') {
-        const fn = DotInk.pheno.sandChladniPoints(40, 23, { cssW: 160, cssH: 90, grains: 900, snaps: 60, substeps: 8, span: 12, r: .6 });
-        const src = fn(t);
-        const pts = new Float32Array(src.length);
-        for (let k = 0; k < src.length; k += 3) { pts[k] = src[k] * 56 / 160; pts[k + 1] = src[k + 1] * 32 / 90; pts[k + 2] = .6; }
-        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 40, rows: 23, cell: 1.4, shutter: 0, pointsAt: () => pts });
+      /* 走 p.mk 的**同一套**装置：点列屏（沙粒 / 相位环）与场屏各自走自己的通道，
+         不要再手写一份（手写过一次：沙粒另算、相位环漏算 → 缩略图空白且没人发现）。 */
+      const g = p.mk(16, 9);
+      if (typeof g.pointsAt === 'function') {
+        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9,
+          cell: 3.5, shutter: 0, pointsAt: (tt) => thumbPoints(g.pointsAt, tt) });
       } else {
-        /* 缩略图是"辨识用"，不是微缩：格子必须**粗**、点必须**大**，才读得成图案
-           （按 8px 配方微缩到 56px 只会糊成黑块 —— 实测过两轮） */
-        const g = p.mk(16, 9);
-        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9, cell: 3.5, shutter: 0, gain: .9, maxFrac: .30, areaMap: false, field: g.field });
+        /* 缩略图是"辨识用"不是"微缩"：格子必须**粗**（16×9 → cell 3.5 CSS px，
+           点才够大到看得见），而墨量要**逐现象调**（§14：逐现象手调）——
+           p.tg 是这一条的缩略图增益：默认 .8，向日葵这种整盘高值的压到 .5 才不会糊成黑块，
+           分叉/凝聚这种天生稀疏的抬到 1.3–1.4 才看得见结构。 */
+        const tg = p.tg === undefined ? .8 : p.tg;
+        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9,
+          cell: 3.5, shutter: 0, gain: tg, maxFrac: .42, areaMap: false, field: g.field });
       }
       inst.draw(t);
     } catch (e) { /* 缩略图失败不影响画廊 */ }
@@ -250,15 +299,33 @@
     const p = PHEN[i];
     const cell = st.cell;
     const cols = Math.round(W / cell), rows = Math.round(H / cell);
-    cv.width = W * S; cv.height = H * S;
+    pickScale();
+    cv.width = Math.round(W * S); cv.height = Math.round(H * S);
     const g = p.mk(cols, rows);
     st.inst = DotInk.create(Object.assign({
       canvas: cv, cssW: W, cssH: H, scale: S, cols: cols, rows: rows, cell: cell,
       gain: st.gain, maxFrac: st.mf, areaMap: st.areaMap,
       shutter: 0, duration: p.span,
+      /* 画布内版式（STANDARD §14）：左上 编号·名 / 公式 / 来源，下带一句大字标题。
+         参考件 media/phenomena-8/still-0*.png 的标题也是画布内实墨 —— 压 DOM 会
+         把反锯齿的灰阶拍进帧（§7-1 实测 2403 个灰阶像素），而且 §14 明写"画面区域不压 DOM"。 */
+      /* 点列屏（沙粒/相位环）在小画幅里半径会被压到 <1 设备像素 → 每颗只占 1 像素、
+         "一串沙"读不出颗粒。给个设备像素下限（只抬最小的点，不动大点）。 */
+      minPointDev: p.id === 'sand' || p.id === 'kuramoto' ? 1.35 : 0,
+      overlays: [DotInk.plate({
+        kicker: '现象 ' + p.no + ' · ' + p.name,
+        formula: p.fml,
+        source: p.src,
+        title: p.title,
+        /* 字号是**设计空间 CSS px**（1280×720），而画布通常被显示成 ~1014 px（×0.79）：
+           所以小字要按显示器上的最终大小给（16 × 0.79 ≈ 12.6），不要按设计稿数字给。 */
+        px: 88, smallPx: 16,
+        /* 净空：参考件的母题是**绕开标题**的（不是标题压在网点上再解释"读不出"）。
+           gallery 的场是铺满的，所以这里要主动擦一条纸带 —— 1-bit 合法减法，
+           格子值不翻墨就不存在（§5 净空的做法）。 */
+        knock: true,
+      })],
     }, g));
-    $('headline').textContent = p.name.replace(/（.*?）/, '');
-    $('fml').textContent = p.fml;
     $('why').innerHTML = p.why;
     $('src').textContent = p.src;
     document.querySelectorAll('.item').forEach((el, k) => el.setAttribute('aria-current', String(k === i)));
@@ -288,21 +355,33 @@
 
   function readout() {
     const isPoints = !!(st.inst && st.inst.opts && st.inst.opts.pointsAt);
+    const pdef = PHEN[st.i] || {};
     let j;
-    /* 模式交给 judge()：结构型（沙粒/节线/枝）显式传 M3 —— auto 不会替你把"太稀"解释成"勾线" */
-    try { j = st.inst.judge(null, { mode: isPoints ? 'M3' : 'auto' }); } catch (e) { return; }
+    /* 模式交给 judge()，并**逐条声明**（STANDARD §4：三种体裁互斥，auto 不替你把"太稀"解释成"勾线"）。
+       §14 明说「勾线（节线 / 枝 / 条纹 / 分叉树）走 M3」——那些屏自己声明 jm:'M3'；
+       点列通道（沙粒 / 相位环）也是 M3；其余铺面走 auto（→M2）。
+       以前除点列外一律 auto，于是分叉树被当成铺面判 M2、整屏覆盖率 4.55% 判死的。 */
+    const jm = pdef.jm || (isPoints ? 'M3' : 'auto');
+    try { j = st.inst.judge(null, { mode: jm }); } catch (e) { return; }
     const m = j.measures, rows = [];
     const pr = m.pitchRatioMedian;
     const mode = j.mode;
+    /* 状态列只能**从 judge() 的 gate 行取**，不能自己再算一套 ——
+       自己算过两次，两次都错：M1 体裁把「覆盖率 ≥8%」涂红（judge 里那条 gate:false，是参考行），
+       M2 体裁又把「点距:点径」涂红（同样参考）。判据只有一个真源。 */
+    const gateOf = (n) => { const c = j.checks.find(x => x.name === n && x.gate); return !c ? '' : (c.ok === true ? 'ok' : c.ok === false ? 'bad' : ''); };
     const modeRule = { M1: 'M1 网点：≥3:1 点才读得成点', M2: 'M2 面场：不卡 3:1（覆盖率 ≥8%）', M3: 'M3 线刻：看结构处局部覆盖率 + 1:1' }[mode];
     /* 模式结论**直接取 judge()**（别再自己推一套 —— 两套口径打架过） */
     const failed = j.failed.concat(j.untested);
-    rows.push(['模式', mode, modeRule, failed.length ? 'bad' : 'ok']);
+    rows.push(['模式', mode, modeRule, failed.length ? 'bad' : (j.untested.length ? '' : 'ok')]);
     /* 勾线型（M3）**不能**拿整屏覆盖率判死 —— 墨集中在结构上，整屏本来就只有 1–5% */
+    /* M1 体裁根本没有覆盖率门禁（judge 里那条是 gate:false 的参考行）——
+       这里必须跟着模式给出**真的那条**，否则 M1 屏会被自己的参考行涂红。 */
+    const covName = mode === 'M2' ? '区域覆盖率 ≥ 8%' : mode === 'M3' ? '区域覆盖率 > 0.2%' : '';
     rows.push(['覆盖率（整屏）', (m.coverage * 100).toFixed(2) + '%',
       mode === 'M3' ? '勾线型：只作参考（要量结构处局部）' : '铺面 ≥8% / 勾线看局部',
-      mode === 'M3' ? '' : (m.coverage >= .08 ? 'ok' : 'bad')]);
-    rows.push(['点距 : 点径（中位）', pr ? pr.toFixed(2) + ':1' : '—（点列通道）', 'M1 要 ≥3:1', mode === 'M1' ? (pr >= 3 ? 'ok' : 'bad') : '']);
+      gateOf(covName)]);
+    rows.push(['点距 : 点径（中位）', pr ? pr.toFixed(2) + ':1' : '—（点列通道）', 'M1 要 ≥3:1', gateOf('点距:点径（中位）')]);
     rows.push(['点数 / 格数', m.points + ' / ' + (st.inst.cols * st.inst.rows), '点距 ' + m.cell.toFixed(1) + 'px · 满墨点径 ' + (m.rMax * 2).toFixed(1) + 'px', '']);
     rows.push(['单帧耗时', st.ms.toFixed(1) + ' ms', '主线程占用', st.ms < 40 ? 'ok' : 'bad']);
     /* 1-bit：judge() 现在**真读画布像素**（旧版这里和 judge() 里都是写死的 ok） */
@@ -348,6 +427,19 @@
     }
     requestAnimationFrame(loop);
   }
+
+  /* 窗口/画幅变了就重算比例并重建：backing 必须与"当前显示设备像素"同步，
+     否则又回到非整数缩放（这一页最容易在这里悄悄破 1-bit）。 */
+  let rzT = 0, lastW = 0;
+  const onResize = () => {
+    const w = $('cv').clientWidth;
+    if (!w || Math.abs(w - lastW) < 1) return;
+    lastW = w;
+    clearTimeout(rzT);
+    rzT = setTimeout(() => { try { rebuild(); } catch (e) { window.__galleryErr = 'resize: ' + (e.message || e); } }, 120);
+  };
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.getElementById('stage'));
+  else window.addEventListener('resize', onResize);
 
   buildList();
   select(0);

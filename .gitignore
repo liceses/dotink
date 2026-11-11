@@ -4,3 +4,6 @@
 !demo/index.html
 # 成片走 Release 附件，不进仓（本地留着以便复核/重出）
 media/_release/
+# 本地视觉复核产物（截图 / 探针页 / 联络表），不是源文件也不是成片
+.visual-audit/
+.dsh/

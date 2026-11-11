@@ -35,6 +35,14 @@
   .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
   pre{background:var(--panel);border-left:3px solid var(--ink);padding:10px 12px;overflow:auto;font:500 12px/1.5 var(--fm)}
   code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
+  /* 页头微标签：ink.css 的 .kicker 是 display:flex（不折行），且被 .page-intro p 的
+     font-size/clamp 与 max-width:64ch 盖掉 —— 这里一并覆盖成本页需要的单行、方块在前。 */
+  .page-intro p.kicker{display:block;max-width:none;margin:0 0 16px;
+    font:600 11px/1 var(--fm);letter-spacing:.20em;text-transform:uppercase;color:var(--mute)}
+  .page-intro p.kicker i{display:inline-block;width:7px;height:7px;background:var(--accent);
+    margin-right:8px;vertical-align:middle}
+  @media (max-width:430px){.page-intro p.kicker{font-size:10px;letter-spacing:.06em}}
+  @media (max-width:360px){.page-intro p.kicker{font-size:9px;letter-spacing:.04em}}
 </style>
 </head>
 <body>
@@ -85,7 +93,7 @@
       <label>自备 logo <input type="file" id="svg" accept=".svg,image/svg+xml"></label>
     </div>
     <div class="lab" style="margin-top:10px">
-      这一页挂的就是**任意一个视频**（<code>media/demo-clip.mp4</code>）；
+      这一页挂的就是<b>任意一个视频</b>（<code>media/demo-clip.mp4</code>）；
       换成你的 mp4、或者把组件挂到任何容器上都一样。
     </div>
   </div>
@@ -114,11 +122,11 @@ DotInkLogo.mount(document.querySelector('.host'), {
 
     <div class="lab" style="margin-top:16px">三个实现要点</div>
     <div class="kv" style="font-size:12px">
-      ① **白纸 + multiply**：纸设成纯白、覆盖层 `mix-blend-mode: multiply`，白纸在视频上等于不存在 ——
+      ① <b>白纸 + multiply</b>：纸设成纯白、覆盖层 <code>mix-blend-mode: multiply</code>，白纸在视频上等于不存在 ——
       零逐帧成本（逐帧抠 2M 像素的 alpha 会白吃十几毫秒）；<br>
-      ② 引擎 `markplate` **要求 marks ≥ 2**（它靠两个标互融做过渡）→ 单标就**传同一个标两次**；<br>
-      ③ 覆盖层自带 rAF 循环：**dt 夹到 [0,0.1] + try/catch** —— 首帧时间戳可能为负、切页回来是大跳，
-      一帧抛错在 `requestAnimationFrame` 之前会让播放**静默死掉**（都踩过）。
+      ② 引擎 <code>markplate</code> <b>要求 marks ≥ 2</b>（它靠两个标互融做过渡）→ 单标就<b>传同一个标两次</b>；<br>
+      ③ 覆盖层自带 rAF 循环：<b>dt 夹到 [0,0.1] + try/catch</b> —— 首帧时间戳可能为负、切页回来是大跳，
+      一帧抛错在 <code>requestAnimationFrame</code> 之前会让播放<b>静默死掉</b>（都踩过）。
     </div>
   </aside>
 </main>
