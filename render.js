@@ -9,7 +9,9 @@
  *
  * 本文件**不认识** HUD / 字幕 / 尺 —— 那些是叠加层：
  *   overlays: [ (api, t) => void, … ]    // 在 compose() 之后画进同一张 1-bit 帧
- *   api = { dot, glyph, opts, cols, rows, cell, rMax, scale, cssW, cssH, devW, devH }
+ *   api = { dot, glyph, measureGlyph, opts, cols, rows, cell, rMax, scale, cssW, cssH, devW, devH }
+ *       glyph(ch, cx, cy, px, wt, font?)  —— px 就是 CSS 字号（写多大就是多大）；font 省略则用 body 字体
+ *       measureGlyph(ch, px, wt, font?)   —— { w, h, adv } 全 CSS px；排字用 adv，别猜 px 的倍数
  * 现成的尺/字幕在 hud.js（可选脚本）；判据在 judge.js（读 inst.core）。
  *
  * 经典脚本（file:// 下 ESM 会被 CORS 拦死）。挂 window.DotInk.render。
@@ -49,6 +51,11 @@
        x/y/r 全是 CSS px。给"粒子 / 沙粒"这类装置用 —— 颗粒各走各的，硬塞进网格会丢掉颗粒感
        （lab-field4 的 01 沙粒就是这么画的：3200 颗，颗粒半径 1.45 设备px ≈ 0.97 CSS px）。 */
     pointsAt: null,
+    /* 点列的**设备像素半径下限**（0 = 关）。点列的 r 是 CSS px，画布缩到 1014 CSS 宽时
+       0.97 CSS px 只剩 0.77 设备像素 —— 每颗粒就变成 1 个像素，一串沙读不出"颗粒"。
+       给一个下限（如 1.2 设备 px）让颗粒在小尺寸下仍然是一颗圆点；
+       它是**可见性下限**，不是调幅：只有比下限还小的点被抬到下限，大点一个不动。 */
+    minPointDev: 0,
     duration: 12,
     shutter: 1 / 28,       /* 运动模糊：两帧叠（t 与 t−shutter）。0 = 关 */
     seed: 1,
@@ -131,55 +138,89 @@
       }
     };
 
-    /* ── 字形（可选）：字是**实墨**，不是网点。只在 glyph 模式 / 字幕里用 ── */
+    /* ── 字形（可选）：字是**实墨**，不是网点。只在 glyph 模式 / 叠加层（字幕、画布内标题）里用 ──
+       ⚠ 字号语义（2.2 修正）：传进来的 px **就是**字的 CSS 字号，写多大就是多大。
+       旧版是"按 px 栅格化 → 再乘 f = min(cap, px/20)" —— px 被记了两次，有效字号是 px²/20：
+        px=20 恰好对，40 变成 2 倍、80 变成 3.8 倍（cap 拦的就是这一头）。
+       后果不是"字大一点"：advance 仍按 px 算，于是整行字幕重叠 3.8 倍、糊成一块墨
+        （实测 demo/index.html 的三段字幕全是黑块）；§14 那条"画布内实墨大字标题"
+       也就根本走不通，各页只能退回 DOM 覆盖层。现在按**设备像素**栅格化、1:1 上屏。
+       代价：一次 getImageData 每个 (字, 字号, 字重) 只付一次（RC 缓存）。 */
     const RC = new Map();
     let off = null, offCtx = null;
     const fontOf = () => o.glyph && o.glyph.font ? o.glyph.font
       : (getComputedStyle(document.body).fontFamily || 'sans-serif');
-    function rasterGlyph(ch, px, wt) {
-      const key = 'g|' + ch + '|' + px + '|' + wt;
+    /* 按**设备像素字号**栅格化（缓存键含实际栅格尺寸，所以贴图是 1:1，不放大也不缩小） */
+    function rasterGlyph(ch, pxDev, wt, font) {
+      const ff = font || fontOf();
+      const key = 'g|' + ch + '|' + pxDev + '|' + wt + '|' + ff;
       const hit = RC.get(key); if (hit) return hit;
-      if (!off) { off = document.createElement('canvas'); off.width = 256; off.height = 256; offCtx = off.getContext('2d'); }
-      offCtx.clearRect(0, 0, 256, 256);
-      offCtx.font = (wt || 600) + ' ' + (px || 20) + 'px ' + fontOf();
+      const pad = Math.max(4, Math.ceil(pxDev * 0.22));   /* 留白：防斜体/全角字形出框 */
+      const S0 = Math.ceil(pxDev * 2.2) + pad * 2;        /* 2.2em 宽足够任何单字形 */
+      if (!off) { off = document.createElement('canvas'); offCtx = off.getContext('2d'); }
+      if (off.width < S0) { off.width = off.height = S0; }
+      offCtx.clearRect(0, 0, off.width, off.height);
+      offCtx.font = (wt || 600) + ' ' + pxDev + 'px ' + ff;
       offCtx.textBaseline = 'top'; offCtx.fillStyle = '#000';
-      offCtx.fillText(ch, 8, 8);
-      const d = offCtx.getImageData(0, 0, 256, 256).data;
-      const runs = []; let x0 = -1, wMax = 0, yMax = 0;
+      offCtx.fillText(ch, pad, pad);
+      const adv = offCtx.measureText(ch).width;           /* 排字用**步进宽**，不是墨宽 */
+      const d = offCtx.getImageData(0, 0, S0, S0).data;
+      const runs = []; let x0 = -1, wMax = 0, yMax = 0, firstRow = -1;
       /* 行段行程编码：只留 α>110 的实墨像素（与 1-bit 口径一致） */
-      for (let y = 0; y < 256; y++) {
+      for (let y = 0; y < S0; y++) {
         const row = []; x0 = -1;
-        for (let x = 0; x < 256; x++) {
-          const on = d[(y * 256 + x) * 4 + 3] > 110;
+        for (let x = 0; x < S0; x++) {
+          const on = d[(y * S0 + x) * 4 + 3] > 110;
           if (on && x0 < 0) x0 = x; else if (!on && x0 >= 0) { row.push([x0, x - 1]); x0 = -1; }
         }
-        if (x0 >= 0) row.push([x0, 255]);
-        if (row.length) { runs.push([y, row]); yMax = y + 1; for (const [a, b] of row) wMax = Math.max(wMax, b + 1); }
+        if (x0 >= 0) row.push([x0, S0 - 1]);
+        if (row.length) {
+          if (firstRow < 0) firstRow = y;
+          runs.push([y, row]); yMax = y + 1;
+          for (const [a, b] of row) wMax = Math.max(wMax, b + 1);
+        }
       }
-      const rec = { w: wMax, h: yMax, runs };
+      /* top = 墨框顶相对 **em 框顶** 的偏移（设备 px 存，取用时 /S）。底对齐要用它：
+         没有它就只能按 px·0.5 猜，中文黑体与西文的字面率不同，猜出来会差几个像素。 */
+      const rec = { w: wMax, h: yMax, adv: adv, pad: pad, runs: runs,
+                    top: firstRow - pad, bot: yMax - pad };
+      if (RC.size > 400) RC.clear();                      /* glyph 模式下字号连续 → 别让缓存无限长 */
       RC.set(key, rec);
       return rec;
     }
-    function inkGlyph(ch, cx, cy, px, wt) {
-      const L = rasterGlyph(ch, px, wt);
-      const gl = o.glyph || {};                     /* 叠加层可以在没开 glyph 模式时用（字仍是实墨） */
-      const f = Math.min(gl.cap || 3.8, px / (gl.px || 20));
-      const ox = cx - L.w * f / 2, oy = cy - L.h * f / 2;
+    /* 贴一个实墨字：(cx, cy) 是字的位置，px 是 CSS 字号。
+       横：按**墨框**居中（单个字/角标要的是"看起来在正中"）；
+       纵：按 **em 框**定位（所有字共用一条基线 —— 逐字按各自墨框居中会让 abc 的基线上下跳）。 */
+    function inkGlyph(ch, cx, cy, px, wt, font) {
+      const size = px > 0 ? px : 20;
+      const pxDev = Math.max(1, Math.round(size * S));
+      const L = rasterGlyph(ch, pxDev, wt, font);
+      if (!L.runs.length) return;
+      const xC = Math.round(cx * S - L.w / 2) - L.pad;
+      const yT = Math.round(cy * S - pxDev / 2) - L.pad;
       for (let i = 0; i < L.runs.length; i++) {
-        const y = L.runs[i][0];
-        const yy0 = Math.round((oy + y * f) * S), yy1 = Math.round((oy + (y + 1) * f) * S);
-        for (const [a, b] of L.runs[i][1]) {
-          const x0 = Math.round((ox + a * f) * S), x1 = Math.round((ox + (b + 1) * f) * S);
-          for (let yy = yy0; yy < Math.max(yy1, yy0 + 1); yy++) {
-            if (yy < 0 || yy >= DH) continue;
-            const rowBase = yy * DW;
-            for (let xx = Math.max(0, x0); xx < Math.min(DW, Math.max(x1, x0 + 1)); xx++) {
-              const t = (rowBase + xx) * 4;
-              PX[t] = INK[0]; PX[t + 1] = INK[1]; PX[t + 2] = INK[2]; PX[t + 3] = 255;
-            }
+        const yy = yT + L.runs[i][0];
+        if (yy < 0 || yy >= DH) continue;
+        const rowBase = yy * DW;
+        const segs = L.runs[i][1];
+        for (let j = 0; j < segs.length; j++) {
+          const xa = Math.max(0, xC + segs[j][0]);
+          const xb = Math.min(DW, xC + segs[j][1] + 1);
+          for (let xx = xa; xx < xb; xx++) {
+            const t = (rowBase + xx) * 4;
+            PX[t] = INK[0]; PX[t + 1] = INK[1]; PX[t + 2] = INK[2]; PX[t + 3] = 255;
           }
         }
       }
+    }
+    /* 字的量（CSS px）：w/h 是墨框，adv 是步进宽 —— 排字只认 adv，猜 px 的倍数必然重叠 */
+    function measureGlyph(ch, px, wt, font) {
+      const pxDev = Math.max(1, Math.round((px > 0 ? px : 20) * S));
+      const L = rasterGlyph(ch, pxDev, wt, font);
+      /* top / bot：墨框的**上/下边**相对 **em 框顶** 的偏移（CSS px，负值 = 出框）。
+         排版的底对齐只认这两个：inkBottom = cy − px/2 + bot（见 hud.js 的 plate()）。
+         别用 h（它是"从栅格原点算的墨高"，含 pad，按它对底会差 pad 那几个像素）。 */
+      return { w: L.w / S, h: L.h / S, adv: L.adv / S, top: L.top / S, bot: L.bot / S };
     }
 
     /* ── 调子映射：**面积映射**是标准的核心公式 ── */
@@ -222,9 +263,14 @@
       if (typeof o.pointsAt === 'function') {
         const P = o.pointsAt(t);
         if (P) {
+          /* minPointDev：设备像素下限（见 DEFAULTS 注释）。0 = 原样，一个字节都不动。 */
+          const minDev = o.minPointDev > 0 ? o.minPointDev / S : 0;
           for (let k = 0; k + 2 < P.length; k += 3) {
-            const r = P[k + 2];
-            if (r > 0) { dot(P[k], P[k + 1], r); ptsDrawn++; }
+            let r = P[k + 2];
+            if (r > 0) {
+              if (r < minDev) r = minDev;
+              dot(P[k], P[k + 1], r); ptsDrawn++;
+            }
           }
         }
         return;
@@ -239,7 +285,8 @@
           if (w < o.floor) { dbg.skippedFloor++; continue; }   /* floor 之下当纸（防底噪） */
           const px = cx * CELL + CELL / 2, py = cy * CELL + CELL / 2;
           if (gl) {
-            /* 字形模式：字要读得清才用字；小到读不清就降级成点（**降级半径 = rMin，全片一致**） */
+            /* 字形模式：字要读得清才用字；小到读不清就降级成点（**降级半径 = rMin，全片一致**）。
+               size 是**字号**（CSS px）；minPx 是"再小就读不成字"的门槛。 */
             const size = RMAX * 2 * (o.areaMap ? Math.sqrt(w) : w);
             if (size >= (gl.minPx || 4.5)) {
               inkGlyph(gl.ch || '·', px, py, size, gl.wt || 600);
@@ -260,8 +307,26 @@
 
     /* ── 叠加层：同一个 api 给所有 overlay，动的是同一张 1-bit 帧 ── */
     const OV = o.overlays ? (typeof o.overlays === 'function' ? [o.overlays] : o.overlays) : null;
+    /* 叠加层可以**擦出一块纸**（画布内标题的净空）：只清 MASK 里那些位、把 PX 写回纸色。
+       这是 1-bit 合法的"减法" —— 它不加灰，只让那里"格子值不翻，墨就不存在"。
+       顺序上有讲究：overlays 跑在 compose() 之后，第二次 compose() 会用 MASK 重新上墨，
+       所以擦除必须同时清 MASK（只清 PX 等于没擦）。 */
+    const clearRect = function (x, y, w, h) {
+      const x0 = Math.max(0, Math.round(x * S)), y0 = Math.max(0, Math.round(y * S));
+      const x1 = Math.min(DW, Math.round((x + w) * S)), y1 = Math.min(DH, Math.round((y + h) * S));
+      for (let yy = y0; yy < y1; yy++) {
+        const row = yy * DW;
+        /* 三个都要写：MASK（别让第二次 compose 再上墨）、PX 的 RGB（toMask 看的是红通道，
+           只清 alpha 的话红通道还是墨值 → 又被记成 1）与 alpha。 */
+        for (let xx = x0; xx < x1; xx++) {
+          const t = (row + xx) * 4;
+          MASK[row + xx] = 0;
+          PX[t] = PAPER[0]; PX[t + 1] = PAPER[1]; PX[t + 2] = PAPER[2]; PX[t + 3] = 255;
+        }
+      }
+    };
     const LAYER = {
-      dot: dot, glyph: inkGlyph,
+      dot: dot, glyph: inkGlyph, measureGlyph: measureGlyph, clear: clearRect,
       opts: o, cols: COLS, rows: ROWS, cell: CELL, rMax: RMAX,
       scale: S, cssW: CW, cssH: CH, devW: DW, devH: DH,
     };

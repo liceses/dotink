@@ -221,9 +221,132 @@ test('叠加层是两个纯函数：hud 只用 api.dot，caption 只用 api.glyp
   assert.ok(once.every(p => p[2] > 0 && isFinite(p[0]) && isFinite(p[1])), '点位与点径应有效');
 
   const glyphs = [];
-  D.caption({ x: 96, y: 596, px: 40, texts: [{ t0: 0, t1: 6, lines: ['AB'] }] })({ glyph: (...a) => glyphs.push(a) }, 0.5);
-  assert.equal(glyphs.length, 2, '字幕应按字符数调用 glyph');
-  assert.deepEqual(glyphs[1].slice(0, 4), ['B', 96 + 20, 596, 40], '字距 = px*0.5，字是实墨');
+  const advOf = (ch, px) => ({ w: px, h: px, adv: px * 0.5 });   /* 假字形：半角 */
+  D.caption({ x: 96, y: 596, px: 40, texts: [{ t0: 0, t1: 6, lines: ['AB'] }] })(
+    { glyph: (...a) => glyphs.push(a), measureGlyph: advOf }, 0.5);
+  assert.equal(glyphs.length, 2, '字幕应按字符数调用 glyph（空格不落墨）');
+  /* 步进宽来自 measureGlyph().adv，**不是**写死的 px*0.5 —— 中文字宽是 1em，
+     按 0.5em 排会重叠一倍（demo 的三段字幕原先全糊成黑块）。
+     这里第二个字的 x = 起点 + 第一个字的 adv（假字形给 20），再 +adv/2 居中。 */
+  assert.deepEqual(glyphs[1].slice(0, 4), ['B', 96 + 20 + 10, 596, 40], '字距 = 实测步进宽，字是实墨');
+
+  /* 全角字（adv = px）不得重叠：两个字心间距必须 ≥ px */
+  const wides = [];
+  D.caption({ x: 0, y: 100, px: 40, texts: [{ t0: 0, t1: 1, lines: ['只有'] }] })(
+    { glyph: (...a) => wides.push(a), measureGlyph: (ch, px) => ({ w: px, h: px, adv: px }) }, 0.5);
+  assert.equal(wides.length, 2);
+  assert.ok(wides[1][1] - wides[0][1] >= 40 - 1e-9,
+    '全角字心间距应 ≥ 1em（实测 ' + (wides[1][1] - wides[0][1]) + 'px，px=40）');
+});
+
+test('画布内版式 plate：只用 dot/glyph/measureGlyph，标题墨框底对齐 bottom，超宽自动缩字号', () => {
+  /* 假字形：中文 1em 步进、墨框从 em 顶下 0.12em 到 0.86em（黑体的典型字面率） */
+  const mkApi = (cssW) => {
+    const glyphs = [], clears = [];
+    return {
+      glyphs: glyphs, clears: clears,
+      api: {
+        cssW: cssW, cssH: 720, scale: 1.5,
+        dot: () => { throw new Error('plate 不该用 dot'); },
+        measureGlyph: (ch, px) => ({ w: px * 0.86, h: px * 0.74, adv: px, top: px * 0.12, bot: px * 0.86 }),
+        glyph: (ch, cx, cy, px) => glyphs.push({ ch: ch, cx: cx, cy: cy, px: px }),
+        clear: (x, y, w, h) => { clears.push([x, y, w, h]); },
+      },
+    };
+  };
+  /* ① 标题底对齐：em 框底 = cy + px/2；墨框底 = em 顶 + bot = (cy − px/2) + bot
+     → 要让墨框底 = cssH − bottom，必须是 cy = cssH − bottom − bot + px/2 */
+  const A = mkApi(1280);
+  const layer = D.plate({ title: '墨', x: 40, bottom: 30, px: 80, kicker: '', formula: '', source: '' });
+  layer(A.api, 0);
+  assert.equal(A.glyphs.length, 1, '标题只有 1 个字 → 只该贴 1 次');
+  const g = A.glyphs[0];
+  const inkBottom = (g.cy - g.px / 2) + 80 * 0.86;
+  assert.ok(Math.abs(inkBottom - (720 - 30)) < 1e-6,
+    '标题墨框底应落在 cssH − bottom（实测 ' + inkBottom.toFixed(2) + '，期望 690）');
+
+  /* ② 确定性：同一 t 调两次，点位逐个相同 */
+  const B = mkApi(1280);
+  layer(B.api, 0);
+  assert.deepEqual(B.glyphs, A.glyphs, '同一 t 的 plate 点位应一致（纯函数）');
+
+  /* ③ 超宽自动缩字号：24 个全角字 × 60px = 1440 > maxW 1168，字号必须变小
+     （假字形的 adv 恰好 = px，所以整行宽 = 字数 × px，能直接算） */
+  const C = mkApi(1280);
+  /* 21 个全角字 × 60 = 1260 > maxW 1168，必须缩 */
+  D.plate({ title: '只有墨与纸两种像素，别的一律不许出现在画面里', x: 56 })(C.api, 0);
+  assert.ok(C.glyphs.length > 0);
+  const usedPx = C.glyphs[0].px;
+  assert.ok(usedPx < 60, '超出可用宽时字号应自动缩小（默认 60 → 实测 ' + usedPx + '）');
+  const totalW = C.glyphs.length * usedPx;
+  assert.ok(totalW <= 1280 - 2 * 56 + usedPx, '缩小后整行宽应落进 maxW（实测 ' + totalW + '）');
+
+  /* ③b 净空（knock）：开的时候先擦纸，关的时候一次都不擦；擦的范围必须盖住标题墨框 */
+  const K = mkApi(1280);
+  D.plate({ title: '只有墨', knock: true, x: 40, bottom: 30, px: 80, kicker: 'K', formula: 'F', source: 'S' })(K.api, 0);
+  assert.ok(K.clears.length >= 2, 'knock 应擦两块（小字区 + 标题区），实测 ' + K.clears.length);
+  const titleClear = K.clears[K.clears.length - 1];
+  const tg = K.glyphs.filter(g => g.px >= 20)[0];
+  const inkTopK = (tg.cy - tg.px / 2) + 80 * 0.12, inkBotK = (tg.cy - tg.px / 2) + 80 * 0.86;
+  assert.ok(titleClear[1] <= inkTopK && titleClear[1] + titleClear[3] >= inkBotK,
+    '标题净空必须上下都盖住墨框（擦 ' + titleClear[1].toFixed(1) + '..' + (titleClear[1] + titleClear[3]).toFixed(1) +
+    '，墨框 ' + inkTopK.toFixed(1) + '..' + inkBotK.toFixed(1) + '）');
+  const N2 = mkApi(1280);
+  D.plate({ title: '只有墨', x: 40, bottom: 30, px: 80 })(N2.api, 0);
+  assert.equal(N2.clears.length, 0, '默认不该擦（老行为不变）');
+
+  /* ④ 小字三行都贴、且都在标题带上方 */
+  const E = mkApi(1280);
+  D.plate({ kicker: 'K', formula: 'F', source: 'S', title: '标题' })(E.api, 0);
+  const small = E.glyphs.filter(x => x.px < 20);
+  assert.equal(small.length, 3, 'kicker/formula/source 三行都应落墨（实测 ' + small.length + '）');
+  assert.ok(small.every(x => x.cy < 200), '小字应在上边距里');
+  assert.ok(E.glyphs.filter(x => x.px >= 20).every(x => x.cy > 500), '标题应在下带');
+});
+
+test('字幕净空 knock：默认不擦，开了要按**实测墨框**擦、且框随 align 走', () => {
+  /* 假字形：全角 1em 步进，墨框从 em 顶下 0.12em 到 0.86em（黑体的典型字面率） */
+  const mk = () => {
+    const glyphs = [], clears = [];
+    return {
+      glyphs: glyphs, clears: clears,
+      api: {
+        glyph: (ch, cx, cy, px) => glyphs.push({ ch: ch, cx: cx, cy: cy, px: px }),
+        measureGlyph: (ch, px) => ({ w: px * 0.86, h: px * 0.74, adv: px, top: px * 0.12, bot: px * 0.86 }),
+        clear: (x, y, w, h) => { clears.push([x, y, w, h]); },
+      },
+    };
+  };
+  const T = { x: 100, y: 500, px: 40, texts: [{ t0: 0, t1: 9, lines: ['只有墨'] }] };
+
+  /* ① 默认不擦：老行为一字不改 */
+  const A = mk();
+  D.caption(Object.assign({}, T))(A.api, 1);
+  assert.equal(A.clears.length, 0, '默认不该擦（老行为不变）');
+  assert.equal(A.glyphs.length, 3, '三个字都要落墨');
+
+  /* ② knock：擦**一次**，而且必须上下盖住实测墨框（墨框 = 行心 ± em/2 + top..bot） */
+  const B = mk();
+  D.caption(Object.assign({}, T, { knock: true }))(B.api, 1);
+  assert.equal(B.clears.length, 1, 'knock 应擦一块（实测 ' + B.clears.length + '）');
+  const c = B.clears[0];
+  const emTop = T.y - T.px / 2, inkTop = emTop + T.px * 0.12, inkBot = emTop + T.px * 0.86;
+  assert.ok(c[1] <= inkTop && c[1] + c[3] >= inkBot,
+    '净空必须上下盖住墨框（擦 ' + c[1].toFixed(1) + '..' + (c[1] + c[3]).toFixed(1) +
+    '，墨框 ' + inkTop.toFixed(1) + '..' + inkBot.toFixed(1) + '）');
+  /* 也不能擦成一大片：上下各只多留 0.30em 的边 */
+  assert.ok(inkTop - c[1] <= T.px * 0.30 + 1e-6 && (c[1] + c[3]) - inkBot <= T.px * 0.30 + 1e-6,
+    '净空的余量应按 px 给（实测上余 ' + (inkTop - c[1]).toFixed(1) + ' / 下余 ' + ((c[1] + c[3]) - inkBot).toFixed(1) + '）');
+  /* 横向：左边界 = x − padX，宽 = 整行宽 + 2·padX（整行宽 = 3 字 × 40） */
+  assert.ok(Math.abs(c[0] - (T.x - T.px * 0.34)) < 1e-6, '左边界应是 x − 0.34em');
+  assert.ok(Math.abs(c[2] - (3 * T.px + T.px * 0.68)) < 1e-6, '宽度应是整行宽 + 两侧 0.34em');
+
+  /* ③ align:center → 净空框跟着整行居中走，不是从 x 往右铺 */
+  const C = mk();
+  D.caption(Object.assign({}, T, { knock: true, align: 'center' }))(C.api, 1);
+  const cc = C.clears[0];
+  const lineW = 3 * T.px, left = T.x - lineW / 2;
+  assert.ok(Math.abs(cc[0] - (left - T.px * 0.34)) < 1e-6, '居中的净空应从整行左边 − 0.34em 起');
 });
 
 test('页面装载顺序：四个核件必须在 dotink.js 之前', () => {

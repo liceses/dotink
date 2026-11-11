@@ -7,14 +7,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/* 跳过 node_modules / _release / .git，以及**任何点开头的目录**（.dsh / .visual-audit 这类
+   工具与审查产物不是发布面）。check/core.mjs 的「页面装载顺序」测试也是按这条口径走的
+   —— 两个检查器对"什么算包里的一份子"必须同一套，否则一边绿一边红。 */
 const SKIP = /(^|[\\/])(node_modules|_release|\.git)([\\/]|$)/;
+const isDotDir = (p) => /(^|[\\/])\.[^\\/]+([\\/]|$)/.test(p);
 const bad = [];
 let n = 0;
 
 function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (SKIP.test(p)) continue;
+    if (SKIP.test(p) || isDotDir(path.relative(ROOT, p))) continue;
     if (e.isDirectory()) walk(p);
     else if (/\.(md|html)$/.test(e.name)) check(p);
   }

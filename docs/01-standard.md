@@ -25,7 +25,8 @@
 | `gain` `gamma` `floor` | 1 / 1 / 0.035 | `w = min(1, v·gain)`；`v = field^gamma`；`v·gain < floor` 当纸 |
 | `field` | — | `(i, cx, cy, t) => 0..1`，或 `Float32Array` |
 | `shutter` | 1/28 | 运动模糊（两帧叠）。0 = 关 |
-| `overlays` | null | 叠加层 `(api, t) => void`（单个或数组），在 `compose()` 之后画进同一张 1-bit 帧。`api = { dot, glyph, opts, cols, rows, cell, rMax, scale, cssW, cssH, devW, devH }`。**HUD / 字幕不在核心里**：见 [`hud.js`](../hud.js) 的 `DotInk.hud()` / `DotInk.caption()`（都算装饰墨，见净空） |
+| `overlays` | null | 叠加层 `(api, t) => void`（单个或数组），在 `compose()` 之后画进同一张 1-bit 帧。`api = { dot, glyph, measureGlyph, clear, opts, cols, rows, cell, rMax, scale, cssW, cssH, devW, devH }`。**HUD / 字幕 / 画布内标题不在核心里**：见 [`hud.js`](../hud.js) 的 `DotInk.hud()` / `DotInk.caption()` / `DotInk.plate()`（都算装饰墨，见净空） |
+| `minPointDev` | 0 | **点列通道**（`pointsAt`）的点半径设备像素下限；`0` = 关。小尺寸显示时点会被压到亚像素、一串沙读不出颗粒，给它一个下限即可（只抬更小的点，大点不动） |
 | `regions` | null | 分区的**格坐标** `{info:[…], deco:[…]}` → `measure()` 给出装饰:信息 |
 
 **场的构造器**：`interferenceFn`（活的干涉）、`noise` + `scrollFn`（噪声整格滚动）、`ramp`、
@@ -33,6 +34,18 @@
 `bits`（1-bit 行程编码 → 场）。
 
 返回：`{ draw(t), judge(t, opts), measure(), reset(), cols, rows, cell, rMax, duration }`。
+
+**叠加层 api 的字面语义**（v2.2 修正，旧版是错的）：
+
+| 调用 | 语义 | 备注 |
+|---|---|---|
+| `api.glyph(ch, cx, cy, px, wt, font?)` | `px` **就是 CSS 字号**（写多大就是多大） | 传 20 不会变成 40；横按墨框居中、纵按 em 框（基线不跳） |
+| `api.measureGlyph(ch, px, wt, font?)` | `{ w, h, adv, top, bot }`，全 CSS px | **排字用 `adv`**，别猜 `px` 的倍数；底对齐用 `bot`，别用 `h`（`h` 含 pad） |
+| `api.clear(x, y, w, h)` | 擦出一块纸（CSS px） | 三样一起写：MASK 归零 + PX 的 RGB 回落纸色 + alpha 255。只清 alpha 会被下一次 `compose()` 重新记成墨 |
+
+> 旧版的 `glyph` 是「按 `px` 栅格化、再乘 `min(cap, px/20)`」，有效字号成了 `px²/20`：
+> `px=20` 恰好对，40 是 2 倍、80 是 3.8 倍，**而 advance 仍按 `px` 算** → 整行字幕重叠成一块墨。
+> 这同时堵死了 STANDARD §14 的「画布内大字标题」，所以 v2.2 一并修掉。
 
 **`judge(t, opts)` 的 `opts`**（v1.6.0 起）：
 
