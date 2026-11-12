@@ -150,7 +150,12 @@ gh release upload v1.4.0 --repo liceses/dotink dotink/media/_release/*.mp4 --clo
 ```
 
 **已发布**：https://github.com/liceses/dotink（public · `main`）· 成片：https://github.com/liceses/dotink/releases/tag/v1.4.0
-· 代码版本跟 `package.json` 走（当前 **1.6.0**）；Release 只在**媒体变了**时才新开。
+· 代码版本跟 `package.json` 走（当前 **2.2.0**）；Release 只在**媒体变了**时才新开。
+
+> **但 `git tag` 要打**。上面那句只约束 **Release（带成片附件的那种）**，不是「不要打 tag」——
+> 2.1.0 那轮就是漏了这一条：代码推到 2.1.0 了，仓里却一个 `v2.x` tag 都没有，`git describe` 只能报 `v1.4.0-<N>-g<sha>`。
+> 现在的口径：**代码每发一个版本就打一个带注解的 tag**（`git tag -a v2.2.0 -F <notes>`），push 时一并 `git push origin v2.2.0`。
+> 打 tag **不动** `/releases/latest`，所以不会踩上面那个坑 —— 那个坑只由「新开一个不带附件的 GitHub Release」造成。
 
 ---
 
