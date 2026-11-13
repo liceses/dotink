@@ -6,17 +6,15 @@
 <title>点墨 · 现象画廊</title>
 <link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">
 <link rel="stylesheet" href="ink.css">
 <script src="theme.js"></script>
 <style>
-  :root{
-    --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
-    --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  }
+  
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--f-d)}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--t-body)/1.6 var(--f-d)}
   /* 站点头 / 页脚 / h1 全部交给 ink.css（全站一致）—— 这里只留本页的功能样式 */
-  .lab{font:500 12px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .lab{font:500 var(--t-mono)/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
   a{color:inherit}
   main{display:grid;grid-template-columns:minmax(560px,1fr) 380px;gap:0;align-items:start}
   @media (max-width:1180px){main{grid-template-columns:1fr}}
@@ -30,25 +28,25 @@
      ① STANDARD §14「画面区域不压 DOM」；② §7-1 实测：DOM 字是反锯齿的，
      逐帧渲染器会把它一起拍进帧（一行 12px 提示 = 2403 个灰阶像素）。
      参考件 media/phenomena-8/still-0*.png 的标题也是画布内的实墨（占下带 11–14% 墨量）。 */
-  .ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:14px}
-  .ctl label{display:flex;flex-direction:column;gap:3px;font:500 12px var(--f-m);color:var(--mute)}
+  .ctl{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;margin-top:16px}
+  .ctl label{display:flex;flex-direction:column;gap:4px;font:500 var(--t-mono) var(--f-m);color:var(--mute)}
   input[type=range]{width:132px}
-  button,select{font:600 13px var(--f-d);padding:6px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:0;cursor:pointer}
+  button,select{font:600 var(--t-body) var(--f-d);padding:8px 12px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:0;cursor:pointer}
   button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
   aside{padding:20px}
   .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .item{display:flex;gap:8px;align-items:center;text-align:left;padding:6px;border:2px solid var(--hair);background:var(--paper);cursor:pointer}
+  .item{display:flex;gap:8px;align-items:center;text-align:left;padding:8px;border:2px solid var(--hair);background:var(--paper);cursor:pointer}
   .item[aria-current=true]{border-color:var(--ink)}
   .item canvas{width:56px;height:32px;display:block;border:1px solid var(--hair);image-rendering:pixelated}
-  .item b{font:700 13px/1.2 var(--f-d)}
-  .item span{display:block;font:500 10px/1.2 var(--f-m);color:var(--mute)}
-  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}
-  th,td{border-bottom:1px solid var(--hair);padding:4px 6px;text-align:left}
-  th{font:500 11px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
-  .kv{font:500 12px var(--f-m)}
+  .item b{font:700 var(--t-body)/1.15 var(--f-d)}
+  .item span{display:block;font:500 var(--t-readout)/1.15 var(--f-m);color:var(--mute)}
+  table{border-collapse:collapse;width:100%;font-size:var(--t-mono);margin-top:12px}
+  th,td{border-bottom:1px solid var(--hair);padding:4px 8px;text-align:left}
+  th{font:500 var(--t-mono) var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  .kv{font:500 var(--t-mono) var(--f-m)}
   .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
   #zoom{width:240px;height:135px;border:2px solid var(--ink);image-rendering:pixelated;background:var(--paper)}
-  .note{font-size:12px;color:var(--mute);margin-top:8px}
+  .note{font-size:var(--t-mono);color:var(--mute);margin-top:8px}
 </style>
 <!-- site:meta:begin -->
 <meta name="description" content="八种只用点面积表达的场：从灰度映射到莫尔纹，同一套 API 换参数就是一整个画廊。">
@@ -81,6 +79,7 @@
     <a href="transition.html">场转场</a>
     <a href="press.html">套印</a>
     <a href="theme.html">色彩模板</a>
+    <a href="system.html">尺度</a>
   </nav>
   <div class="theme-switch" data-theme-switch></div>
 </div></header>
@@ -185,48 +184,48 @@
     { id: 'sand', no: '01', name: '克拉德尼（沙粒）', tag: '点列 · 3200 颗', title: '沙自己走到该在的地方',
       fml: 'φ = cos(mπx)cos(nπy) + α·cos(nπx)cos(mπy)　沙沿 −∇|φ| 迁移',
       src: 'Chladni 1787 · lab/PHENOMENA.md §01（沙粒版：lab-field4 里程碑 v0.3.1）',
-      why: '**兑现字幕**：字幕写"沙自己走到该在的地方"，所以真让 3200 颗沙沿 −∇|φ| 走过去 —— 腹点被甩起来、节线留下，α 一拧沙就跟着流。',
+      why: '兑现字幕：字幕写"沙自己走到该在的地方"，所以真让 3200 颗沙沿 −∇|φ| 走过去 —— 腹点被甩起来、节线留下，α 一拧沙就跟着流。',
       span: 12,
       mk: (cols, rows, scale) => ({ pointsAt: DotInk.pheno.sandChladniPoints(cols, rows, { cssW: W, cssH: H, span: 12 }) }) },
     { id: 'chladni', no: '01b', name: '克拉德尼（节线）', tag: '网屏 · 调幅', title: '哪里不动，沙就停在哪里',
       fml: 'φ = cos(mπu)cos(nπv) + α·cos(nπu)cos(mπv)　节线 {|φ|<ε}',
       src: 'Chladni 1787 · lab/PHENOMENA.md §01',
-      why: '节线本身就是墨线：**数一下就知道是哪个模**（m、n 是整数档，只能扫 α 与换模式，绝不能插值）。',
+      why: '节线本身就是墨线：数一下就知道是哪个模（m、n 是整数档，只能扫 α 与换模式，绝不能插值）。',
       tg: 1.2,
       span: 18,
       mk: (cols, rows) => ({ field: DotInk.pheno.chladni(cols, rows, { modes: [[4,3],[5,4],[3,5],[6,5]], eps: .22, period: 16 }) }) },
     { id: 'sunflower', no: '02', name: '向日葵', tag: '叶序 · 黄金角', title: '叶子为什么绕着长',
       fml: 'r = c·√n　θ = n · 137.50776°',
       src: 'Vogel 1979 · lab/PHENOMENA.md §02',
-      why: '34/55 两条旋臂**数得出来** —— 点阵正好承载叶序；θ 从 135° 扫到真黄金角，8 条直臂拧成螺旋密堆。',
+      why: '34/55 两条旋臂数得出来 —— 点阵正好承载叶序；θ 从 135° 扫到真黄金角，8 条直臂拧成螺旋密堆。',
       tg: .6,
       span: 26,
       mk: (cols, rows) => ({ field: DotInk.pheno.sunflower(cols, rows, { seeds: 2600, span: 26, fill: .46 }) }) },
     { id: 'dejong', no: '03', name: 'de Jong 吸引子', tag: '占用直方图', title: '一个公式决定的命运',
       fml: "x' = sin(a·y) − cos(b·x)　y' = sin(c·x) − cos(d·y)",
       src: 'de Jong / Bourke · lab/PHENOMENA.md §03',
-      why: '**不是把点画上去**，是统计每格被穿过多少次 → 密度 → 点大小。两组参数在同一帧里各迭代一段（中间值会退化成两颗点，所以不能插值）。',
+      why: '不是把点画上去，是统计每格被穿过多少次 → 密度 → 点大小。两组参数在同一帧里各迭代一段（中间值会退化成两颗点，所以不能插值）。',
       tg: 1.0,
       span: 30,
       mk: (cols, rows) => ({ field: DotInk.pheno.deJong(cols, rows, { sets: [[1.641,1.902,.316,1.525],[1.4,-2.3,2.4,-2.1]], span: 30, iter: 60000 }) }) },
     { id: 'grayscott', no: '04', name: 'Gray-Scott 斑图', tag: '反应扩散', title: '两种东西互相喂',
       fml: '∂u/∂t = Du∇²u − u·v² + F(1−u)　∂v/∂t = Dv∇²v + u·v² − (F+k)v',
       src: 'Pearson 1993 · lab/PHENOMENA.md §04',
-      why: '**两种东西互相喂**：孤立斑点 → 吞并 → 满幅迷宫。(F,k) 一旦落进稳定区画面就死了 —— 参考值 F .042 / k .061。',
+      why: '两种东西互相喂：孤立斑点 → 吞并 → 满幅迷宫。(F,k) 一旦落进稳定区画面就死了 —— 参考值 F .042 / k .061。',
       tg: 1.0,
       span: 36,
       mk: (cols, rows) => ({ field: DotInk.pheno.grayScott(cols, rows, { F: .042, k: .061, steps: 1600, every: 10, warm: 150, span: 36 }) }) },
     { id: 'dla', no: '05', name: '扩散限制凝聚', tag: '随机游走', title: '随机走，碰到就留下',
       fml: '随机行走的粒子碰到团簇就粘住',
       src: 'Witten & Sander 1981 · lab/PHENOMENA.md §05',
-      why: '**屏蔽效应**让内枝被饿死，只留下外缘在长 —— 分维度看得见。',
+      why: '屏蔽效应让内枝被饿死，只留下外缘在长 —— 分维度看得见。',
       tg: 1.4,
       span: 44,
       mk: (cols, rows) => ({ field: DotInk.pheno.dla(cols, rows, { particles: 2600, seed: 11, span: 44 }) }) },
     { id: 'kuramoto', no: '06', name: 'Kuramoto 同步', tag: '相位环', title: '互相看见，就同步了',
       fml: 'dθᵢ/dt = ωᵢ + (K/N)·Σ sin(θⱼ − θᵢ)',
       src: 'Kuramoto 1975 · lab/PHENOMENA.md §06',
-      why: '散相时是一片**沙沙响的细环**，锁相时收成一束**刚性旋转** —— 第一版做成"仪表盘"被打回，现在是纯视觉。',
+      why: '散相时是一片沙沙响的细环，锁相时收成一束刚性旋转 —— 第一版做成"仪表盘"被打回，现在是纯视觉。',
       span: 26,
       /* 点列体裁（参考件 still-06 是细圆环 + 中心指针，不是铺满的相位迷宫）：
          520 个振子排在圆周上，K 线性爬升，圆心伸出一根序参量指针（长度 = r·R）。
@@ -236,7 +235,7 @@
     { id: 'bifurcation', no: '07', name: '倍周期分叉', tag: 'Feigenbaum', title: '一分二，二分四，然后乱',
       fml: 'xₙ₊₁ = r · xₙ · (1 − xₙ)',
       src: 'Feigenbaum 1978 · lab/PHENOMENA.md §07',
-      why: '主干 → 一分为二 → 级联 → **混沌海与白窗**。不做"缩放看自相似"：深层是 Cantor 尘，拉起来像条形码。',
+      why: '主干 → 一分为二 → 级联 → 混沌海与白窗。不做"缩放看自相似"：深层是 Cantor 尘，拉起来像条形码。',
       tg: 1.5,
       /* §14：勾线（分叉树）走 M3 —— 整屏覆盖率 4.55% 在 M2 下会被判死，而树本身读得清。
          auto 不会替你解释这件事，必须这一屏自己声明。 */
@@ -245,7 +244,7 @@
     { id: 'interference', no: '08', name: '两源干涉', tag: '同心波 + 双曲线', title: '波在动，条纹不动',
       fml: 'A = Σᵢ sin(k·rᵢ − ωᵢt)/√rᵢ',
       src: 'lab/PHENOMENA.md §08',
-      why: '**波在动，条纹不动**；两源分开 → 条纹变密。零模拟、零随机、纯解析 —— 用 6px 点距才分辨得出条纹。',
+      why: '波在动，条纹不动；两源分开 → 条纹变密。零模拟、零随机、纯解析 —— 用 6px 点距才分辨得出条纹。',
       tg: .8,
       span: 24,
       mk: (cols, rows) => ({ field: DotInk.pheno.interference(cols, rows, { lam: .056, d0: .07, d1: .48, period: 24, omega: 1.2 }) }) },

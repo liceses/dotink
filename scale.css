@@ -1,0 +1,47 @@
+/* ============================================================================
+ * scale.css · 界面尺度（间距阶 / 字阶 / 线宽 / 时长）
+ * ----------------------------------------------------------------------------
+ * ⚠ 这是**生成件**：由 `node tools/build-scale.mjs` 从 theme/scale.json 生成。
+ *   要改字号或间距请改 scale.json，然后重跑；check/scale.mjs 会比对逐字节一致。
+ *
+ * 为什么界面也要有阶：画布只有 0/1 两色、网点只有面积差别 —— 它没有中间调。
+ * 界面如果留着 9.5px / 13.5px 这种半像素档，就等于在承诺一种画布给不了的分辨率。
+ *
+ * 引入顺序：theme.css → scale.css → ink.css → 页面自己的 <style>。
+ * ========================================================================== */
+
+:root{
+  /* 基础单位：4px。能整除画布点距 8 / 12 / 24；DPR 1 / 1.5 / 2 下都是整数设备像素 */
+  --u:4px;
+
+  /* 间距阶（全部是 --u 的整数倍） */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+  --s6:24px; --s7:32px; --s8:40px; --s9:56px; --s10:72px;
+  --s-gutter:clamp(16px,3vw,32px); --s-section:clamp(20px,3vw,32px);
+
+  /* 字阶：零件（--t-* 尺寸 / --lh-* 行高 / --tr-* 字距） */
+  --t-readout:10px; --lh-readout:12px; --tr-readout:.14em;
+  --t-mono:12px; --lh-mono:16px; --tr-mono:.06em;
+  --t-body:14px; --lh-body:20px;
+  --t-lead:16px; --lh-lead:24px;
+  --t-h3:20px; --lh-h3:24px; --tr-h3:-.01em;
+  --t-h2:26px; --lh-h2:32px; --tr-h2:-.02em;
+  --t-display:clamp(32px,5.2vw,64px); --lh-display:1; --tr-display:-.032em;
+  --t-hero:clamp(44px,8vw,112px); --lh-hero:1; --tr-hero:-.03em;
+
+  /* 字阶：成品（font 简写；页面上写 font:var(--font-body)，不再出现数字） */
+  --font-readout:500 10px/12px var(--f-m);
+  --font-mono:500 12px/16px var(--f-m);
+  --font-body:400 14px/20px var(--f-d);
+  --font-lead:400 16px/24px var(--f-d);
+  --font-h3:800 20px/24px var(--f-d);
+  --font-h2:800 26px/32px var(--f-d);
+  --font-display:800 clamp(32px,5.2vw,64px)/1 var(--f-d);
+  --font-hero:900 clamp(44px,8vw,112px)/1 var(--f-d);
+
+  /* 线宽：只有两种 */
+  --bw-hair:1px; --bw-frame:2px;
+
+  /* 时长：只有两档（界面没有"微妙"的过渡，STANDARD §9 禁的是渲染路径，不是 DOM） */
+  --dur-fast:140ms; --dur-base:160ms;
+}

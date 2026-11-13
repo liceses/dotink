@@ -6,13 +6,11 @@
 <title>点墨 · Hero 示例（把点墨当网站视觉重心）</title>
 <link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">
 <link rel="stylesheet" href="ink.css">
 <script src="theme.js"></script>
 <style>
-  :root{
-    --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
-    --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  }
+  
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-d);
     -webkit-font-smoothing:antialiased}
@@ -49,7 +47,7 @@
   .hero > .site-head::after{content:'';position:absolute;left:0;right:0;top:100%;height:38px;
     pointer-events:none;
     background:linear-gradient(180deg, var(--page) 0%, rgba(var(--page-rgb),0) 100%)}
-  .hero > .site-head .in{padding-top:clamp(14px,2.2vw,24px)}
+  .hero > .site-head .in{padding-top:clamp(16px,2.2vw,24px)}
 
   /* ── 正文 ───────────────────────────────────────────────── */
   /* 底部要给读数牌**留出位置**：它是绝对定位在左下角的（约 100px 高），
@@ -59,34 +57,34 @@
     padding:clamp(20px,3vw,36px) clamp(28px,5vw,88px) clamp(112px,13vh,164px)}
   @media (max-width:860px){ .inner{max-width:none} }
 
-  .eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 clamp(18px,3vw,34px);
-    font:600 11px/1 var(--f-m);letter-spacing:.20em;text-transform:uppercase;color:var(--mute)}
+  .eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 clamp(20px,3vw,36px);
+    font:600 var(--t-mono)/1 var(--f-m);letter-spacing:.20em;text-transform:uppercase;color:var(--mute)}
   .eyebrow i{width:8px;height:8px;background:var(--accent);display:block;flex:0 0 auto}
 
-  h1{margin:0;font-size:clamp(44px,8.2vw,116px);line-height:.94;letter-spacing:-.035em;font-weight:800}
+  h1{margin:0;font-size:var(--t-hero);line-height:1;letter-spacing:-.035em;font-weight:800}
   h1 em{font-style:normal;position:relative;white-space:nowrap}
   h1 em::after{content:'';position:absolute;left:0;right:0;bottom:.06em;height:.055em;
     background:var(--ink);opacity:.9}
 
-  .lede{margin:clamp(20px,3vw,34px) 0 0;max-width:44ch;
-    font-size:clamp(15px,1.35vw,19px);line-height:1.72;color:var(--fg-deep)}
+  .lede{margin:clamp(20px,3vw,36px) 0 0;max-width:44ch;
+    font-size:var(--t-lead);line-height:1.75;color:var(--fg-deep)}
   .lede b{font-weight:700;box-shadow:inset 0 -.42em 0 rgba(var(--accent-rgb),.28)}
 
-  .cta{display:flex;align-items:center;gap:26px;flex-wrap:wrap;margin-top:clamp(28px,4vw,46px)}
-  .btn{display:inline-block;padding:14px 24px;background:var(--fg);color:var(--page);
-    text-decoration:none;font:600 13px/1 var(--f-m);letter-spacing:.06em;
+  .cta{display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-top:clamp(28px,4vw,48px)}
+  .btn{display:inline-block;padding:16px 24px;background:var(--fg);color:var(--page);
+    text-decoration:none;font:600 var(--t-body)/1 var(--f-m);letter-spacing:.06em;
     transition:background .16s ease,transform .16s ease}
   .btn:hover{background:var(--accent);color:var(--accent-fg);transform:translateY(-1px)}
-  .link{color:var(--fg);text-decoration:none;font:600 13px/1 var(--f-m);letter-spacing:.06em;
-    border-bottom:1px solid var(--rule);padding-bottom:3px;transition:border-color .16s ease}
+  .link{color:var(--fg);text-decoration:none;font:600 var(--t-body)/1 var(--f-m);letter-spacing:.06em;
+    border-bottom:1px solid var(--rule);padding-bottom:4px;transition:border-color .16s ease}
   .link:hover{border-color:var(--fg)}
 
   /* ── 读数牌：放左侧干净区，给一张纸底小牌 —— 压在墨上必读不出来 ── */
   .readout{position:absolute;left:clamp(28px,5vw,88px);z-index:2;
     bottom:clamp(16px,2.6vw,30px);
-    padding:9px 12px 10px;background:rgba(var(--page-rgb),.90);
+    padding:8px 12px 12px;background:rgba(var(--page-rgb),.90);
     border-left:2px solid var(--accent);
-    font:500 10.5px/1.72 var(--f-m);color:var(--mute);letter-spacing:.02em;
+    font:500 var(--t-mono)/1.75 var(--f-m);color:var(--mute);letter-spacing:.02em;
     font-variant-numeric:tabular-nums;white-space:nowrap}
   .readout b{color:var(--ink);font-weight:700}
   .readout .sep{color:var(--hair)}
@@ -131,6 +129,7 @@
     <a href="transition.html">场转场</a>
     <a href="press.html">套印</a>
     <a href="theme.html">色彩模板</a>
+    <a href="system.html">尺度</a>
   </nav>
   <div class="theme-switch" data-theme-switch></div>
 </div></header>
@@ -181,6 +180,10 @@
   <a class="gcard" href="theme.html">
     <b>色彩模板</b><small>THEME</small>
     <p>六套配色、三层令牌，切换器就在右上角。</p>
+  </a>
+  <a class="gcard" href="system.html">
+    <b>尺度</b><small>THEME</small>
+    <p>八档字阶、十级间距、五条格律。</p>
   </a>
 </div>
 <!-- site:guide:end -->

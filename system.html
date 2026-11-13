@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">
+<link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
+<script src="scale.js"></script>
+<title>点墨 · 尺度（字阶与间距）</title>
+<style>
+  /* 本页的内联样式只做三件事：样张的排布、4px 基线网格、条形的真实宽度。
+     字号与间距一律走 --t-* / --s*，所以这一页自己也在尺子的约束下。 */
+  /* 4px 基线：只画在样张左侧的窄条里，不横穿文字（横穿会像删除线） */
+  .grid{position:relative;padding-left:var(--s6)}
+  .grid::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--s5);
+    background-image:repeating-linear-gradient(180deg,var(--rule) 0 1px,transparent 1px var(--u))}
+  .spec{display:grid;grid-template-columns:200px minmax(0,1fr);gap:0 var(--s5);
+    border-top:var(--bw-hair) solid var(--rule);padding:var(--s4) 0}
+  .spec:last-child{border-bottom:var(--bw-hair) solid var(--rule)}
+  .spec .meta{font:var(--font-mono);color:var(--fg-mute);letter-spacing:.02em}
+  .spec .meta b{display:block;color:var(--fg);font-weight:700}
+  .spec .demo{padding-top:var(--s2);padding-bottom:var(--s2)}
+  .sp-readout{font:var(--font-readout)} .sp-mono{font:var(--font-mono)}
+  .sp-body{font:var(--font-body)} .sp-lead{font:var(--font-lead)}
+  .sp-h3{font:var(--font-h3);letter-spacing:var(--tr-h3)}
+  .sp-h2{font:var(--font-h2);letter-spacing:var(--tr-h2)}
+  .sp-display{font:var(--font-display);letter-spacing:var(--tr-display)}
+  .sp-hero{font:var(--font-hero);letter-spacing:var(--tr-hero)}
+  .steps{display:grid;gap:var(--s2);margin:var(--s4) 0 0}
+  .step{display:grid;grid-template-columns:96px minmax(0,1fr);gap:var(--s4);align-items:center}
+  .step .k{font:var(--font-mono);color:var(--fg-mute)}
+  .step .b{background:var(--ink);height:var(--s4)}
+  .rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--bw-hair);
+    background:var(--rule);border:var(--bw-hair) solid var(--rule);margin:var(--s4) 0 0}
+  .rule{background:var(--page);padding:var(--s4)}
+  .rule b{display:block;font:var(--font-h3);letter-spacing:var(--tr-h3)}
+  .rule p{margin:var(--s2) 0 0;font:var(--font-body);color:var(--fg-deep)}
+  .rule .anti{margin:var(--s3) 0 0;font:var(--font-mono);color:var(--alert)}
+  .rule .pro{margin:var(--s1) 0 0;font:var(--font-mono);color:var(--fg)}
+  .catalog{display:grid;gap:var(--s4);margin:var(--s4) 0 0}
+  .cat{display:grid;grid-template-columns:200px minmax(0,1fr);gap:var(--s5);align-items:start;
+    border-top:var(--bw-hair) solid var(--rule);padding:var(--s4) 0}
+  .cat .nm{font:var(--font-mono);color:var(--fg-mute)}
+  .cat .nm b{display:block;color:var(--fg);font-weight:700}
+  .cat .use{display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center}
+  .cat .tip{font:var(--font-mono);color:var(--fg-mute);margin-top:var(--s2)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5);margin:var(--s4) 0 0}
+  @media (max-width:820px){.two{grid-template-columns:1fr}.spec,.cat{grid-template-columns:1fr;gap:var(--s2)}}
+  .note{font:var(--font-body);color:var(--fg-mute);max-width:70ch;margin:var(--s3) 0 0}
+</style>
+<!-- site:meta:begin -->
+<meta name="description" content="字阶八档、间距十级、五条格律：界面尺寸的唯一真源。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="尺度 · 点墨">
+<meta property="og:description" content="字阶八档、间距十级、五条格律：界面尺寸的唯一真源。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/system.html">
+<link rel="canonical" href="system.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
+</head>
+<body>
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+    <a href="system.html" aria-current="page">尺度</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><span>尺度</span></nav>
+</div>
+<nav class="toc-jump" aria-label="本页目录">
+  <a href="#sec-1">字阶：八档，行高全在 4px 网格上</a>
+  <a href="#sec-2">间距：十级，最小 4px</a>
+  <a href="#sec-3">三个基础量：线宽、时长、中文字号</a>
+  <a href="#sec-4">五条格律</a>
+  <a href="#sec-5">组件目录</a>
+  <a href="#sec-6">怎么改一档</a>
+</nav>
+</div>
+<!-- site:head:end -->
+
+<section class="page-intro">
+  <p class="kicker"><i></i>Dot Ink · Scale · 4px</p>
+  <h1 class="display">尺度</h1>
+  <p>颜色有两层（画布 / 界面），尺寸只有一层：<code class="mono">theme/scale.json</code> → <code class="mono">scale.css</code>。这一页的每一行样张都是<b>从那份数据现算出来的</b>，不是手抄的样张 —— 改了数据，这一页跟着变；改了这一页不会变，因为字号不在这里写。</p>
+  <p>为什么界面也要有阶：画布只有 0/1 两色、网点只有面积差别，它<b>没有中间调</b>。界面如果留着 9.5px / 13.5px 这种半像素档，就等于在承诺一种画布给不了的分辨率。</p>
+</section>
+
+<main class="page-body">
+  <h2 id="sec-1">字阶：八档，行高全在 4px 网格上</h2>
+  <p class="note">字号不要求是 4 的倍数（10 / 14 / 26 是字体的光学尺寸），但<b>行高</b>必须是 —— 版面的节奏在行高，不在字号。下面每行右边的灰格就是 4px 基线，行距没对齐会立刻看出来。</p>
+  <div id="ladder"></div>
+
+  <h2 id="sec-2">间距：十级，最小 4px</h2>
+  <p class="note">每一条的真实宽度就是那个令牌的值（不是示意图）。间距阶之外没有别的值 —— <code class="mono">check/scale.mjs</code> 会扫描所有页面的 <code class="mono">padding / margin / gap</code>。</p>
+  <div class="steps" id="steps"></div>
+
+  <h2 id="sec-3">三个基础量：线宽、时长、中文字号</h2>
+  <div class="two">
+    <div>
+      <p class="note"><b>只有两种线。</b>1px 纸缝（分隔，不表态）与 2px 墨框（表态、围住一块判据）。没有 3px，没有渐变描边，没有圆角。</p>
+      <div class="cat" style="border-top:0;padding-top:0">
+        <div class="nm"><b>--bw-hair</b>1px</div>
+        <div class="use"><span style="display:block;width:100%;height:1px;background:var(--rule)"></span></div>
+      </div>
+      <div class="cat">
+        <div class="nm"><b>--bw-frame</b>2px</div>
+        <div class="use"><span style="display:block;width:100%;height:2px;background:var(--ink)"></span></div>
+      </div>
+    </div>
+    <div>
+      <p class="note"><b>只有两档时长。</b>140ms 用于即时反馈（hover、按下），160ms 用于位置变化。渲染路径上的动画不受这条约束 —— <code class="mono">STANDARD §9</code> 禁的是逐帧确定性，不是 DOM 过渡。</p>
+      <div class="cat" style="border-top:0;padding-top:0">
+        <div class="nm"><b>--dur-fast</b>140ms</div>
+        <div class="use"><span class="ink-btn">hover 它</span></div>
+      </div>
+      <div class="cat">
+        <div class="nm"><b>中文最小</b>12px</div>
+        <div class="use"><span style="font:var(--font-readout)">拉丁 10px 可以（DOT INK · 2026）</span><span style="font:var(--font-mono)">中文 12px 起（点墨）</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">10px 那一档只给拉丁与数字：这一页自己在 9.5px 的中文上试过一次，笔画已经发虚 —— 那不是"精致"，是浏览器在替你舍入。</p>
+
+  <h2 id="sec-4">五条格律</h2>
+  <div class="rules">
+    <div class="rule">
+      <b>R1 · 量化，不插值</b>
+      <p>八档就是八档。字号与行高之间不写"差不多"的中间值；要更大就换档。</p>
+      <p class="anti">反例 font-size:13.5px</p>
+      <p class="pro">正例 font-size:var(--t-body)</p>
+    </div>
+    <div class="rule">
+      <b>R2 · 4px 格律</b>
+      <p>所有间距、行高、控件高度都是 4 的倍数。4 能整除画布点距 8 / 12 / 24，DPR 1 / 1.5 / 2 下都是整数设备像素。</p>
+      <p class="anti">反例 padding:11px 14px</p>
+      <p class="pro">正例 padding:var(--s3) var(--s4)</p>
+    </div>
+    <div class="rule">
+      <b>R3 · 只有两种线</b>
+      <p>1px 纸缝、2px 墨框。零圆角、零外投影 —— 这两条全站已经在遵守，门禁把它们钉住。</p>
+      <p class="anti">反例 border-radius:6px</p>
+      <p class="pro">正例 border-radius:0</p>
+    </div>
+    <div class="rule">
+      <b>R4 · 状态用墨，不用色</b>
+      <p>在动 = 实心方块；停住 = 空心；到端点 = 圆点；判据不过 = <span class="ink-bad">--alert</span>。强调色只做装饰（它对纸只有 3.01:1）。</p>
+      <p class="anti">反例 「过了」用绿色</p>
+      <p class="pro">正例 过了 = 墨，不过 = --alert</p>
+    </div>
+    <div class="rule">
+      <b>R5 · 数字交给等宽</b>
+      <p>所有读数用等宽 + <code class="mono">tabular-nums</code>，右对齐、同宽。点墨的读数牌是判据的一部分 —— 覆盖率、点距、tac 抖一下，数字就不信人。</p>
+      <p class="anti">反例 覆盖率 11.2% / 8.7%</p>
+      <p class="pro">正例 覆盖率 11.20% / 8.70%</p>
+    </div>
+  </div>
+
+  <h2 id="sec-5">组件目录</h2>
+  <p class="note">这一族是全站共用的 DOM 件。名字带 <code class="mono">ink-</code> 前缀的一律来自 <code class="mono">ink.css</code>，页面里不再重抄。</p>
+  <div class="catalog" id="catalog"></div>
+
+  <h2 id="sec-6">怎么改一档</h2>
+  <p class="note">改数据、重生成、跑门禁 —— 三步。手改生成件会被 <code class="mono">--check</code> 当场抓住。</p>
+  <code class="ink-code"># 1. 改唯一真源
+#    theme/scale.json —— 加一档字阶 / 调一级间距 / 改基础单位
+# 2. 重新生成 scale.css 与 scale.js
+node tools/build-scale.mjs
+# 3. 跑门禁（裸字号、离阶间距、字体单源、形制、引入顺序、行高种数）
+node --test check/scale.mjs
+npm run check</code>
+  <p class="note">要加一个组件：先在 <code class="mono">ink.css</code> 里用令牌写一条（<b>不许出现数字与颜色</b>），再在这里挂一个真实实例。组件目录里如果出现"只有图没有实例"的条目，说明它已经和代码脱节了。</p>
+</main>
+
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>点墨 Dot Ink · 画面只有墨与纸两色像素，中间调由点面积表达</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
+
+<script>
+/* 这一页不写死任何一个字号或间距：样张、条形、组件实例都从 DotInkScale 现造。
+   于是"文档写的"与"CSS 里生效的"永远是同一份数据 —— 手抄的样张迟早会漂。 */
+(function () {
+  var S = window.DotInkScale;
+  if (!S) return;
+
+  /* ① 字阶样张 */
+  var ladder = document.getElementById('ladder');
+  S.type.forEach(function (t) {
+    var size = typeof t.size === 'number' ? t.size + 'px' : t.size;
+    var lh = t.lh <= 2 ? String(t.lh) : t.lh + 'px';
+    var row = document.createElement('div');
+    row.className = 'spec';
+    row.innerHTML =
+      '<div class="meta"><b>' + t.key + '</b>' + size + ' / ' + lh +
+      '<br>' + (t.family === 'mono' ? '等宽' : '无衬线') + ' · ' + t.weight +
+      (t.fluid ? ' · 流体' : '') + '</div>' +
+      '<div class="demo grid"><span class="sp-' + t.key + '">点墨：中间调由点面积表达，' +
+      (t.key === 'readout' ? 'DOT INK 1-BIT 2026' : '没有灰阶') + '</span></div>';
+    ladder.appendChild(row);
+  });
+
+  /* ② 间距阶梯（真实宽度） */
+  var steps = document.getElementById('steps');
+  Object.keys(S.space).forEach(function (k) {
+    var row = document.createElement('div');
+    row.className = 'step';
+    row.innerHTML = '<div class="k">--' + k + ' · ' + S.space[k] + 'px</div>' +
+      '<div class="b" style="width:var(--' + k + ')"></div>';
+    steps.appendChild(row);
+  });
+  [['gutter', S.fluid.gutter], ['section', S.fluid.section]].forEach(function (p) {
+    var row = document.createElement('div');
+    row.className = 'step';
+    row.innerHTML = '<div class="k">--s-' + p[0] + '</div><div class="k">' + p[1] + '</div>';
+    steps.appendChild(row);
+  });
+
+  /* ③ 组件目录：每个都是真实实例，不是截图 */
+  var CATALOG = [
+    ['ink-btn', '按钮', 'min-height 40 · 2px 墨框 · 直角',
+      '<span class="ink-btn">普通</span><span class="ink-btn is-primary">主按钮</span><span class="ink-btn" aria-disabled="true">禁用</span>'],
+    ['ink-tabs', '页签', '一行等宽直角；溢出横向滚，不换行',
+      '<div class="ink-tabs" style="flex:1"><button class="ink-tab" aria-selected="false">A<small>alpha</small></button><button class="ink-tab" aria-selected="true">B<small>beta</small></button><button class="ink-tab" aria-selected="false">C<small>gamma</small></button></div>'],
+    ['ink-seg', '分段选择', 'radio 实现，方向键天然可用',
+      '<div class="ink-seg"><label><input type="radio" name="seg-demo" checked><span>逐格选取</span></label><label><input type="radio" name="seg-demo"><span>场域混合</span></label></div>'],
+    ['ink-status', '状态签', '方块 = 状态：实心在动 / 空心停 / 圆点到端点 / accent 需注意',
+      '<span class="ink-status" data-state="playing">播放中</span><span class="ink-status" data-state="paused">暂停</span><span class="ink-status" data-state="at-a">停在 A</span><span class="ink-status" data-state="warn">判据不过</span>'],
+    ['ink-kbd', '键帽', '边框 1px + 下边框 2px = 可按的感觉',
+      '<span class="ink-kbd">←</span><span class="ink-kbd">空格</span><span class="ink-kbd">R</span>'],
+    ['ink-ctl / lab / kv', '读数家族', '曾被 6–9 个页面逐字复制；现在只有一份',
+      '<div class="ink-ctl" style="flex:1"><span class="ink-lab">覆盖率</span><span class="ink-kv"><b>11.20</b> %</span><span class="ink-lab">点距</span><span class="ink-kv"><b>8.00</b> px</span></div>'],
+    ['ink-ok / ink-bad', '判据结论', '过 = 墨，不过 = --alert（强调色只做装饰）',
+      '<span class="ink-ok">✓ 1-bit 无灰阶 0 px</span><span class="ink-bad">✗ 覆盖率 5.21% &lt; 8%</span>'],
+    ['ink-code', '命令块', '左 2px 墨线；等宽 12/16',
+      '<code class="ink-code" style="flex:1">node tools/build-scale.mjs --check</code>'],
+    ['ink-no', '小节序号', '强调色、等宽、字距 .14em',
+      '<span class="ink-no">03</span>'],
+    ['ink-panel / param', '参数面板', '标签 · 控件 · 读数 三列；读数右对齐',
+      '<div style="flex:1"><div class="ink-param"><span>点距 cell</span><input type="range" class="ink-range" min="4" max="24" value="8"><output>8.00</output></div></div>']
+  ];
+  var host = document.getElementById('catalog');
+  CATALOG.forEach(function (c) {
+    var row = document.createElement('div');
+    row.className = 'cat';
+    row.innerHTML = '<div class="nm"><b>' + c[0] + '</b>' + c[1] + '</div>' +
+      '<div><div class="use">' + c[3] + '</div><div class="tip">' + c[2] + '</div></div>';
+    host.appendChild(row);
+  });
+}());
+</script>
+
+</body>
+</html>

@@ -1,11 +1,14 @@
 # check/ · 本地自查脚本（**不是验收门禁**）
 
 ```powershell
-node --test check/core.mjs        # 18 项：公式 / 场 / 现象确定性 / 厂标数据 / 拆件装配 / 整条管线 / 版本 / 文件表 / 页面装载顺序
+node --test check/core.mjs        # 20 项：公式 / 场 / 现象确定性 / 厂标数据 / 拆件装配 / 整条管线 / 版本 / 文件表 / 页面装载顺序
 node --test check/transition.mjs  # 21 项：五种场转场、端点 / 值域 / 种子 / seek 与倒放 / 源内存保护 / 编码校验 / 管线
-node --test check/press.mjs       # 19 项：调色板与碰撞 / 单版≡单色 render / 确定性 / 分色与 TAC / 色数与漏色 / 漂移单调性 / 装载顺序无关 / t 归正 / 版名唯一
+node --test check/press.mjs       # 26 项：调色板与碰撞 / 单版≡单色 render / 确定性 / 分色与 TAC / 色数与漏色 / 漂移单调性 / 装载顺序无关 / t 归正 / 版名唯一
+node --test check/theme.mjs       # 15 项：六套配色的合法性 / 对比度门禁 / 生成件零漂移 / 裸色禁令 / 画布取色
+node --test check/site.mjs        # 10 项：nav.json 合法性 / 标记区成对 / 骨架零漂移 / aria-current 唯一 / 面包屑 / 链接锚点 / meta
+node --test check/scale.mjs       # 14 项：尺度数据合法性 / 四条门禁 / 生成件零漂移 / 裸字号禁令 / 离阶禁令 / 字体单源 / 形制 / 引入顺序 / 行高种数
 node tools/check-links.mjs        # 文档与页面里的相对链接、src 与 href 不许悬空
-# 或者一条：npm run check（core.mjs + transition.mjs + press.mjs + 链接）
+# 或者一条：npm run check（六个 check + 三个 --check + 链接）
 ```
 
 ## 它守什么、不守什么
@@ -19,6 +22,8 @@ node tools/check-links.mjs        # 文档与页面里的相对链接、src 与 
 | 版本号一致、文档无断链、入口文件都在、页面装载顺序正确 | 观感、节奏、有没有"糊成一片" |
 | **拆件装配**：核心不认识 HUD、四个核件存在、`overlays` 只加墨不改场（假画布跑整条管线） | 叠加层的构图好不好看 |
 | **多色版套印**：单版 ≡ 单色 `render`（逐字节）、调色板碰撞（四版实到 15 色）、分色端点、TAC 压得住且像素不越界、套印偏移可复现 | 套得"像不像印刷机"、漏色重影好不好看 |
+| **配色**：六套对比度门禁、画布令牌逐位等于 §1、页面里没有裸色 | 六套里哪套"更好看" |
+| **尺度**：字号/间距只从令牌来、间距落在 4px 阶上、字体单源、零圆角零外投影、引入顺序 | 这一档字阶在长文里读着累不累（要真的读一段） |
 
 ### 关于 `press.mjs` 的两条口径
 

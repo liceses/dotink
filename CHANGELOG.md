@@ -3,6 +3,59 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 2.4.0 — 2026-11-14
+
+**新增：界面尺度层（`theme/`）+ 设计系统页 `system.html`**
+
+*尺度：数据 → 生成件 → 12 个页面*
+- 唯一真源 [`theme/scale.json`](theme/scale.json)：基础单位 **4px**（能整除画布点距 8 / 12 / 24，DPR 1 / 1.5 / 2 下都是整数设备像素）、
+  **八档字阶**、**十级间距**、线宽两档（1px 纸缝 / 2px 墨框）、时长两档（140 / 160ms）、行高白名单六档比值。
+- 生成件 [`scale.css`](scale.css) / [`scale.js`](scale.js)，生成器 `tools/build-scale.mjs`（`--check` 零漂移）。
+  令牌分**零件**（`--t-*` / `--lh-*` / `--tr-*`）与**成品**（`--font-*` 是完整 `font` 简写）——
+  页面写 `font: var(--font-body)`，不再出现字号数字。
+- 四条门禁：间距阶梯递增且在阶上 · 行高是 4 的倍数且 ≥ 字号 · 线宽恰好 1/2 · 中文字号 ≥ 12 且阶里真有那一档。
+  生成前先跑门禁，不过就 exit 1。
+- [`check/scale.mjs`](check/scale.mjs) **14 条**：数据合法 / 四条门禁 / 两个生成件零漂移 / 令牌齐全 / scale.js 是经典脚本 /
+  **裸字号禁令**（`font-size:<数字>px`、`font:` 简写带 px）/ **离阶禁令**（padding·margin·gap 必须是 4 的倍数）/
+  **字体单源**（`--fd`·`--fm` 出现即红，页面不许重抄字体栈）/ **令牌单源** / **形制禁令**（`border-radius` 只许 0 或 50%，
+  `box-shadow` 只许 inset·环·none）/ 引入顺序 theme → scale → ink / 行高种数 ≤ 8。
+
+*迁移：22 种字号 → 8 档，19 个手写 clamp → 2 个命名槽位*
+- 12 个页面共 **342 处**替换：`font-size` 30 处、`font:` 简写 105 处、间距 207 处（就近取 4 的倍数，负值不动）。
+  审计脚本报 0 条残留。
+- **行高收敛 40 处**：全站比值按 {1, 1.15, 1.3, 1.45, 1.6, 1.75} 就近合并，最终分布 `1×35 · 1.15×10 · 1.3×20 · 1.45×10 · 1.6×23 · 1.75×13`。
+  保留 `line-height:0` 7 处（消掉 inline-block 基线缝的布局技巧，不是节奏值，已在 SYSTEM.md §5 登记）。
+- 字体栈去重：`icon` / `logo-demo` / `marks-type` / `marks` 四页的 `:root{--fd;--fm}` 整块删除、
+  `gallery` / `hero` / `preview` 三页只装字体栈的 `:root{}` 删除；全站 `--fd`/`--fm` **0 处**。
+  其中 4 份栈原来缺 `Inter` 与 `Cascadia Mono`，现在统一由 `ink.css` 提供。
+- `ink.css` 2.4：所有尺寸改走令牌；新增读数家族 `.ink-ctl` / `.ink-lab` / `.ink-kv` / `.ink-ok` / `.ink-bad`
+  （`.ctl/.lab/.kv/.ok/.bad` 曾在 6–9 个页面逐字复制）与 `.ink-col` / `.ink-stage` / `.ink-code` / `.ink-no`；
+  旧类名 `.wrap/.stage/.cmd/.no` 留**一版兼容别名**。删掉 `--head-h`（全站 0 处引用）。
+- 修了一个真 bug：`.kicker` 继承了 `.page-intro p` 的 `max-width:64ch`，`icon.html` 的长 kicker 折成两行且首行只剩半句 →
+  `.page-intro .kicker{max-width:none}`。
+- 三处迁移误伤已修：`hero.html` 的 h1 被 clamp 规则统一成 `--t-lead`（大字塌成 16px）→ `--t-hero`；
+  `press.html` 三处 `.pr-* h2` 同因 → `--t-h3`；`hero.html` 的 `.readout` 10px 中文太细 → `--t-mono`。
+- `gallery.html` 读数表回到 12px 等宽（统一到 body 14px 后，380px 右栏的表格被挤成两行）；
+  10 条 `why:` 字符串里残留的 markdown `**` 全部剥离（页面直接当文本渲染，屏幕上就是星号）。
+
+*新页：`system.html`（设计系统页，已登记为站点「资源」）*
+- 字阶样张 / 间距阶梯 / 三个基础量 / 五条格律（R1 量化不插值 · R2 4px 格律 · R3 只有两种线 · R4 状态用墨不用色 ·
+  R5 数字交给等宽，每条带反例与正例）/ 组件目录（10 个真实实例）/ 怎么改一档。
+- **样张不是手抄的**：全部由 `DotInkScale`（字阶 / 间距）与 `ink.css` 的类（组件实例）现造 —— 改了数据，页面跟着变。
+
+*文档与清单*
+- 新建 [`SYSTEM.md`](SYSTEM.md)：三层令牌、尺子（字阶 / 间距 / 线宽 / 时长）、怎么用、14 条门禁、豁免、边界
+  （尺度**不属** STANDARD；4px 依赖画布点距；display/hero 的 vw 例外；行高收敛的代价）。
+- `README.md`：站点地图加 `system.html`；新增「尺度（界面尺寸，可选）」小节；「这一页是什么」表加 5 行。
+- `STANDARD.md` §11：新增「不属本标准、但本站也有一套：界面的尺度」，写明 4px 与画布点距的关系。
+- `SKILL.md`：§0 加 2 行只读（scale.json / SYSTEM.md / system.html）、§5 加「字号与间距不手写数字」、§6 命令更新。
+- `check/README.md`：六条 `node --test` 各自注条数（20 / 21 / 26 / 15 / 10 / 14），守得住表加「配色」「尺度」两行。
+- 版本 **2.4.0**：`package.json`（files 加 4 条、exports 加 3 条、scripts 加 `system` 与 `build-scale`）、`dotink.js` 的 `version`；
+  `check/core.mjs` 的文件表加 `system.html` / `scale.css` / `scale.js` / `theme/scale.json` / `SYSTEM.md`。
+
+*自查*
+- `npm run check`：**106 test / 106 pass**（20 + 21 + 26 + 15 + 10 + 14）· 三个 `--check` 零漂移 · 链接 **667 条**全部存在。
+
 ## 2.3.0 — 2026-11-13
 
 **新增：六套配色（`theme/`）+ 站点信息架构（`site/`）**

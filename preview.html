@@ -5,38 +5,36 @@
 <title>点墨 · 判据计算器与实验台</title>
 <link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">
 <link rel="stylesheet" href="ink.css">
 <script src="theme.js"></script>
 <style>
-  :root{
-    --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
-    --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  }
+  
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.55 var(--f-d)}
+  body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--t-body)/1.6 var(--f-d)}
   /* 站点头 / 页脚 / 大标题交给 ink.css；正文自己包一层容器（原来靠 body 的 padding） */
   .page-body{padding:clamp(16px,3vw,32px);max-width:1600px;margin:0 auto}
-  .lede{margin:0 0 22px;color:var(--mute);max-width:78ch}
-  .lab{font:500 12px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
-  .row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+  .lede{margin:0 0 24px;color:var(--mute);max-width:78ch}
+  .lab{font:500 var(--t-mono)/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .row{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
   .card{border:2px solid var(--ink);background:var(--paper)}
-  .card > .hd{padding:8px 10px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;gap:10px;align-items:baseline}
-  .card > .bd{padding:10px}
+  .card > .hd{padding:8px 12px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+  .card > .bd{padding:12px}
   canvas.frame{display:block;width:100%;height:auto;image-rendering:pixelated}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;flex:1 1 720px;min-width:560px}
-  .ctl{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;margin:18px 0}
-  label.ctl{display:flex;flex-direction:column;gap:4px;font:500 12px var(--f-m);color:var(--mute)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1 1 720px;min-width:560px}
+  .ctl{display:flex;flex-wrap:wrap;gap:16px 20px;align-items:center;margin:20px 0}
+  label.ctl{display:flex;flex-direction:column;gap:4px;font:500 var(--t-mono) var(--f-m);color:var(--mute)}
   input[type=range]{width:150px}
-  select,button{font:600 13px var(--f-d);padding:7px 10px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:0}
+  select,button{font:600 var(--t-body) var(--f-d);padding:8px 12px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:0}
   button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
-  table{border-collapse:collapse;width:100%;font-size:13px}
-  th,td{border-bottom:1px solid var(--hair);padding:5px 6px;text-align:left;vertical-align:top}
-  th{font:500 11px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+  table{border-collapse:collapse;width:100%;font-size:var(--t-body)}
+  th,td{border-bottom:1px solid var(--hair);padding:4px 8px;text-align:left;vertical-align:top}
+  th{font:500 var(--t-mono) var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
   .ok{color:var(--ink);font-weight:700}
   .bad{color:var(--accent);font-weight:700}
-  .kv{font:500 12px var(--f-m)}
+  .kv{font:500 var(--t-mono) var(--f-m)}
   #zoom{width:320px;height:180px}
-  .hint{font-size:12px;color:var(--mute);margin-top:8px}
+  .hint{font-size:var(--t-mono);color:var(--mute);margin-top:8px}
   .accent{color:var(--accent)}
 </style>
 <!-- site:meta:begin -->
@@ -70,6 +68,7 @@
     <a href="transition.html">场转场</a>
     <a href="press.html">套印</a>
     <a href="theme.html">色彩模板</a>
+    <a href="system.html">尺度</a>
   </nav>
   <div class="theme-switch" data-theme-switch></div>
 </div></header>

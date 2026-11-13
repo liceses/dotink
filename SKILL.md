@@ -27,6 +27,8 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 | [`icon.svg`](icon.svg) · [`icon.html`](icon.html) | **品牌图标**（几何即 §3/§4 的一次应用：15×15 网点 · maxFrac 0.406 · √ 映射 · 一颗 accent 点）+ **图标工坊**（任意尺寸导出、0 灰阶自检） |
 | [`theme/palettes.json`](theme/palettes.json) · [`THEME.md`](THEME.md) | **六套配色（可选，不属本标准）**：唯一真源 JSON → 生成 `theme.css`/`theme.js`；只有 `original` 是 standard，其余五套 edition。画布取色走 `DotInkTheme.canvas()`，换套后**必须重建实例** |
 | [`site/nav.json`](site/nav.json) · [`spec.html`](spec.html) | **站点信息架构**：5 分区 + 1 资源；顶栏/副条/面包屑/页内目录/页脚/meta 全部由它生成，**手改会被 `check/site.mjs` 打回** |
+| [`theme/scale.json`](theme/scale.json) · [`SYSTEM.md`](SYSTEM.md) | **尺度（可选，不属本标准）**：字号八档 / 间距十级 / 线宽两档 / 时长两档，4px 基准 → 生成 `scale.css`/`scale.js`；页面里只许 `var(--t-*)` / `var(--s*)` |
+| [`system.html`](system.html) | **设计系统页**：字阶样张、间距阶梯、五条格律、组件目录（样张都从 `DotInkTheme` / `DotInkScale` 现造，不是手抄） |
 
 ## 0.5 · 在产线里怎么落（优先这条）
 
@@ -133,13 +135,17 @@ python lab/tools/measure/ink-budget.py --frames <帧目录>
   （`check/theme.mjs` 的裸色禁令会红）。画布取色只能走 `DotInkTheme.canvas()`，换套后**必须重建实例**。
 - **导航不手改**：顶栏/副条/面包屑/页脚/`meta` 都由 [`site/nav.json`](site/nav.json) 生成，
   `node tools/build-site.mjs` 写盘、`check/site.mjs` 查零漂移。改页面结构别改头。
+- **字号与间距不手写数字**：八档字阶（10/12 · 12/16 · 14/20 · 16/24 · 20/24 · 26/32 · 两个 clamp）与十级间距
+  （4…72）都在 [`theme/scale.json`](theme/scale.json)。要改就改数据 → `node tools/build-scale.mjs` →
+  `node --test check/scale.mjs`。页面里写 `font: 400 14px/20px …` 会被裸字号禁令打回；
+  `padding: 11px` 这类离阶值同样打回。中文最小 12px（10px 那档只给拉丁与数字）。
 
 ## 6 · 改完必跑
 
 ```powershell
-npm run check          # 92 test + 两个 --check 零漂移 + 链接 605 条
+npm run check          # 六个 check 套件 + 三个 --check 零漂移 + 链接检查
 ```
 
-只跑一部分：`node --test check/core.mjs check/theme.mjs check/site.mjs` ·
-`node tools/build-theme.mjs --check` · `node tools/build-site.mjs --check` · `node tools/check-links.mjs`。
+只跑一部分：`node --test check/core.mjs check/theme.mjs check/site.mjs check/scale.mjs` ·
+`node tools/build-theme.mjs --check` · `node tools/build-scale.mjs --check` · `node tools/build-site.mjs --check` · `node tools/check-links.mjs`。
 **"跑绿"不等于"对"**：§2 第 8 条仍然成立 —— 数值只用来定位，签字的是人的眼睛。

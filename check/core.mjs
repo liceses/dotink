@@ -208,9 +208,9 @@ test('文件表：README 里点名的入口文件都真的存在', () => {
   const need = ['dotink.js', 'fields.js', 'render.js', 'judge.js', 'host.js', 'hud.js',
     'pheno.js', 'markplate.js', 'marks.js', 'logo.js', 'STANDARD.md', 'THEME.md',
     'preview.html', 'gallery.html', 'hero.html', 'marks.html', 'marks-type.html', 'logo-demo.html', 'icon.html',
-    'spec.html', 'theme.html', 'ink.css', 'theme.css', 'theme.js',
-    'theme/palettes.json', 'site/nav.json',
-    'NOTICE.md', 'SKILL.md', 'LICENSE', 'CHANGELOG.md', 'OPENSOURCE.md',
+    'spec.html', 'theme.html', 'system.html', 'ink.css', 'theme.css', 'theme.js',
+    'scale.css', 'scale.js', 'theme/palettes.json', 'theme/scale.json', 'site/nav.json',
+    'NOTICE.md', 'SKILL.md', 'SYSTEM.md', 'LICENSE', 'CHANGELOG.md', 'OPENSOURCE.md',
     'docs/01-standard.md', 'docs/02-phenomena.md', 'docs/03-marks-logo.md'];
   for (const f of need) assert.ok(fs.existsSync(path.join(ROOT, f)), '缺文件：' + f);
 });

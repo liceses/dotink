@@ -60,7 +60,7 @@
 | **字符与厂标** `marks` | [`marks-type.html`](marks-type.html) 字版厂标 · [`marks.html`](marks.html) 点墨厂标 · [`logo-demo.html`](logo-demo.html) logo 组件 · [`icon.html`](icon.html) 品牌图标 | 同一套判据一路缩到 32px |
 | **场转场** `transitions` | [`transition.html`](transition.html) 场转场 | 两张同网格的场之间怎么换 |
 | **套印** `press` | [`press.html`](press.html) 套印不齐 | 多版套印的失控与校准（P1–P4 另立判据） |
-| *资源* | [`theme.html`](theme.html) 色彩模板 | 六套配色与三层令牌 |
+| *资源* | [`theme.html`](theme.html) 色彩模板 · [`system.html`](system.html) 尺度 | 六套配色；八档字阶与十级间距 |
 
 导航规则（由 `check/site.mjs` 强制）：
 
@@ -110,6 +110,32 @@ DotInkTheme.onChange(() => rebuild());                     // ⚠ 换套必须**
 
 ---
 
+## 尺度（界面尺寸，可选）
+
+**画布只有 0/1 两色，界面也不该有 22 种字号。** 尺寸只有一份数据：[`theme/scale.json`](theme/scale.json) →
+`node tools/build-scale.mjs` → [`scale.css`](scale.css) + [`scale.js`](scale.js)；页面里只出现 `var(--t-*)` / `var(--s*)`。
+
+- **字号八档**：10/12 · 12/16 · 14/20 · 16/24 · 20/24 · 26/32 · `clamp(32px,5.2vw,64px)`/1 · `clamp(44px,8vw,112px)`/1。
+- **间距十级**：4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 56 / 72，两个自适应槽位 `--s-gutter` 与 `--s-section`。
+- **线宽两种、时长两档**：1px 纸缝 / 2px 墨框；140ms / 160ms。零圆角、零外投影。
+
+```html
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">   <!-- 必须在 ink.css 之前 -->
+<link rel="stylesheet" href="ink.css">
+```
+
+```css
+body { font: var(--font-body); }          /* 别再写 font: 400 14px/20px … */
+.panel { padding: var(--s4); gap: var(--s3); }
+```
+
+> 基础单位是 **4px**：能整除画布点距 8 / 12 / 24，且 DPR 1 / 1.5 / 2 下都是整数设备像素。
+> 加一档：改 `theme/scale.json` → `node tools/build-scale.mjs` → `node --test check/scale.mjs`。
+> 细节（三层令牌、五条格律、14 条门禁与豁免）见 [`SYSTEM.md`](SYSTEM.md)。
+
+---
+
 ## 这一页是什么
 
 | 文件 | 作用 |
@@ -138,6 +164,11 @@ DotInkTheme.onChange(() => rebuild());                     // ⚠ 换套必须**
 | [`theme.css`](theme.css) · [`theme.js`](theme.js) | **生成件**（不许手改）：令牌表 + 切换器；`DotInkTheme.canvas()` 给画布取色，`onChange()` 在换套时重建实例 |
 | [`tools/build-theme.mjs`](tools/build-theme.mjs) · [`tools/build-site.mjs`](tools/build-site.mjs) | 两个生成器：`--check` 只比对，有漂移 exit 1 |
 | [`check/theme.mjs`](check/theme.mjs) · [`check/site.mjs`](check/site.mjs) | 两层验收：配色（门禁 / 零漂移 / 裸色禁令）与信息架构（标记 / 面包屑 / aria / meta / 孤儿页） |
+| [`SYSTEM.md`](SYSTEM.md) | **尺度说明**：三层令牌、八档字阶、十级间距、五条格律、14 条门禁与豁免 |
+| [`theme/scale.json`](theme/scale.json) | **尺度唯一真源**：4px 单位、字阶八档、间距十级、线宽两档、时长两档 |
+| [`scale.css`](scale.css) · [`scale.js`](scale.js) | **生成件**（不许手改）：尺寸令牌 + `DotInkScale`；`system.html` 拿它现造样张 |
+| [`tools/build-scale.mjs`](tools/build-scale.mjs) | 尺度生成器：`--check` 只比对，有漂移 exit 1 |
+| [`check/scale.mjs`](check/scale.mjs) | 尺度验收：四条门禁 / 零漂移 / 裸字号与离阶禁令 / 字体单源 / 形制 / 引入顺序 |
 | [`media/phenomena-8/`](media/phenomena-8) | **示例 A · 参考配方**：《公式就是画面》自然八拍（lab-field4）—— 成片 / 接触印样 / 八张 1:1 静帧 / SHA256 清单 / [`SOURCE.md`](media/phenomena-8/SOURCE.md)，**逐字节取自里程碑** |
 | [`media/`](media) | 示例 B 自检片（`1010-dotink-demo`）与出图 |
 | [`demo/index.html`](demo/index.html) | 自包含独立短片页（双击即播，不依赖线框引擎） |

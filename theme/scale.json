@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "unit": 4,
+  "note": "界面尺度层。与 palettes.json 同一套做法：这是唯一真源，scale.css / scale.js 由 tools/build-scale.mjs 生成。unit=4 的理由不是好看：画布点距是 8 / 12 / 24，4 能整除它们，且在 DPR 1 / 1.5 / 2 下都是整数设备像素（4 / 6 / 8）—— 界面的最小单位必须能落进画布的方格。",
+  "space": {
+    "s1": 4,
+    "s2": 8,
+    "s3": 12,
+    "s4": 16,
+    "s5": 20,
+    "s6": 24,
+    "s7": 32,
+    "s8": 40,
+    "s9": 56,
+    "s10": 72
+  },
+  "fluid": {
+    "gutter": "clamp(16px,3vw,32px)",
+    "section": "clamp(20px,3vw,32px)"
+  },
+  "type": [
+    {
+      "key": "readout",
+      "size": 10,
+      "lh": 12,
+      "family": "mono",
+      "weight": 500,
+      "tracking": ".14em",
+      "note": "读数标签、页脚注、tag。只给拉丁与数字 —— 中文最小 12px（lang.minCjk）。"
+    },
+    {
+      "key": "mono",
+      "size": 12,
+      "lh": 16,
+      "family": "mono",
+      "weight": 500,
+      "tracking": ".06em",
+      "note": "导航、判据读数、表格、按钮。等宽 + tabular-nums，数字才能上下对齐。"
+    },
+    {
+      "key": "body",
+      "size": 14,
+      "lh": 20,
+      "family": "sans",
+      "weight": 400,
+      "tracking": "0",
+      "note": "正文。原来是 15px —— 降到 14px 是为了让 20px 行高落进 4px 格律。"
+    },
+    {
+      "key": "lead",
+      "size": 16,
+      "lh": 24,
+      "family": "sans",
+      "weight": 400,
+      "tracking": "0",
+      "note": "页头导语、小节前的说明句。"
+    },
+    {
+      "key": "h3",
+      "size": 20,
+      "lh": 24,
+      "family": "sans",
+      "weight": 800,
+      "tracking": "-.01em",
+      "note": "小节标题（h3、面板标题）。"
+    },
+    {
+      "key": "h2",
+      "size": 26,
+      "lh": 32,
+      "family": "sans",
+      "weight": 800,
+      "tracking": "-.02em",
+      "note": "二级标题（h2、分区标题）。"
+    },
+    {
+      "key": "display",
+      "size": "clamp(32px,5.2vw,64px)",
+      "fluid": true,
+      "lh": 1,
+      "family": "sans",
+      "weight": 800,
+      "tracking": "-.032em",
+      "note": "页头大标题（.display / h1）。两端是 4 的倍数，中间插值 —— 这是唯一允许的插值例外。"
+    },
+    {
+      "key": "hero",
+      "size": "clamp(44px,8vw,112px)",
+      "fluid": true,
+      "lh": 1,
+      "family": "sans",
+      "weight": 900,
+      "tracking": "-.03em",
+      "note": "首页唯一主视觉。整站只有一处。"
+    }
+  ],
+  "line": {
+    "hair": 1,
+    "frame": 2
+  },
+  "motion": {
+    "fast": 140,
+    "base": 160
+  },
+  "lang": {
+    "minCjk": 12
+  },
+  "lineHeight": [1, 1.15, 1.3, 1.45, 1.6, 1.75]
+}

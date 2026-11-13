@@ -6,6 +6,7 @@
 <title>点墨 · Dot Ink</title>
 <link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">
 <!-- site:meta:begin -->
 <meta name="description" content="点墨 Dot Ink：画面只有墨与纸两色像素，中间调由点面积表达。1-bit、零灰阶、逐帧确定性。">
 <meta property="og:type" content="website">
@@ -31,7 +32,7 @@
   /* 只是一层跳转壳：配色仍走令牌，免得首帧闪一下旧纸色 */
   html,body{margin:0;height:100%;background:var(--page);color:var(--fg)}
   body{display:grid;place-items:center;
-    font:500 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em}
+    font:500 var(--t-body) ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em}
   a{color:var(--fg);text-underline-offset:3px}
   a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 </style>

@@ -6,6 +6,7 @@
 <title>点墨 · 场转场（擦除 / 径向 / 溶解）</title>
 <link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="scale.css">
 <link rel="stylesheet" href="ink.css">
 <script src="theme.js"></script>
 <style>
@@ -23,42 +24,42 @@
   .tr-frame{position:relative;border:2px solid var(--ink);background:var(--paper);line-height:0}
   .tr-frame:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   #cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-  .tr-cap{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:8px;
-    font:500 12px/1.4 var(--f-m);color:var(--mute)}
+  .tr-cap{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:8px;
+    font:500 var(--t-mono)/1.45 var(--f-m);color:var(--mute)}
   .tr-cap b{color:var(--ink);font-weight:700}
   .tr-cap .arrow{color:var(--ink)}
   .tr-cap .enc{margin-left:auto}
 
   /* 走带：按钮 + 进度条。窄屏下进度条独占一行 */
-  .tr-transport{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}
-  .tr-scrub{flex:1 1 220px;display:flex;align-items:center;gap:10px;min-width:0}
-  .tr-scrub output{font:600 12px/1 var(--f-m);font-variant-numeric:tabular-nums;min-width:4.4em;text-align:right}
+  .tr-transport{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:16px}
+  .tr-scrub{flex:1 1 220px;display:flex;align-items:center;gap:12px;min-width:0}
+  .tr-scrub output{font:600 var(--t-mono)/1 var(--f-m);font-variant-numeric:tabular-nums;min-width:4.4em;text-align:right}
   /* 窄屏：四个按钮排成 2×2，进度条独占一行 —— 不留一颗孤零零的按钮 */
   @media (max-width:560px){
     .tr-transport{display:grid;grid-template-columns:1fr 1fr}
     .tr-scrub{grid-column:1 / -1}
   }
 
-  .tr-state{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:12px}
+  .tr-state{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:12px}
   .tr-read{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;margin-top:12px;
     border-top:1px solid var(--hair)}
-  .tr-read div{padding:8px 10px 8px 0;border-bottom:1px solid var(--hair);font:500 11px/1.45 var(--f-m);color:var(--mute)}
-  .tr-read b{display:block;font:600 13px/1.3 var(--f-m);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .tr-read div{padding:8px 12px 8px 0;border-bottom:1px solid var(--hair);font:500 var(--t-mono)/1.45 var(--f-m);color:var(--mute)}
+  .tr-read b{display:block;font:600 var(--t-body)/1.3 var(--f-m);font-variant-numeric:tabular-nums;color:var(--ink)}
   .tr-read b.bad{color:var(--accent)}
 
-  .tr-aside{padding:4px clamp(14px,2.4vw,24px) 20px;min-width:0}
+  .tr-aside{padding:4px clamp(16px,2.4vw,24px) 20px;min-width:0}
   .tr-aside .ink-panel:first-child{border-top:0}
-  .tr-modes{margin-bottom:14px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
-  .tr-modes .ink-tab{padding:8px 6px;text-align:center;min-width:0}
+  .tr-modes{margin-bottom:16px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+  .tr-modes .ink-tab{padding:8px 8px;text-align:center;min-width:0}
   .tr-modes .ink-tab small{letter-spacing:.06em;overflow:hidden;text-overflow:clip}
   @media (max-width:420px){ .tr-modes .ink-tab small{display:none} }
   .tr-pane[hidden]{display:none}
-  .tr-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
-  .tr-row .ink-btn{white-space:normal;text-align:left;line-height:1.35;padding-top:6px;padding-bottom:6px;max-width:100%}
-  .tr-hint{margin:2px 0 0;font-size:12px;line-height:1.6;color:var(--mute)}
-  .tr-hint code{font:500 11.5px var(--f-m);background:var(--panel);padding:1px 4px}
-  .tr-legend{display:flex;flex-wrap:wrap;gap:6px}
-  .tr-keys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:12.5px;align-items:center}
+  .tr-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px}
+  .tr-row .ink-btn{white-space:normal;text-align:left;line-height:1.3;padding-top:8px;padding-bottom:8px;max-width:100%}
+  .tr-hint{margin:4px 0 0;font-size:var(--t-mono);line-height:1.6;color:var(--mute)}
+  .tr-hint code{font:500 var(--t-mono) var(--f-m);background:var(--panel);padding:4px 4px}
+  .tr-legend{display:flex;flex-wrap:wrap;gap:8px}
+  .tr-keys{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;margin:0;font-size:var(--t-mono);align-items:center}
   .tr-keys dt{white-space:nowrap}
   .tr-keys dd{margin:0;color:var(--fg-deep)}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -94,6 +95,7 @@
     <a href="transition.html" aria-current="page">场转场</a>
     <a href="press.html">套印</a>
     <a href="theme.html">色彩模板</a>
+    <a href="system.html">尺度</a>
   </nav>
   <div class="theme-switch" data-theme-switch></div>
 </div></header>
