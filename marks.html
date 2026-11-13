@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
 <title>点墨 · 厂标墙（47 家）</title>
 <style>
-  :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--panel:#E4E7E6;--accent:#FF4B1F;
+  :root{
         --fd:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
         --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   *{box-sizing:border-box}
@@ -41,24 +43,51 @@
   #zoom{width:210px;height:210px;border:2px solid var(--ink);image-rendering:pixelated;background:var(--paper)}
   code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
 </style>
+<!-- site:meta:begin -->
+<meta name="description" content="把字符压成点、再用点拼回字：47 家厂标全部由墨/纸两色像素构成，缩放不糊。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="点墨厂标 · 点墨">
+<meta property="og:description" content="把字符压成点、再用点拼回字：47 家厂标全部由墨/纸两色像素构成，缩放不糊。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/marks.html">
+<link rel="canonical" href="marks.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
 </head>
 <body>
-<header class="site-head">
-  <div class="in">
-    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
-    <nav class="site-nav">
-      <a href="gallery.html">现象画廊</a>
-      <a href="transition.html">场转场</a>
-      <a href="preview.html">判据计算器</a>
-      <a href="marks-type.html">字版厂标</a>
-      <a href="marks.html" aria-current="page">点墨厂标</a>
-      <a href="icon.html">品牌图标</a>
-      <a href="logo-demo.html">logo 组件</a>
-      <a href="STANDARD.md">标准</a>
-    </nav>
-  </div>
-</header>
-
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html" aria-current="true">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><a href="marks-type.html">字符与厂标</a><span class="sep">/</span><span>点墨厂标</span></nav>
+  <nav class="subnav" aria-label="字符与厂标">
+    <a href="marks-type.html">字版厂标</a>
+    <a href="marks.html" aria-current="page">点墨厂标</a>
+    <a href="logo-demo.html">logo 组件</a>
+    <a href="icon.html">品牌图标</a>
+  </nav>
+</div>
+</div>
+<!-- site:head:end -->
 <section class="page-intro">
   <p class="kicker"><i></i>Dot Ink · Marks · 47</p>
   <h1 class="display">点墨厂标</h1>
@@ -101,20 +130,15 @@
   </aside>
 </main>
 
-<footer class="site-foot">
-  <div class="in">
-    <span><b>版权口径</b>：厂标是各家的商标，这里用来<b>指称</b>那家公司，属规范使用；路径数据来自
-      <a href="https://github.com/simple-icons/simple-icons">simple-icons</a>（<b>CC0 1.0</b>），
-      不是官方素材包，除形变外没有改绘。商用发布前按自家法务口径过一遍（<a href="NOTICE.md">NOTICE.md</a>）。</span>
-    <span class="links">
-      <a href="marks-type.html">字版厂标</a>
-      <a href="README.md">包说明</a>
-      <a href="STANDARD.md">标准</a>
-      <a href="https://github.com/liceses/dotink">GitHub</a>
-    </span>
-  </div>
-</footer>
-
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>像素由 1-bit 直接写入，不走抗锯齿。</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
 <script src="fields.js"></script>
 <script src="render.js"></script>
 <script src="judge.js"></script>
@@ -125,15 +149,24 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  const M = window.DotInkMarks, S = 560, SCALE = 1.5, INK = '#0C0D0E', PAPER = '#F2F3F2';
+  const M = window.DotInkMarks, S = 560, SCALE = 1.5;
   const st = { i: 0, cell: 8, solid: false, playing: false, inst: null, ms: 0 };
+
+  /* ── 画布两色：从令牌取，不写死 ──────────────────────────────────────────────
+     默认套逐位等于 STANDARD §1 的 [12,13,14]/[242,243,242]；其余五套是 §11 的 edition。
+     ⚠ 判"这是墨还是纸"**不能再用 r<128 这类亮度阈值**：夜墨那套墨=242、纸=12，
+       阈值会整体反过来 → 覆盖率虚报成 100%。改成「与当前调色板的墨/纸逐通道相等（容差 2）」。 */
+  const pal = () => DotInkTheme.canvas();
+  const css = c => 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+  const near = (d, i, c) => Math.abs(d[i] - c[0]) <= 2 && Math.abs(d[i + 1] - c[1]) <= 2 && Math.abs(d[i + 2] - c[2]) <= 2;
 
   /* 厂标路径 → 离屏画布（纸底 + 墨标，占画幅 86%）—— 给 fromImageData 用 */
   function raster(icon, px) {
     const c = document.createElement('canvas'); c.width = c.height = px;
     const x = c.getContext('2d', { willReadFrequently: true });
-    x.fillStyle = PAPER; x.fillRect(0, 0, px, px);
-    x.fillStyle = INK;
+    const p = pal();
+    x.fillStyle = css(p.paper); x.fillRect(0, 0, px, px);
+    x.fillStyle = css(p.ink);
     const s = px * 0.86 / M.viewBox, off = px * 0.07;
     x.setTransform(s, 0, 0, s, off, off);
     x.fill(new Path2D(icon.d));
@@ -145,7 +178,8 @@
     const w = Math.round(S * SCALE);
     const off = document.createElement('canvas'); off.width = off.height = w;
     const o = off.getContext('2d', { willReadFrequently: true });
-    o.fillStyle = INK;
+    const p = pal();
+    o.fillStyle = css(p.ink);
     const s = w * 0.86 / M.viewBox, d0 = w * 0.07;
     o.setTransform(s, 0, 0, s, d0, d0);
     o.fill(new Path2D(icon.d));
@@ -153,7 +187,8 @@
     const d = o.getImageData(0, 0, w, w);
     for (let k = 0; k < d.data.length; k += 4) {
       const ink = d.data[k + 3] > 127;
-      d.data[k] = ink ? 12 : 242; d.data[k + 1] = ink ? 13 : 243; d.data[k + 2] = ink ? 14 : 242; d.data[k + 3] = 255;
+      const c = ink ? p.ink : p.paper;
+      d.data[k] = c[0]; d.data[k + 1] = c[1]; d.data[k + 2] = c[2]; d.data[k + 3] = 255;
     }
     const ctx = cv.getContext('2d');
     ctx.putImageData(d, 0, 0);
@@ -164,13 +199,16 @@
     const cols = Math.round(cssSize / cell), rows = cols;
     const px = cols * 2;                                  /* 栅格 2px/格，够算覆盖率 */
     const rc = raster(icon, px);
+    const p0 = pal();
     const v = DotInk.fields.fromImageData(
       rc.getContext('2d').getImageData(0, 0, px, px).data, px, px, cols, rows,
-      { thr: 0.62, gamma: 0.45, gain: 1.6 });
+      { ink: p0.ink, paper: p0.paper, gamma: 0.45, gain: 1.6 });
     cv.width = cv.height = Math.round(cssSize * SCALE);
+    const p = pal();
     const inst = DotInk.create({
       canvas: cv, cssW: cssSize, cssH: cssSize, scale: SCALE, cols: cols, rows: rows, cell: cell,
       field: v, areaMap: false, maxFrac: 0.48, floor: 0.02, gain: 1, shutter: 0, duration: 1,
+      ink: p.ink, paper: p.paper,
     });
     inst.draw(0);                       /* ⚠ 建了实例必须画：漏了这句画布是空的（实测过） */
     return inst;
@@ -196,13 +234,14 @@
   function readout() {
     const cv = $('cv'), ctx = cv.getContext('2d');
     const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    const p = pal();
     let ink = 0, pap = 0, gray = 0, clear = 0;
     for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
+      const a = d[i + 3];
       /* ⚠ 透明像素必须先判掉：r=0 的空白画布会被算成"100% 墨"（我第一版就这么骗过自己） */
       if (a < 128) { clear++; continue; }
-      if (r < 128) ink++;
-      else if (Math.abs(r - 242) <= 2 && Math.abs(g - 243) <= 2 && Math.abs(b - 242) <= 2) pap++;
+      if (near(d, i, p.ink)) ink++;
+      else if (near(d, i, p.paper)) pap++;
       else gray++;
     }
     const tot = cv.width * cv.height;
@@ -268,6 +307,9 @@
     else if (e.key === 'ArrowLeft') { st.i = (st.i + M.order.length - 1) % M.order.length; render(); }
     else if (e.key === ' ') { e.preventDefault(); setPlay(!st.playing); }
   });
+
+  /* 换配色 → 墙上的小图与主画布都要重建（实墨路径的像素是**写进**画布的） */
+  DotInkTheme.onChange(() => { buildWall(); render(); });
 
   buildWall();
   render();

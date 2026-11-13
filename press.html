@@ -1,0 +1,1180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · 套印不齐（四色 / 六色 Hexachrome）</title>
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
+<style>
+  .pr{display:grid;grid-template-columns:minmax(0,1fr) 392px;align-items:stretch;max-width:1600px;margin:0 auto}
+  @media (max-width:1120px){ .pr{grid-template-columns:minmax(0,1fr)} }
+  .pr-stagecol{padding:clamp(12px,2.4vw,28px);border-right:2px solid var(--ink);min-width:0}
+  @media (max-width:1120px){ .pr-stagecol{border-right:0;border-bottom:2px solid var(--ink)} }
+  @media (min-width:1121px){ .pr-sticky{position:sticky;top:64px} }
+
+  .pr-stage{margin:0;max-width:980px}
+  .pr-frame{position:relative;border:2px solid var(--ink);background:var(--paper);line-height:0}
+  .pr-frame:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  #cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+  .pr-cap{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:8px;font:500 12px/1.4 var(--f-m);color:var(--mute)}
+  .pr-cap b{color:var(--ink);font-weight:700}
+  .pr-cap .enc{margin-left:auto}
+
+  .pr-transport{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}
+  .pr-scrub{flex:1 1 220px;display:flex;align-items:center;gap:10px;min-width:0}
+  .pr-scrub output{font:600 12px/1 var(--f-m);font-variant-numeric:tabular-nums;min-width:4.2em;text-align:right}
+  @media (max-width:560px){
+    .pr-transport{display:grid;grid-template-columns:1fr 1fr}
+    .pr-scrub{grid-column:1 / -1}
+  }
+
+  .pr-state{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:12px}
+  .pr-read{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));margin-top:12px;border-top:1px solid var(--hair)}
+  .pr-read div{padding:8px 10px 8px 0;border-bottom:1px solid var(--hair);font:500 11px/1.45 var(--f-m);color:var(--mute)}
+  .pr-read b{display:block;font:600 13.5px/1.3 var(--f-m);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .pr-read b.bad{color:var(--accent)}
+  .pr-cov{grid-column:1 / -1;padding:8px 0 2px;border-bottom:1px solid var(--hair)}
+  .pr-cov span{display:inline-flex;align-items:center;gap:5px;margin-right:14px;font:500 11.5px/1.9 var(--f-m);color:var(--ink);font-variant-numeric:tabular-nums}
+  .pr-cov i{width:9px;height:9px;border:1px solid var(--ink);display:inline-block;flex:0 0 auto}
+  .pr-off{opacity:.4}
+
+  .pr-aside{padding:4px clamp(14px,2.4vw,24px) 20px;min-width:0}
+  .pr-aside .ink-panel:first-child{border-top:0}
+  .pr-pane[hidden]{display:none}
+  .pr-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+  .pr-row .ink-btn{white-space:normal;text-align:left;line-height:1.35;padding-top:6px;padding-bottom:6px;max-width:100%}
+  .pr-hint{margin:2px 0 0;font-size:12px;line-height:1.6;color:var(--mute)}
+  .pr-hint code{font:500 11.5px var(--f-m);background:var(--panel);padding:1px 4px}
+
+  .pr-checks{width:100%;border-collapse:collapse;font-size:12.5px}
+  .pr-checks th,.pr-checks td{border-bottom:1px solid var(--hair);padding:6px 6px 6px 0;text-align:left;vertical-align:top}
+  .pr-checks th{font:500 10.5px/1.2 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .pr-checks td.v{font:500 12px var(--f-m);font-variant-numeric:tabular-nums}
+  .pr-checks .yes{font-weight:700}
+  .pr-checks .no{color:var(--accent);font-weight:700}
+
+  .pr-zoomwrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  #zoom{width:100%;max-width:320px;height:auto;image-rendering:pixelated;border:1px solid var(--hair);background:var(--paper)}
+
+  /* 三连对照：对齐 / 轻微 / 明显 */
+  .pr-compare{border-top:2px solid var(--ink);margin-top:clamp(18px,3vw,34px)}
+  .pr-compare .in{max-width:1600px;margin:0 auto;padding:clamp(16px,3vw,30px)}
+  .pr-compare h2{margin:0 0 4px;font-size:clamp(18px,2.2vw,24px);letter-spacing:-.02em;font-weight:800}
+  .pr-compare p{margin:0 0 16px;max-width:72ch;color:var(--mute);font-size:13.5px;line-height:1.7}
+  .pr-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  @media (max-width:760px){ .pr-strip{grid-template-columns:minmax(0,1fr)} }
+  .pr-strip figure{margin:0}
+  .pr-strip .bx{border:2px solid var(--ink);line-height:0}
+  .pr-strip canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .pr-strip figcaption{display:flex;gap:8px;align-items:baseline;margin-top:6px;font:500 11.5px/1.5 var(--f-m);color:var(--mute)}
+  .pr-strip figcaption b{color:var(--ink);font-weight:700}
+  .pr-strip figcaption .v{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+  /* 套印片：一条片子 + 四张样张 */
+  .pr-film{border-top:2px solid var(--ink);margin-top:clamp(18px,3vw,34px);background:var(--paper)}
+  .pr-film .in{max-width:1600px;margin:0 auto;padding:clamp(16px,3vw,30px)}
+  .pr-film h2{margin:0 0 4px;font-size:clamp(18px,2.2vw,24px);letter-spacing:-.02em;font-weight:800}
+  .pr-film .lead{margin:0 0 16px;max-width:74ch;color:var(--mute);font-size:13.5px;line-height:1.7}
+  .pr-film .reel{border:2px solid var(--ink);line-height:0;background:var(--paper)}
+  .pr-film video{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .pr-film .meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 0;font:500 11.5px/1.6 var(--f-m);color:var(--mute)}
+  .pr-film .meta b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .pr-spec{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0 0;padding:0;list-style:none}
+  @media (max-width:900px){ .pr-spec{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:520px){ .pr-spec{grid-template-columns:minmax(0,1fr)} }
+  .pr-spec figure{margin:0}
+  .pr-spec .bx{border:1px solid var(--ink);line-height:0}
+  .pr-spec img{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .pr-spec figcaption{margin-top:5px;font:500 11px/1.5 var(--f-m);color:var(--mute)}
+  .pr-spec figcaption b{display:block;color:var(--ink);font-weight:700;font-size:12px}
+  .pr-scan{width:100%;border-collapse:collapse;margin:20px 0 0;font-size:12px}
+  .pr-scan th,.pr-scan td{border-bottom:1px solid var(--hair);padding:5px 10px 5px 0;text-align:left;font-variant-numeric:tabular-nums}
+  .pr-scan th{font:500 10.5px/1.2 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .pr-scan td.scene{font-weight:700}
+  .pr-film .note{margin:14px 0 0;max-width:76ch;font-size:12.5px;line-height:1.7;color:var(--mute)}
+  .pr-film .note b{color:var(--ink)}
+  .pr-film .note code{font:500 11.5px var(--f-m);background:var(--panel);padding:1px 4px}
+  /* 管线：素材 → 图集 → 套印片 */
+  .pr-pipe{border-top:2px solid var(--ink);margin-top:clamp(18px,3vw,34px);background:var(--panel)}
+  .pr-pipe .in{max-width:1600px;margin:0 auto;padding:clamp(16px,3vw,30px)}
+  .pr-pipe h2{margin:0 0 4px;font-size:clamp(18px,2.2vw,24px);letter-spacing:-.02em;font-weight:800}
+  .pr-pipe .lead{margin:0 0 16px;max-width:74ch;color:var(--mute);font-size:13.5px;line-height:1.7}
+  .pr-pipe .reel{border:2px solid var(--ink);line-height:0;background:var(--paper)}
+  .pr-pipe video{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .pr-pipe .meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 0;font:500 11.5px/1.6 var(--f-m);color:var(--mute)}
+  .pr-pipe .meta b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .pr-pipe figure{margin:18px 0 0}
+  .pr-pipe .bx{border:1px solid var(--ink);line-height:0;background:var(--paper)}
+  .pr-pipe img{display:block;width:100%;height:auto}
+  .pr-pipe .bx.pix img{image-rendering:pixelated}
+  .pr-pipe figcaption{margin-top:6px;font:500 11.5px/1.6 var(--f-m);color:var(--mute)}
+  .pr-pipe figcaption b{color:var(--ink);font-weight:700}
+  .pr-pipe pre{margin:18px 0 0;padding:12px 14px;border:1px solid var(--ink);background:var(--paper);overflow-x:auto;
+    font:500 11.5px/1.7 var(--f-m);color:var(--ink);white-space:pre}
+  .pr-pipe pre .c{color:var(--mute)}
+  .pr-scan2{width:100%;border-collapse:collapse;margin:20px 0 0;font-size:12px}
+  .pr-scan2 th,.pr-scan2 td{border-bottom:1px solid var(--hair);padding:5px 10px 5px 0;text-align:left;font-variant-numeric:tabular-nums}
+  .pr-scan2 th{font:500 10.5px/1.2 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .pr-scan2 td.seg{font-weight:700}
+  @media (max-width:900px){
+    .pr-pipe pre{font-size:10.5px;padding:10px 11px}
+    .pr-pipe .lead,.pr-pipe .note{font-size:12.5px}
+    .pr-scan2{font-size:11px}
+    .pr-scan2 th:nth-child(3),.pr-scan2 td:nth-child(3),.pr-scan2 th:nth-child(4),.pr-scan2 td:nth-child(4){display:none}
+  }
+  .pr-pipe .note{margin:14px 0 0;max-width:76ch;font-size:12.5px;line-height:1.7;color:var(--mute)}
+  .pr-pipe .note b{color:var(--ink)}
+  .pr-pipe .note code{font:500 11.5px var(--f-m);background:var(--paper);padding:1px 4px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+<!-- site:meta:begin -->
+<meta name="description" content="多版套印的失控与校准：四个版、四个颜色，看网点怎么错位、又怎么被收回 1-bit。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="套印不齐 · 点墨">
+<meta property="og:description" content="多版套印的失控与校准：四个版、四个颜色，看网点怎么错位、又怎么被收回 1-bit。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/press.html">
+<link rel="canonical" href="press.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
+</head>
+<body>
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html" aria-current="page">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><span>套印不齐</span></nav>
+</div>
+<nav class="toc-jump" aria-label="本页目录">
+  <a href="#sec-1">三档错位，同一张画面</a>
+  <a href="#sec-2">套印片：四张样张，一条曲线</a>
+  <a href="#sec-3">管线：任意素材进，套印片出</a>
+</nav>
+</div>
+<!-- site:head:end -->
+<section class="page-intro">
+  <p class="kicker"><i></i>Dot Ink · Press · 实时</p>
+  <h1 class="display">套印不齐</h1>
+  <p>同一张画面分成<b>四张版</b>：C / M / Y / K 各一张，<b>每张版上仍然只有「有墨」和「没墨」</b>，没有灰。
+     颜色不是画出来的，是四张版<b>叠</b>出来的 —— 所以一帧最多落在 <code>2^N</code> 个颜色上（四版 = 16 个掩码，
+     格点集实到 <b>15 色</b>，因为 CMY 与 CMYK 叠出来都是纯黑）。</p>
+  <p>默认这一档是<b>六张版</b>：CMYK 之外再加<b>橙</b>与<b>绿</b>（Hexachrome 六色）。<code>2^6</code> = 64 个掩码，
+     按颜色折叠后实到 <b>35 色</b>。多这两张版不是为了「色更多」好看，是因为<b>饱和橙绿那一段 CMYK 压不出来</b>：
+     橙的蓝通道得靠三色一起压到 0，纸面上那已经是黑，不是橙。代价是每个颜色只有三个方程、六个未知数 ——
+     分色必须在<b>覆盖率域</b>里解（<code>separateCov</code>），四色那套公式 UCR 解不出 O / G 两版。
+     右侧留了「分色：覆盖域 / 公式」开关，切一下就能看见差别。</p>
+  <p>版与版之间留一点点<b>对不准</b>：位移 <code>2–7px</code>、微转 <code>0.2–0.5°</code>。对不准的地方，
+     边缘就漏出一圈<b>只有单版盖到</b>的颜色 —— 早期印刷机的<b>漏色重影</b>。这就是这一层要的动态：
+     版永远在「快要对齐又不断错开」的地方晃。</p>
+  <p>画布是套印格点集上的墨与纸；周围的控件是普通界面。判据不套用单色网点的 M1/M2，
+     用的是套印自己的四条（<b>只落在格点集上</b>、<b>总墨量</b>、<b>色数 ≤ 格点集</b>、<b>每版都有墨</b>）。
+     这四条跟着当前墨组走：六版时格点集是 64 个掩码、色数上限 35，三版时是 8 个掩码、上限 8 —— 行数不变，值跟着变。
+     第四条的「每版」按实际版数算，所以切到「六色 + 公式」时它会红：UCR 式子根本没有 O / G 这两张版。</p>
+</section>
+
+<main class="pr">
+  <div class="pr-stagecol"><div class="pr-sticky">
+    <figure class="pr-stage">
+      <div class="pr-frame" id="frame" tabindex="0" role="group"
+           aria-roledescription="套印画布" aria-label="套印画布。空格播放或暂停，左右方向键逐步拖动，Home 回起点">
+        <canvas id="cv" aria-hidden="true"></canvas>
+      </div>
+      <figcaption class="pr-cap">
+        <span>源 <b id="capSrc">—</b></span>
+        <span>网角 <b id="capAng">—</b></span>
+        <span class="enc" id="capEnc"></span>
+      </figcaption>
+    </figure>
+
+    <div class="pr-transport" role="group" aria-label="走带">
+      <button class="ink-btn is-primary" id="play" type="button" aria-keyshortcuts="Space">播放</button>
+      <button class="ink-btn" id="align" type="button">一键对齐</button>
+      <button class="ink-btn" id="reseed" type="button">换一组错位</button>
+      <button class="ink-btn" id="framePng" type="button">导出本帧 PNG</button>
+      <label class="pr-scrub">
+        <span class="sr">进度</span>
+        <input class="ink-range" id="scrub" type="range" min="0" max="1000" step="1" value="0" aria-label="进度">
+        <output id="scrubV" for="scrub">0.00s</output>
+      </label>
+    </div>
+
+    <div class="pr-state">
+      <span class="ink-status" id="state" data-state="paused" role="status" aria-live="polite">已暂停</span>
+      <span class="pr-hint" id="motionNote"></span>
+    </div>
+
+    <div class="pr-read">
+      <div>套印偏差（最大）<b id="rReg">—</b></div>
+      <div>总墨量 TAC（覆盖率之和）<b id="rTac">—</b></div>
+      <div>墨量 w 上限 / 被压格<b id="rW">—</b></div>
+      <div>实到色数<b id="rCol">—</b></div>
+      <div>漏色重影面积<b id="rFringe">—</b></div>
+      <div>平均叠版<b id="rPer">—</b></div>
+      <div>画布 1:1（backing）<b id="r11">—</b></div>
+      <div class="pr-cov" id="covs" aria-label="每版覆盖率"></div>
+    </div>
+  </div></div>
+
+  <aside class="pr-aside">
+    <div class="ink-panel">
+      <h3>画面</h3>
+      <div class="pr-pane" id="paneSrc">
+        <div class="pr-row" role="group" aria-label="画面源">
+          <button class="ink-btn" data-src="poster" aria-pressed="true">光谱海报</button>
+          <button class="ink-btn" data-src="wheel" aria-pressed="false">色轮</button>
+          <button class="ink-btn" data-src="land" aria-pressed="false">层叠风景</button>
+          <button class="ink-btn" data-src="field" aria-pressed="false">干涉场</button>
+        </div>
+      </div>
+      <div class="pr-pane" id="paneInk">
+        <div class="pr-row" role="group" aria-label="墨组与网角">
+          <button class="ink-btn" data-ink="hex" aria-pressed="true">六色 玫瑰斑</button>
+          <button class="ink-btn" data-ink="same" aria-pressed="false">同角度 45°</button>
+          <button class="ink-btn" data-ink="rosette" aria-pressed="false">玫瑰斑 15/75/0/45</button>
+          <button class="ink-btn" data-ink="cmy" aria-pressed="false">三色 CMY</button>
+        </div>
+        <div class="pr-row" role="radiogroup" aria-label="分色路径">
+          <div class="ink-seg">
+            <label><input type="radio" name="sep" value="cov" checked><span>分色：覆盖域</span></label>
+            <label><input type="radio" name="sep" value="formula"><span>公式 UCR</span></label>
+          </div>
+        </div>
+      </div>
+      <label class="ink-param">位移 <input class="ink-range" id="amp" type="range" min="0" max="12" step="0.5" value="4"><output id="ampV">4.0px</output></label>
+      <label class="ink-param">速度 <input class="ink-range" id="spd" type="range" min="0" max="20" step="1" value="6"><output id="spdV">0.60</output></label>
+      <label class="ink-param">微转 <input class="ink-range" id="rot" type="range" min="0" max="10" step="1" value="3"><output id="rotV">0.30°</output></label>
+      <label class="ink-param">点距 <input class="ink-range" id="cell" type="range" min="6" max="20" step="1" value="9"><output id="cellV">9px</output></label>
+      <label class="ink-param">满墨 <input class="ink-range" id="mf" type="range" min="26" max="50" step="2" value="40"><output id="mfV">0.40</output></label>
+      <label class="ink-param" id="ucrRow">底色去除 <input class="ink-range" id="ucr" type="range" min="0" max="100" step="5" value="55" disabled><output id="ucrV">0.55</output></label>
+      <label class="ink-param">总墨量上限 <input class="ink-range" id="tac" type="range" min="120" max="600" step="10" value="420"><output id="tacV">4.20</output></label>
+      <p class="pr-hint">位移 <code>0</code> = 所有版严格对齐（每颗网点是干净的纯色）；位移一起来，边缘就长出一圈错位色边。
+        微转是「整版绕着画心转一点点」，和位移不是一回事。</p>
+      <p class="pr-hint"><b>总墨量那根滑杆压的是每格「墨量 w 之和」，不是读数栏那个覆盖率之和。</b>
+        两者差一条 <code>coverageCurve</code>：w 0.5 在这一版上盖住约 76% 的格，所以覆盖率总是比墨量看起来大。
+        六色默认 <code>4.2</code>、四色默认 <code>2.4</code>，都是量出来的（同一帧、渲染出的画布逐格对源图）：
+        六色不压时逐格平均色差 41.9、整幅亮度 +5.2%；压到 2.4 变成 56.4 / +14.6%（这就是发白）；
+        4.2 是 46.6 / +8.6%，而被压的格子数到这儿已经到底（16.6%，下限 16.3% 是饱和黑 —— 六版满墨 w=6，
+        任何小于 6 的上限都会压到它）。四色的拐点在 3.2（被压 17.4%、亮度 +9.9%），默认仍留给原来的 2.4，
+        想四色也不发白就把滑杆拖过去。</p>
+      <p class="pr-hint">覆盖域分色不看「底色去除」，那个旋钮只在公式档里有效（另一档时会变灰）。
+        为什么网角必须分开：把六版**都**摆成 45°（本页没有这个档，是单独量的一次）同一帧平均色差会从
+        42.4 掉到 100.3、最差从 187 掉到 331。不是模型不行，是六版圆盘同心时覆盖率不能再独立取。
+        「同角度 45°」这一档保留的是四版同角度 —— 那是另一件事：四块版同心叠在一起，看的是摩尔纹与
+        单版圆盘的形状，所以它跟「玫瑰斑 15/75/0/45」一起留着当体裁对照。</p>
+      <p class="pr-hint">两条分色路径的差距也是量出来的（四色、同一帧、同样压到 2.4）：覆盖域 71.0 / 最差 277，
+        公式 95.3 / 最差 273。公式那套是给四色手写的减色式子，六色时它连 O / G 都没有解 ——
+        切到「六色 + 公式」会看到 O 0.0%、G 0.0%、色数掉到 15 / 35，判据第 4 条当场变红。</p>
+      <p class="pr-hint"><b>播放是每帧重新分色的</b>，没有缓存可蹭：画面源自己在动，t 变了输入就变了。
+        这台机器实测（980×551 CSS、dpr1、cell 9 → 109×61 格、六色 free）：分色 <code>24.7 ms</code>(30 sweeps)
+        / <code>10.8 ms</code>(12 sweeps)，绘制 <code>7.8 ms</code>，判据读回 <code>1.9 ms</code> ——
+        整帧 35 ms 对 21 ms。播放档用 12 sweeps，把省下的 14 ms 换成帧率；代价是平均 |Δw| 0.019、
+        差超过 0.08 的格占 8.6%，1-bit 网点上看不出来。暂停与拖动回到 30，把颜色解到位。
+        切档不是写死的：每次换几何（点距 / 满墨 / dpr）都按刚量出来的静止整帧成本重判一次 ——
+        超过 16.7 ms（一帧 60 fps 的预算）就降级，低于它就用 30，不做无谓的精度牺牲。
+        dpr2 时绘制涨到 27 ms、比分色还贵，那台机器上压 sweeps 也只救得回一半 —— 瓶颈已经不是分色了。
+        页面上那行「整帧实测」是当前这台机器这一刻的中位数，不是上面这几个数。</p>
+    </div>
+
+    <div class="ink-panel">
+      <h3>判据（实时）</h3>
+      <table class="pr-checks">
+        <thead><tr><th>判据</th><th>值</th><th>门限</th><th></th></tr></thead>
+        <tbody id="checks"></tbody>
+      </table>
+      <p class="pr-hint" id="verdict">—</p>
+    </div>
+
+    <div class="ink-panel">
+      <h3>1:1 放大镜</h3>
+      <div class="pr-zoomwrap">
+        <canvas id="zoom" width="320" height="180" aria-label="套印画布左上角 1:1 放大"></canvas>
+      </div>
+      <p class="pr-hint">一个画布像素对一个屏幕像素，不插值 —— 缩略图既藏缺陷也造假缺陷：漏色重影的宽窄、
+        网点边缘的锯齿，只有 1:1 才说得准。取的就是主画布本身，所以它和上面那张必然是同一组版、同一条分色路径。</p>
+    </div>
+  </aside>
+</main>
+
+<section class="pr-compare">
+  <div class="in">
+    <h2 id="sec-1">三档错位，同一张画面</h2>
+    <p>对齐时每颗网点是干净的纯色，中间调最平；位移一起来，边缘开始长色边、色数上升；
+      到 5px 以上，同一颗点分裂成两三个错开的彩点 —— 那正是「早期印刷机没套准」的样子。
+      三张小图都用当前的点距与分色参数，改参数会一起重画。</p>
+    <div class="pr-strip" id="strip">
+      <figure>
+        <div class="bx"><canvas id="cA" width="480" height="270"></canvas></div>
+        <figcaption><b>对齐</b><span>0px</span><span class="v" id="vA">—</span></figcaption>
+      </figure>
+      <figure>
+        <div class="bx"><canvas id="cB" width="480" height="270"></canvas></div>
+        <figcaption><b>轻微</b><span>2.5px · 0.2°</span><span class="v" id="vB">—</span></figcaption>
+      </figure>
+      <figure>
+        <div class="bx"><canvas id="cC" width="480" height="270"></canvas></div>
+        <figcaption><b>明显</b><span>6px · 0.45°</span><span class="v" id="vC">—</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+
+<section class="pr-film">
+  <div class="in">
+    <h2 id="sec-2">套印片：四张样张，一条曲线</h2>
+    <p class="lead">17 秒的片子，四张题材换着印，套印偏差从 <b>0</b> 一路长到 <b>9.3px</b> 再收回去。
+      它回答的不是「好不好看」，是<b>这套六色能不能承载多元内容</b>：果物给四色的短板（饱和橙绿压不出来），
+      肌肤给容差最低的连续中间调，风景把色域一次摊开，字版用硬边当偏差的尺子、顺便把自己署名印一遍。
+      片子不是录屏 —— 片源 <a href="tools/press-reel.html">tools/press-reel.html</a> 的每一帧都是 <code>t</code> 的纯函数，
+      由 <a href="tools/press-reel.mjs">tools/press-reel.mjs</a> 逐帧取 <code>__reel.frame(t)</code> 再喂 ffmpeg。</p>
+    <div class="reel">
+      <video src="media/press-reel-clip.mp4" poster="media/press-reel-poster.png" controls muted loop playsinline preload="metadata"
+             aria-label="套印片：四张样张（果物 / 肌肤 / 风景 / 字版），套印偏差从 0 升到 9.3px 再归位"></video>
+    </div>
+    <p class="meta">
+      <span>片长 <b>17.00 s</b></span>
+      <span>帧数 <b>510</b> @ 30fps</span>
+      <span>画面 <b>1280×720</b>（网页版）</span>
+      <span>母版 <b>1920×1080</b> · <b>274×154</b> 格</span>
+      <span>墨组 <b>六色</b> · 网角 <b>玫瑰斑</b></span>
+      <span>点距 <b>7px</b> · 满墨 <b>0.707</b></span>
+      <span>分色 <b>separateCov</b></span>
+    </p>
+    <ul class="pr-spec">
+      <li><figure><div class="bx"><img src="media/press-specimen-01.png" alt="t=2.2s 果物" loading="lazy"></div>
+        <figcaption><b>01 果物</b>2.2 s · 橙与叶，四色的短板色域</figcaption></figure></li>
+      <li><figure><div class="bx"><img src="media/press-specimen-02.png" alt="t=6.5s 肌肤" loading="lazy"></div>
+        <figcaption><b>02 肌肤</b>6.5 s · 连续中间调，容差最低</figcaption></figure></li>
+      <li><figure><div class="bx"><img src="media/press-specimen-03.png" alt="t=10.5s 风景" loading="lazy"></div>
+        <figcaption><b>03 风景</b>10.5 s · 大色域，偏差到峰值</figcaption></figure></li>
+      <li><figure><div class="bx"><img src="media/press-specimen-04.png" alt="t=13.8s 字版" loading="lazy"></div>
+        <figcaption><b>04 字版</b>13.8 s · 硬边，偏差的尺子</figcaption></figure></li>
+    </ul>
+    <table class="pr-scan">
+      <caption class="sr">全时间线抽检（母版 1920×1080 · cell 7 · 274×154 格 · 六色玫瑰斑 · 覆盖域分色 sweeps 30）</caption>
+      <thead><tr><th>t</th><th>题材</th><th>实到色数</th><th>漏色重影</th><th>套印偏差</th><th>读起来</th></tr></thead>
+      <tbody>
+        <tr><td>0.8 s</td><td class="scene">果物</td><td>10 / 35</td><td>14.0%</td><td>0.01 px</td><td>刚开场，只有黑版与少量品红上墨，橙绿两版还没进</td></tr>
+        <tr><td>2.2 s</td><td class="scene">果物</td><td>31 / 35</td><td>24.7%</td><td>0.44 px</td><td>六版上齐、几乎对齐 —— 橙绿两版各吃掉 12.5% / 8.3% 面积</td></tr>
+        <tr><td>6.5 s</td><td class="scene">肌肤</td><td>27 / 35</td><td>7.3%</td><td>3.82 px</td><td>中间调最吃叠印，肤色过渡带开始长毛边</td></tr>
+        <tr><td>10.5 s</td><td class="scene">风景</td><td>31 / 35</td><td>18.4%</td><td>9.29 px</td><td>峰值：偏差 1.3 个点距，同一颗网点裂成两三个错开的彩点</td></tr>
+        <tr><td>13.0 s</td><td class="scene">字版</td><td>25 / 35</td><td>2.9%</td><td>6.95 px</td><td>归位段开始，硬边上的彩边一格一格收窄</td></tr>
+        <tr><td>14.3 s</td><td class="scene">字版</td><td>24 / 35</td><td>2.8%</td><td>0.00 px</td><td>归位：偏差归零，字缘重新变干净</td></tr>
+        <tr><td>16.95 s</td><td class="scene">字版</td><td>2 / 35</td><td>0.0%</td><td>0.00 px</td><td>末帧：各版依次离版，只剩黑版与纸</td></tr>
+      </tbody>
+    </table>
+    <p class="note"><b>为什么网页版不能是 <code>yuv420p</code>。</b>套印层的现象就是网点边缘<b>一两像素宽的漏色</b>，
+      而 4:2:0 的 2×2 色度下采样正好把那一圈抹平 —— 编码器越省，本层的立论掉得越多。
+      同一帧（t=13.0）按<b>格</b>取平均再比，四档编码的格均色差（sRGB 0..255）是：
+      母版 <code>libx264rgb / qp18</code> <b>0.10</b>（p95 0.47）· 本页 <code>yuv444p / crf33 / 1280</code> <b>3.1</b>（p95 11.7）
+      · 同尺寸 <code>yuv420p / crf36</code> <b>4.29</b>（p95 17.4）· <code>960 / 444p / crf33</code> <b>4.17</b>（p95 12.2）。
+      逐像素比会更难看：母版有 <b>78%</b> 像素逐字节相同，yuv444p 只剩 2.6% —— 差值全在网点边缘的抗锯齿像素上，
+      那不是色偏，那是「点还圆不圆」。所以网页版取了 1280 而不是 960：同样体积下先保像素密度。</p>
+    <p class="note"><b>体积与落点。</b>网页版 <code>1280×720 · yuv444p · crf 33</code> = <b>7.53 MB</b>（2.6 Mbps，仓内）；
+      母版 <code>1920×1080 · libx264rgb（gbrp）· qp 18</code> = <b>221.15 MB</b>（109 Mbps，Release 附件，仓内不放）。
+      母版是无损链：片源 <code>frame(t)</code> 直出的 PNG 与解码帧在 <code>qp 0</code> 下逐字节相同。
+      片源与导出的完整口径（含两个实测坑：<code>--remote-debugging-port=0</code> 拿不到端口、
+      启动进程会立刻 exit 0）写在 <a href="docs/05-misregistration.md">docs/05</a> §10。</p>
+  </div>
+</section>
+
+<section class="pr-pipe">
+  <div class="in">
+    <h2 id="sec-3">管线：任意素材进，套印片出</h2>
+    <p class="lead">上面那条片子是四张写死的样张。这一条不是 —— 素材是三段真的 mp4，
+      经过两件命令行工具（<a href="tools/press-clip.mjs">press-clip.mjs</a> 与 <a href="tools/press-reel.mjs">press-reel.mjs</a>）变成套印片。<b>给什么视频就印什么</b>，题材、时长、偏差曲线都由参数决定。
+      （这三段的素材是本站那三张 CC0 照片各做的一段缓推镜头；管线入口只认视频文件，不认静帧。）
+      中间那一步是关键：视频先被压成一张<b>格子图集</b>（一格 = 一帧的一个像素），
+      也就是分色器真正看见的那个粒度；再往下的每一帧，仍然只是 <code>t</code> 的纯函数。</p>
+    <div class="reel">
+      <video src="media/press-pipe-clip.mp4" poster="media/press-pipe-poster.png" controls muted loop playsinline preload="metadata"
+             aria-label="管线示例：三段素材各 3 秒，压成格子图集后印成套印片，末尾自动补一张字版"></video>
+    </div>
+    <p class="meta">
+      <span>片长 <b>12.00 s</b></span>
+      <span>帧数 <b>360</b> @ 30fps</span>
+      <span>画面 <b>1280×720</b>（网页版）</span>
+      <span>母版 <b>1920×1080</b> · <b>274×154</b> 格</span>
+      <span>素材 <b>3</b> 段 × 3 s</span>
+      <span>字版 <b>3.0 s</b>（自动补）</span>
+      <span>墨组 <b>六色</b> · 网角 <b>玫瑰斑</b></span>
+    </p>
+    <figure>
+      <div class="bx"><img src="media/press-pipe-pair.png" alt="三组对照：上排是格子图集里的一帧（源），下排是成片里对应的那一帧（印出来）" loading="lazy"></div>
+      <figcaption><b>上排是「源」，下排是「印」。</b>左起：果物（饱和橙 + 暗红 + 叶绿）、肌肤（连续中间调）、风景（大色域 + 天空渐变）。
+        同一套参数，三种内容都能成画 —— 这就是「承载多元内容」那句话的证据，而不是口号。
+        两排之间没有调色、没有手工修图，只有分色与网点。</figcaption>
+    </figure>
+
+    <pre><span class="c"># ① 静帧 → 一段缓推镜头。这一步不是管线的一部分：任何 mp4 都能从这里进来。</span>
+ffmpeg -y -loop 1 -framerate 30 -t 3.1 -i media/press-src-fruit.jpg \
+  -vf "crop=1200:447:0:171,scale=854:318:flags=lanczos,
+       zoompan=z='1+0.0007*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=854x318:fps=30" \
+  -frames:v 90 -c:v libx264 -crf 18 .visual-audit/pipe/fruit-band.mp4
+
+<span class="c"># ② 视频 → 格子图集（一格 = 一帧的一个像素，行优先；同目录落一个 .json sidecar）</span>
+node tools/press-clip.mjs --in .visual-audit/pipe/fruit-band.mp4 \
+     --out .visual-audit/pipe/fruit.png --cells 274x102 --fps 30 --dur 3
+<span class="c"># … 另两段同理（skin / land），每段 90 帧 → 10×9 图集</span>
+
+<span class="c"># ③ 图集 → 套印片（多段用 | 分隔；每段自带秒数，末尾自动补一张字版）</span>
+node tools/press-reel.mjs \
+     --clips "01 果物~.visual-audit/pipe/fruit.png~3|02 肌肤~.visual-audit/pipe/skin.png~3|03 风景~.visual-audit/pipe/land.png~3" \
+     --type 3 --inks hex --angles rose --sep cov --mode free --crf 18</pre>
+
+    <figure>
+      <div class="bx pix"><img src="media/press-pipe-atlas.png" alt="格子图集：一张 3288×1122 的 PNG，每格 274×102 像素，一格就是源视频的一帧" loading="lazy"></div>
+      <figcaption><b>图集本身长这样。</b>这一段 90 帧排成 10×9 的格子（共 2740×918），每格 274×102 像素 —— 一格就是源视频的一帧，
+        而且是<b>缩到网格粒度之后</b>的那一帧。片源只认这张 PNG 和它的 <code>.json</code> sidecar，不认视频解码器；
+        所以导出是确定性的：同一个图集、同一个 <code>t</code>，得到的永远是同一帧。
+        图集尺寸是 <code>cols = ceil(√N)</code> 决定的，N 变了格子排布跟着变，但每格永远是 274×102。</figcaption>
+    </figure>
+
+    <table class="pr-scan2">
+      <caption class="sr">管线抽检（母版 1920×1080 · cell 7 · 274×154 格 · 六色玫瑰斑 · 三段素材各 3s + 字版 3s）</caption>
+      <thead><tr><th>t</th><th>段</th><th>实到色数</th><th>漏色重影</th><th>套印偏差</th><th>读起来</th></tr></thead>
+      <tbody>
+        <tr><td>0.80 s</td><td class="seg">01 果物</td><td>18 / 35</td><td>26.4%</td><td>0.06 px</td><td>刚开场：只有黑版与品红、黄上墨，橙绿两版还没进</td></tr>
+        <tr><td>3.84 s</td><td class="seg">02 肌肤</td><td>29 / 35</td><td>7.2%</td><td>3.43 px</td><td>六版上齐，偏差爬到半个点距：肤色过渡先长出彩边</td></tr>
+        <tr><td>6.96 s</td><td class="seg">03 风景</td><td>33 / 35</td><td>13.3%</td><td>6.66 px</td><td>接近峰值：山脊与湖面同时裂成错开的彩点</td></tr>
+        <tr><td>9.96 s</td><td class="seg">04 字版</td><td>24 / 35</td><td>2.8%</td><td>0.00 px</td><td>归位完成：硬边上的彩边收干净，只剩网点本身</td></tr>
+        <tr><td>11.94 s</td><td class="seg">04 字版</td><td>2 / 35</td><td>0.0%</td><td>0.00 px</td><td>末帧：各版依次离版，只剩黑版与纸</td></tr>
+      </tbody>
+    </table>
+
+    <p class="note"><b>为什么中间要多一张图集。</b>分色器是按<b>格</b>工作的：一格取一个平均色，
+      然后决定这一格上哪几版墨、每版多厚。如果每次都从视频解码，同一格的平均值会随解码器、随缩放算法漂 ——
+      片子就不再有「同一个 t 出同一帧」这条性质。压成图集之后，<b>一格 = 一个像素</b>，
+      取平均这件事被提前做掉、并且只做一次。<code>scale</code> 用 area 平均、
+      <code>format=rgb24</code> 必须放在 <code>scale</code> <b>之前</b>：放后面时 ffmpeg 是在解码器的原生格式
+      （yuv420p，色度已经只有一半分辨率）上做面积平均、再转 RGB，算的不是引擎在 sRGB 8bit 上算的那个平均值。
+      实测同一段素材、同一格：格均色差平均 <b>0.75 / 255</b>、最大 <b>10 / 255</b>，12.8% 的像素差 ≥2 ——
+      落在墨量上就是「这一格该不该上这一版」在边缘处翻面。顺带一句：<b>字节数差多少完全看素材</b>
+      （实测 0–12%，rgbtestsrc 那种本来就是 RGB 生成的源甚至是 0），所以这条判据只能写成
+      「在哪个色彩空间里做平均」，写成百分比是假的。</p>
+    <p class="note"><b>三个会静默出错的坑。</b>① <code>tile</code> 滤镜在帧数不够时会<b>补满并退出 0</b> ——
+      「恰好 N 帧」只能自己数，这是 <code>press-clip.mjs</code> 最核心的那条判据。
+      ② 导出侧的帧数必须取<b>页面报的片长</b>：用命令行默认的 17 s 去截一条 11.5 s 的片子，后半段全是重复末帧。
+      ③ 偏差曲线的回落段是<b>锚在字版上</b>的，不是锚在秒数上：给了素材之后字版起点会变，
+      按固定秒数回落会让长片先归位、后面一路干净地等 —— 最该被看见的那一秒半落在没人注意的地方。</p>
+    <p class="note"><b>素材挑得不对，管线救不回来。</b>仓里那段 <code>media/demo-clip.mp4</code> 也跑过同一条链路
+      （128 帧图集 → 218 帧 / 7.27 s 的片子），但它画面是 854×480 的抽象彩块，压到 274×102 格之后只剩几道
+      等高线状的弧，读不出内容 —— 这不是管线坏了，是<b>素材的细节尺度比格子还细</b>。
+      能用的素材有两条硬条件：<b>16:9</b>（否则版心被裁掉一条），<b>有明确主体、明暗各半</b>
+      （全暗的素材会让黑版吃掉一半面积，剩下几版没活干，色域就白搭了）。</p>
+    <p class="note"><b>不改参数时，输出逐字节不变。</b>片源原有那条 17 秒分镜没有被参数化破坏：
+      所有时间常数乘 <code>TS = DUR / 17</code>，而当 <code>TS = 1</code> 时浮点逐位相同。
+      验收方式是拿 5 帧（t = 2.2 / 6.5 / 10.5 / 13.8 / 16.9）比 SHA-256 —— 改造前后<b>全部相等</b>，独立跑过两轮。
+      <code>press-clip.mjs</code> 与 <code>press-reel.mjs --clips</code> 的完整口径写在 <a href="docs/05-misregistration.md">docs/05</a> §11。</p>
+  </div>
+</section>
+
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>套印层的四条判据 P1–P4 与主判据 M1–M3 不可互套。</span>
+  <span class="links"><a href="docs/05-misregistration.md">套印分册</a>
+    <a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
+<script src="fields.js"></script>
+<script src="render.js"></script>
+<script src="judge.js"></script>
+<script src="host.js"></script>
+<script src="dotink.js"></script>
+<script src="press.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var DUR = 12;
+
+  /* ── 两套网角 ── */
+  var SAME = [
+    { name: 'C', title: '青', rgb: [0, 174, 239], angle: 45 },
+    { name: 'M', title: '品红', rgb: [236, 0, 140], angle: 45 },
+    { name: 'Y', title: '黄', rgb: [255, 241, 0], angle: 45 },
+    { name: 'K', title: '黑', rgb: [12, 13, 14], angle: 45 }
+  ];
+  var ROSETTE = [
+    { name: 'C', title: '青', rgb: [0, 174, 239], angle: 15 },
+    { name: 'M', title: '品红', rgb: [236, 0, 140], angle: 75 },
+    { name: 'Y', title: '黄', rgb: [255, 241, 0], angle: 0 },
+    { name: 'K', title: '黑', rgb: [12, 13, 14], angle: 45 }
+  ];
+  var CMY = [
+    { name: 'C', title: '青', rgb: [0, 174, 239], angle: 45 },
+    { name: 'M', title: '品红', rgb: [236, 0, 140], angle: 45 },
+    { name: 'Y', title: '黄', rgb: [255, 241, 0], angle: 45 }
+  ];
+  /* 六色（Hexachrome）：CMYK 之外加橙与绿。为什么角度是 15/75/0/45/30/60 而不是六版全 45°：
+     覆盖域分色的正模型是 R = Π(1 − c_i·d_i)，它要求各版的覆盖率**能独立取**。
+     六版同角度时六个圆盘同心，覆盖率必须互相嵌套，模型就跟几何对不上。实测（同一帧、渲染出的画布
+     逐格对源图）：玫瑰角平均色差 42.4 / 最差 187，同角度 100.3 / 最差 331 —— 差一倍多。
+     O 30°、G 60° 是六版玫瑰斑的最小夹角解（与既有四角的最小夹角 15°）。 */
+  var HEX = [
+    { name: 'C', title: '青', rgb: [0, 174, 239], angle: 15 },
+    { name: 'M', title: '品红', rgb: [236, 0, 140], angle: 75 },
+    { name: 'Y', title: '黄', rgb: [255, 241, 0], angle: 0 },
+    { name: 'K', title: '黑', rgb: [12, 13, 14], angle: 45 },
+    { name: 'O', title: '橙', rgb: [255, 108, 0], angle: 30 },
+    { name: 'G', title: '绿', rgb: [0, 166, 81], angle: 60 }
+  ];
+  var INKSETS = { hex: HEX, same: SAME, rosette: ROSETTE, cmy: CMY };
+  var INKNAME = {
+    hex: '六色 · 玫瑰斑 15/75/0/45 · O30 G60',
+    same: '同角度 45°', rosette: '玫瑰斑 15/75/0/45', cmy: '三色 CMY'
+  };
+  var PAPER = [242, 243, 242];
+  var SRCNAME = { poster: '光谱海报', wheel: '色轮', land: '层叠风景', field: '干涉场' };
+
+  /* TAC 的默认值**按版数**给，而且是量出来的。滑杆压的是每格「墨量 w 之和」，六版沿用四色的
+     2.4 等于平均每版只许 0.40。实测（同一帧、渲染出来的画布逐格对照源图，六色 free）：
+         上限   被压格  逐格平均色差  整幅平均亮度
+         不压    0%      41.9          +5.2%
+         2.4    31.5%    56.4         +14.6%   ← 画面发白
+         3.6    17.4%    53.3         +12.4%
+         4.2    16.6%    46.6          +8.6%   ← 取这一档
+         4.8    16.3%    42.0          +5.4%
+     为什么停在 4.2 而不是 4.8：被压的格子数在 4.2 已经到底（16.6% 对下限 16.3%，差的那点是
+     饱和黑 —— 六版满墨 w=6，任何小于 6 的上限都会压到它），再往上等于只给饱和黑开绿灯。
+     每版预算 4.2/6 = 0.70，与四色 2.4/4 = 0.60 是同一个量级；2.4/6 = 0.40 才是那个"极紧"。
+     四色仍留 2.4（页面原来的调子就是按它看的）。四色的拐点其实在 3.2（被压 17.4%、亮度 +9.9%），
+     想四色也不发白就把滑杆拖到 3.2 —— 这条写进 hint，不偷偷改默认。 */
+  var TAC_BY_PLATES = { 6: 4.2, 4: 2.4, 3: 2.4 };
+  var tacMemo = {};
+  var st = { src: 'poster', ink: 'hex', sep: 'cov', amp: 4, spd: 0.6, rot: 0.3, cell: 9, mf: 0.40, ucr: 0.55, tac: 4.2, seed: 3 };
+
+  /* 播放与静止用两档扫数。数字是量出来的（headless Edge，980×551 CSS / cell 9 → 109×61 = 6649 格，
+     六色 free；dpr1 与 dpr2 各跑两轮、每项 6~7 次取中位数）：
+                        dpr1 s30   dpr1 s12   dpr2 s30   dpr2 s12
+         取源             0.4        0.4        0.4        0.4
+         分色            24.7       10.8       25.1       10.2      ← 两档的差全在这
+         绘制             7.8        7.8       27.0       28.0      ← 只跟设备像素数走
+         判据读回         1.9        1.9        7.8        8.0
+         整帧           ≈35        ≈21        ≈60        ≈46
+     dpr2 的绘制（27）比分色（10）贵得多：那时压 sweeps 只能救回一半，瓶颈已经换成像素填充。
+     这台机器高 DPI 就是 21 fps 的水平，页面 hint 照实写，不假装 60 fps。 */
+  var SWEEPS_STILL = 30, SWEEPS_PLAY = 12;
+
+  /* 播放档的 sweeps **不是写死的 12**，是每次 rebuild 末尾按刚量出来的静止整帧成本现算的。
+     阈值 16.7 ms 就是一帧 60 fps 的预算 —— 判据是帧预算，不是"感觉慢"：
+       · 静止整帧 ≤ 16.7 ms —— 30 sweeps 也撑得住 60 fps，播放照用 30，不白丢颜色精度。
+       · 静止整帧 >  16.7 ms —— 播放降到 12：分色 24.7 → 10.8 ms，整帧 35 → 21 ms，换回帧率。
+     本机 dpr1 静止 33 ms、dpr2 约 60 ms，两边都过线，所以两边播放都是 12。
+     任务给的另一条硬线 50 ms（20 fps）单独留着：真有机器卡在 17~50 之间，
+     降级同样必须发生 —— 两条谁先咬人算谁，取或。
+     两档解出来的墨量差多少：平均 |Δw| = 0.019（满墨 1.0），差超过 0.08 的格占 8.6%；
+     1-bit 网点上看不出这点差别，所以这笔交易划算。
+     四色同机 dpr1：取源 0.4 + 分色 12.5 + 绘制 6.2 + 读回 1.4 = 20 ms，本来就过线，同样降级。 */
+  var PLAY_FRAME_MS = 1000 / 60, PLAY_HARD_MS = 50;
+  var inst = null, plates = null, cols = 0, rows = 0, dpr = 1, cssW = 0, cssH = 0;
+  var playing = false, t0 = 0, tNow = 0, raf = 0, lastM = null;
+  var SW = 360, SH = 202;                       /* 源画布：比网格略大，靠平均降采样 */
+  var srcCv = document.createElement('canvas'); srcCv.width = SW; srcCv.height = SH;
+  var srcCtx = srcCv.getContext('2d', { willReadFrequently: true });
+
+  /* ── 四个画面源：都用 Canvas 现画，不读外部位图（file:// 下读图会把画布弄脏，getImageData 直接抛） ── */
+  function paintSource(kind, t) {
+    var g = srcCtx, W = SW, H = SH;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    if (kind === 'poster') {
+      var lg = g.createLinearGradient(0, 0, W, H);
+      var hue = (t * 11) % 360;
+      lg.addColorStop(0, 'hsl(' + hue + ',72%,38%)');
+      lg.addColorStop(0.45, 'hsl(' + ((hue + 130) % 360) + ',78%,45%)');
+      lg.addColorStop(0.78, 'hsl(' + ((hue + 250) % 360) + ',82%,52%)');
+      lg.addColorStop(1, 'hsl(' + ((hue + 320) % 360) + ',64%,86%)');
+      g.fillStyle = lg; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(12,13,14,.88)';
+      g.beginPath(); g.arc(W * 0.66, H * 0.40, H * 0.30, 0, 7); g.fill();
+      g.fillStyle = 'rgba(248,246,238,.94)';
+      g.beginPath(); g.arc(W * 0.30, H * 0.63, H * 0.15, 0, 7); g.fill();
+      g.fillStyle = 'rgba(12,13,14,.9)';
+      g.fillRect(W * 0.08, H * 0.80, W * 0.34, H * 0.05);
+      g.fillRect(W * 0.08, H * 0.88, W * 0.20, H * 0.03);
+      g.font = '900 ' + Math.round(H * 0.26) + 'px "Helvetica Neue",Arial,"Noto Sans SC",sans-serif';
+      g.fillStyle = 'rgba(248,246,238,.96)';
+      g.textBaseline = 'top';
+      g.fillText('套印', W * 0.06, H * 0.10);
+    } else if (kind === 'wheel') {
+      var cx = W * 0.5, cy = H * 0.5, R = Math.min(W, H) * 0.46;
+      for (var i = 0; i < 96; i++) {
+        var a0 = (i / 96) * Math.PI * 2 + t * 0.22, a1 = ((i + 1) / 96) * Math.PI * 2 + t * 0.22;
+        g.beginPath(); g.moveTo(cx, cy);
+        g.arc(cx, cy, R, a0, a1); g.closePath();
+        g.fillStyle = 'hsl(' + Math.round((i / 96) * 360) + ',78%,50%)';
+        g.fill();
+      }
+      var rg = g.createRadialGradient(cx, cy, R * 0.04, cx, cy, R * 0.62);
+      rg.addColorStop(0, 'rgba(244,242,236,.98)');
+      rg.addColorStop(1, 'rgba(244,242,236,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(12,13,14,.9)';
+      g.beginPath(); g.arc(cx, cy, R * 0.10, 0, 7); g.fill();
+    } else if (kind === 'land') {
+      var sky = g.createLinearGradient(0, 0, 0, H * 0.62);
+      sky.addColorStop(0, 'hsl(' + ((206 + t * 6) % 360) + ',62%,26%)');
+      sky.addColorStop(0.6, 'hsl(' + ((22 + t * 9) % 360) + ',74%,56%)');
+      sky.addColorStop(1, 'hsl(' + ((40 + t * 12) % 360) + ',86%,76%)');
+      g.fillStyle = sky; g.fillRect(0, 0, W, H * 0.62);
+      var sunY = H * (0.30 + 0.06 * Math.sin(t * 0.7));
+      var sg = g.createRadialGradient(W * 0.72, sunY, H * 0.02, W * 0.72, sunY, H * 0.26);
+      sg.addColorStop(0, 'rgba(255,250,226,1)');
+      sg.addColorStop(1, 'rgba(255,240,190,0)');
+      g.fillStyle = sg; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(14,18,22,.94)';
+      g.beginPath(); g.moveTo(0, H * 0.62);
+      g.lineTo(W * 0.22, H * 0.34); g.lineTo(W * 0.42, H * 0.62); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(W * 0.30, H * 0.62);
+      g.lineTo(W * 0.56, H * 0.26); g.lineTo(W * 0.84, H * 0.62); g.closePath(); g.fill();
+      var wat = g.createLinearGradient(0, H * 0.62, 0, H);
+      wat.addColorStop(0, 'hsl(' + ((214 + t * 5) % 360) + ',54%,20%)');
+      wat.addColorStop(1, 'hsl(' + ((206 + t * 5) % 360) + ',62%,34%)');
+      g.fillStyle = wat; g.fillRect(0, H * 0.62, W, H * 0.38);
+      g.fillStyle = 'rgba(255,250,226,.55)';
+      for (var k = 0; k < 7; k++) {
+        var yy = H * (0.66 + k * 0.045), ww = W * (0.10 + 0.02 * ((k * 7) % 5));
+        g.fillRect(W * 0.72 - ww / 2, yy, ww, Math.max(1, H * 0.008));
+      }
+    } else {
+      /* 干涉场：把相位映射到色相，做成一张"会呼吸"的彩图 */
+      var id = g.createImageData(SW, SH), d = id.data;
+      var c1 = Math.cos(t * 0.9), s1 = Math.sin(t * 0.9);
+      for (var y = 0; y < SH; y++) {
+        for (var x = 0; x < SW; x++) {
+          var nx = (x / SW - 0.5) * 2, ny = (y / SH - 0.5) * 2;
+          var r1 = Math.sqrt((nx - 0.28) * (nx - 0.28) + (ny - 0.12) * (ny - 0.12));
+          var r2 = Math.sqrt((nx + 0.32) * (nx + 0.32) + (ny + 0.18) * (ny + 0.18));
+          var v = 0.5 + 0.5 * (Math.sin(r1 * 16 - t * 2.2) * 0.5 + Math.sin(r2 * 13 + t * 1.7) * 0.5);
+          var hh = (v * 320 + t * 20) % 360;
+          var rgbv = hsl2rgb(hh / 360, 0.72, 0.18 + v * 0.52);
+          var o = (y * SW + x) * 4;
+          d[o] = rgbv[0]; d[o + 1] = rgbv[1]; d[o + 2] = rgbv[2]; d[o + 3] = 255;
+        }
+      }
+      g.putImageData(id, 0, 0);
+    }
+    return srcCtx.getImageData(0, 0, SW, SH).data;
+  }
+  function hsl2rgb(h, s, l) {
+    h = h - Math.floor(h);
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    function f(x) {
+      if (x < 0) x += 1; if (x > 1) x -= 1;
+      if (x < 1 / 6) return p + (q - p) * 6 * x;
+      if (x < 1 / 2) return q;
+      if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+      return p;
+    }
+    return [Math.round(f(h + 1 / 3) * 255), Math.round(f(h) * 255), Math.round(f(h - 1 / 3) * 255)];
+  }
+
+  /* ── 尺寸：backing = CSS × DPR（1:1，不做二次缩放） ── */
+  function sizeCanvas() {
+    var frame = $('frame');
+    var avail = Math.max(280, (frame.parentElement || frame).clientWidth || 960);
+    dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    var DW = Math.floor(Math.min(avail, 980) * dpr), DH = Math.round(DW * 9 / 16);
+    cssW = DW / dpr; cssH = DH / dpr;
+    cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px';
+    return [cssW, cssH, dpr];
+  }
+
+  function driftOf(amp, rot, seed, spd) {
+    if (!(amp > 0) && !(rot > 0)) return null;
+    return { amp: amp, speed: spd, seed: seed, rot: rot };
+  }
+
+  /* ── 覆盖率曲线：只跟几何有关（cell / maxFrac / scale），与画面无关 ──
+     必须缓存：量一次 17~22 ms（dpr2 时 52 ms），每帧重量的等于白扔一帧的预算。它只在 cell / mf / dpr 变时失效 ——
+     这三个都走 rebuild()，失效点就放在那儿（curveNow 里再按 key 兜一层，防漏）。 */
+  var CUV = null, cuvKey = '', cuvMs = 0;
+  var cuvCv = document.createElement('canvas');
+  function curveNow() {
+    var key = st.cell + '|' + st.mf.toFixed(4) + '|' + dpr;
+    if (CUV && key === cuvKey) return CUV;
+    var t0 = performance.now();
+    CUV = DotInk.press.coverageCurve({
+      canvas: cuvCv, paper: PAPER, maxFrac: st.mf, areaMap: true,
+      cell: st.cell, scale: dpr, steps: 24, grid: 24
+    });
+    cuvMs = performance.now() - t0;
+    cuvKey = key;
+    return CUV;
+  }
+
+  /* 每格「墨量之和」的极值与被压格数：读数栏要**同时**给出覆盖率和墨量两个口径，
+     否则那根 TAC 滑杆压的是哪个量永远说不清（这两个量差一条 coverageCurve）。 */
+  function sepStats(pl, inks) {
+    var names = inks.map(function (k) { return k.name; });
+    var mx = 0, over = 0, n = cols * rows;
+    for (var j = 0; j < n; j++) {
+      var s = 0;
+      for (var i = 0; i < names.length; i++) { var a = pl[names[i]]; if (a) s += a[j]; }
+      if (s > mx) mx = s;
+      if (st.tac > 0 && s > st.tac) over++;
+    }
+    return { maxW: mx, overPct: over / (n || 1), plates: names.length };
+  }
+
+  /* 分色：源图 → 每版一团墨量。两条路都在这里，切档就换这一条（它换的是 plates，不是渲染参数，
+     所以必须重解、不能只 softUpdate）。
+     每次都是全新的一份 plates —— 不缓存、不增量：画面源随时间动，t 变了输入就变了，
+     缓存命中率会是 0，而判据读回要的是"这一帧"的数。 */
+  var sepMs = 0, srcMs = 0, drawMs = 0, measMs = 0, lastSep = null;
+  function separateNow(t, sweeps) {
+    /* 两个计时分开记：取源（paintSource）与解墨（separateCov）是两件事，混成一个数就说不清
+       "分色多少毫秒"到底是哪一段。整帧成本是四段相加，页面上的「整帧实测」按四段报。 */
+    var p0 = performance.now();
+    var raw = paintSource(st.src, t);
+    srcMs = performance.now() - p0;
+    var inks = INKSETS[st.ink];
+    var out, t1 = performance.now();
+    if (st.sep === 'cov') {
+      /* 覆盖域：在**覆盖率**上解，正模型与引擎的记账口径一致（R = Π(1 − c_i·d_i)）。
+         实测同一帧、渲染出的画布逐格对源图：覆盖域 71.0 / 公式 95.3（都压到 2.4）。
+         公式那套是四色的式子，六色时 O / G 它根本解不出来 —— 切过去 O、G 就是 0.0%。 */
+      out = DotInk.press.separateCov(inks, raw, SW, SH, cols, rows, {
+        paper: PAPER, curve: curveNow(),
+        sweeps: sweeps === undefined ? SWEEPS_STILL : sweeps, mode: 'free'
+      });
+    } else {
+      /* 公式档：原来的 UCR 减色公式，只认得 C/M/Y/K 四版。六色时 O/G 两版解不出来（恒 0），
+         判据表「每版都有墨」会红 —— 那不是 bug，正是「为什么六色必须换分色算法」的证据。 */
+      out = DotInk.press.separate(raw, SW, SH, cols, rows, { ucr: st.ucr });
+    }
+    sepMs = performance.now() - t1;
+    lastSep = sepStats(out, inks);
+    return out;
+  }
+
+  /* ── 每帧实测：播放与静止各记一组，各取中位数（单帧会被 GC 咬一口，中位数才稳） ── */
+  var perf = { play: { src: [], sep: [], draw: [], meas: [] }, still: { src: [], sep: [], draw: [], meas: [] } };
+  function pushT(b, k, v) { var a = perf[b][k]; a.push(v); if (a.length > 15) a.shift(); }
+  function med(a) {
+    if (!a.length) return NaN;
+    var s = a.slice().sort(function (x, y) { return x - y; });
+    return s[s.length >> 1];
+  }
+
+  function rebuild(keepT) {
+    var t = keepT === undefined ? tNow : keepT;
+    var dim = sizeCanvas();
+    cols = Math.max(8, Math.round(dim[0] / st.cell));
+    rows = Math.max(6, Math.round(dim[1] / st.cell));
+    /* 曲线缓存的失效点是这里，不是每帧：cell / mf / dpr 三个输入都在这条路径上变。
+       顺序也要紧 —— sizeCanvas 先定 dpr，curveNow 才拿得到对的 scale。 */
+    plates = separateNow(t, SWEEPS_STILL);
+    inst = DotInk.press.create({
+      canvas: cv, cssW: dim[0], cssH: dim[1], scale: dim[2],
+      cell: st.cell, maxFrac: st.mf, areaMap: true, floor: 0.02,
+      inks: INKSETS[st.ink], plates: plates,
+      drift: driftOf(st.amp, st.rot, st.seed, st.spd),
+      tacLimit: st.tac, ucr: st.ucr, duration: DUR
+    });
+    /* 第一次 draw 是冷的（JIT 还没编译这条路），那一趟的数不能当"实测"贴到页面上 ——
+       实测冷启动 112 ms、暖机后 28 ms，差四倍。所以：一趟冷跑负责焐热，清空计时后再量三趟。
+       为什么是三趟而不是一趟：一趟的中位数还是它自己，第二趟常带着上一次的 GC 尾巴
+       （实测只跑两趟时绘制报 12.1 ms，稳下来是 7 ms）。三趟换一个对得上手测的中位数，值。
+       总代价是每次 rebuild 多四次分色（暖机后每次 ~25 ms）；换来的是页面报的毫秒数可信，
+       而且 decidePlaySweeps 就是拿这三趟的中位数去决定播放档的。
+       换墨组 / 分色档 / 几何都要重走这条 —— 旧中位数描述的是上一个配置（四版与六版差一倍）。 */
+    inst.draw(t);
+    lastM = inst.measure();
+    paintStrip();
+    render(t);
+    ['play', 'still'].forEach(function (b) {
+      ['src', 'sep', 'draw', 'meas'].forEach(function (k) { perf[b][k].length = 0; });
+    });
+    for (var pass = 0; pass < 3; pass++) {
+      plates = separateNow(t, SWEEPS_STILL);
+      inst.setPlates(plates);
+      render(t);
+    }
+    updateCap();
+    decidePlaySweeps();
+    updatePerfNote(true);
+  }
+
+  /* 只改渲染参数（不重建缓冲）：drift 与 TAC 都是读 opts，直接改 */
+  function softUpdate() {
+    if (!inst) return;
+    inst.opts.tacLimit = st.tac;
+    inst.opts.drift = driftOf(st.amp, st.rot, st.seed, st.spd);
+    render(tNow);
+  }
+
+  function fmt(x, n) { return (x === null || x === undefined || !isFinite(x)) ? '—' : x.toFixed(n === undefined ? 2 : n); }
+
+  /* 拿刚量出来的静止中位数决定播放档。放在 rebuild 末尾：几何（cell / dpr / 画布宽）一变，
+     成本就变，档位得跟着重判 —— 否则在 dpr1 上定好的 12 会被原样带到 dpr2 或 4K 屏上。 */
+  function decidePlaySweeps() {
+    var b = perf.still;
+    var t = ['src', 'sep', 'draw', 'meas'].map(function (k) { return med(b[k]); });
+    if (!t.every(isFinite)) return;
+    var total = t.reduce(function (a, c) { return a + c; }, 0);
+    SWEEPS_PLAY = (total > PLAY_FRAME_MS || total > PLAY_HARD_MS) ? 12 : SWEEPS_STILL;
+  }
+
+  function render(t) {
+    if (!inst) return;
+    tNow = t;
+    var d0 = performance.now();
+    inst.draw(t);
+    drawMs = performance.now() - d0;
+    var d1 = performance.now();
+    var m = inst.measure();
+    measMs = performance.now() - d1;
+    lastM = m;
+    /* 播放与静止各记一桶：两档的 sweeps 不同、几何也可能不同，混在一起算中位数等于什么也没说。
+       判据读回（getImageData 逐像素核对）实测只要 1.3~2.1 ms，所以每帧都做 —— 没有理由为了省这
+       2 ms 让读数栏在播放时停更。 */
+    var bucket = playing ? 'play' : 'still';
+    pushT(bucket, 'src', srcMs); pushT(bucket, 'sep', sepMs);
+    pushT(bucket, 'draw', drawMs); pushT(bucket, 'meas', measMs);
+
+    var inks = INKSETS[st.ink];
+    $('rReg').textContent = fmt(m.regPx, 2) + 'px · ' + fmt(m.regRot, 2) + '°';
+    /* 两个口径必须分两格写：m.tac 是覆盖率之和（印刷的 TAC 口径），st.tac 卡的是墨量 w 之和、
+       两者差一条 coverageCurve。混成一个数，滑杆就会「明明没到上限却在报警」。 */
+    $('rTac').textContent = fmt(m.tac * 100, 1) + '%（门限 ' + fmt(covLimit() * 100, 0) + '%）';
+    $('rW').textContent = fmt(st.tac, 2) + ' / ' + fmt(lastSep ? lastSep.overPct * 100 : NaN, 1) + '% 格';
+    $('rCol').textContent = m.colors + ' / ' + m.paletteColors + ' 色';
+    $('rFringe').textContent = fmt(m.fringe * 100, 2) + '%';
+    $('rPer').textContent = fmt(m.platesPerInk, 2) + ' 版';
+    $('r11').textContent = cv.width + '×' + cv.height + ' @' + dpr.toFixed(2);
+    $('rCol').className = (m.colors > m.paletteColors) ? 'bad' : '';
+    $('scrubV').textContent = fmt(t, 2) + 's';
+    if (document.activeElement !== $('scrub')) $('scrub').value = String(Math.round(t / DUR * 1000));
+
+    /* 每版覆盖率：版数跟着墨组走（六色六个、三色三个），不写死四个 */
+    var cw = $('covs');
+    cw.textContent = '';
+    inks.forEach(function (k) {
+      var pl = m.plates[k.name];
+      var s = document.createElement('span');
+      s.title = k.title + ' · 网角 ' + k.angle + '°';
+      var sw = document.createElement('i');
+      sw.style.background = 'rgb(' + k.rgb.join(',') + ')';
+      s.appendChild(sw);
+      s.appendChild(document.createTextNode(k.name + ' ' + (pl ? fmt(pl.cov * 100, 1) : '—') + '%'));
+      cw.appendChild(s);
+    });
+    var sp = document.createElement('span');
+    sp.className = 'pr-off';
+    sp.textContent = '共 ' + inks.length + ' 版';
+    cw.appendChild(sp);
+    paintChecks(m);
+    updatePerfNote();
+  }
+
+  /* 播放 / 静止的实测毫秒数：写进页面，不让读者凭感觉猜"够不够快"。
+     数字是**这一台机器这一档几何**（cell / dpr / 画布宽）的中位数，换机器会变，所以连几何一起写。 */
+  var lastNoteAt = -1e9;
+  function updatePerfNote(force) {
+    var n = $('motionNote');
+    if (!n) return;
+    /* 节流 400 ms：这行字每帧重算 innerHTML 是纯浪费，而两帧之间的中位数变化本来也看不出来。
+       暂停 / 换档时 force 一下，读数要立刻跟手。 */
+    var now = performance.now();
+    if (!force && now - lastNoteAt < 400) return;
+    lastNoteAt = now;
+    var pb = perf.play, sb = perf.still;
+    var fmtMs = function (x) { return isFinite(x) ? x.toFixed(1) : '—'; };
+    /* 还没播过就不编一个 0 出来：空桶给 NaN，格式化成 — */
+    var sum = function (o) {
+      var vs = ['src', 'sep', 'draw', 'meas'].map(function (k) { return med(o[k]); });
+      return vs.every(isFinite) ? vs.reduce(function (a, b) { return a + b; }, 0) : NaN;
+    };
+    var parts = function (o) {
+      return '取源 ' + fmtMs(med(o.src)) + ' + 分色 ' + fmtMs(med(o.sep)) + ' + 绘制 ' + fmtMs(med(o.draw))
+        + ' + 判据读回 ' + fmtMs(med(o.meas));
+    };
+    n.innerHTML = '整帧实测（dpr ' + dpr.toFixed(2) + '，' + cols + '×' + rows + ' 格）：播放 <b>'
+      + fmtMs(sum(pb)) + ' ms</b>（' + parts(pb) + '，sweeps ' + SWEEPS_PLAY + '）· 静止 <b>'
+      + fmtMs(sum(sb)) + ' ms</b>（' + parts(sb) + '，sweeps ' + SWEEPS_STILL + '）· 覆盖率曲线 '
+      + (CUV ? fmtMs(cuvMs) + ' ms 量过一次、之后缓存' : '未建')
+      + (dpr > 1.5 ? '。dpr 高时绘制比分色贵得多（dpr2 实测绘制 26.5 ms、分色 11.3 ms），压 sweeps 救不回来。' : '');
+  }
+
+  /* 判据表：四条，全是 press 自己的口径；行数跟版数走（六色时色数上限是 35 不是 15）。
+     TAC 这条比的是**覆盖率之和** —— 那才是印刷厂说的 TAC（各版墨膜厚度相加）。
+     墨量 w 之和是分色内部量、由滑杆单独压，它不该当判据：饱和黑那几格永远是六版满墨（w 和 = 6），
+     拿它做门限会永远红，红得还没意义。它只作为「压了多少格」写在读数栏。 */
+  /* 覆盖率口径的门限取**行业上限**，不是量出来的：胶印 TAC 上限 300%（四色）、六色 Hexachrome 惯例放到
+     340%。实测这一帧落在 88.8%（四色）/ 113.9%（六色），离上限还有余量 —— 所以这条判据现在恒绿，
+     它的作用是"哪天分色解出来把墨压满就会红"，不是"这一帧好看不好看"。 */
+  var COV_LIMIT = { 3: 3.0, 4: 3.0, 6: 3.4 };
+  function covLimit() { return COV_LIMIT[INKSETS[st.ink].length] || 3.0; }
+  function paintChecks(m) {
+    var inks = INKSETS[st.ink];
+    var names = Object.keys(m.plates);
+    var inked = names.filter(function (k) { return m.plates[k].cov > 0; }).length;
+    var rows = [
+      ['只在套印格点集上（' + (1 << inks.length) + ' 个掩码）', m.badPixels === 0 ? '0 越界像素' : m.badPixels + ' 像素越界', '必须 0', m.badPixels === 0],
+      ['总墨量（覆盖率之和）', fmt(m.tac * 100, 1) + '%', '≤ ' + fmt(covLimit() * 100, 0) + '%', m.tac <= covLimit() + 1e-6],
+      ['色数 ≤ 格点集', m.colors + ' / ' + m.paletteColors, '≤ ' + m.paletteColors, m.colors <= m.paletteColors],
+      ['每版都有墨（' + inks.length + ' 版）',
+        inked + ' / ' + names.length + (inked < names.length
+          ? ' · ' + names.filter(function (k) { return !(m.plates[k].cov > 0); }).join(' ')
+          : ''),
+        '全 > 0', names.every(function (k) { return m.plates[k].cov > 0; })]
+    ];
+    var tb = $('checks');
+    tb.textContent = '';
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + r[0] + '</td><td class="v">' + r[1] + '</td><td class="v">' + r[2] + '</td>' +
+        '<td class="' + (r[3] ? 'yes' : 'no') + '">' + (r[3] ? '✓' : '✗') + '</td>';
+      tb.appendChild(tr);
+    });
+    var bad = rows.filter(function (r) { return !r[3]; }).map(function (r) { return r[0]; });
+    /* 提示只在**真的**是那条红的时候加：公式档 + 六色时 O/G 恒 0，这是分色算法的边界，不是渲染坏了。
+       挂在所有未过情形上会误导 —— TAC 超了也被说成"O/G 解不出"。 */
+    var hint = (inked < names.length && INKSETS[st.ink].length > 4 && st.sep === 'formula')
+      ? '　（公式只认 C/M/Y/K，六色时 O / G 恒 0 —— 那是分色路径的边界，不是渲染出错；切回覆盖域即可）'
+      : '';
+    $('verdict').textContent = bad.length
+      ? ('未过：' + bad.join(' · ') + hint)
+      : ('四条全过。这一帧落在 ' + m.paletteColors + ' 色的格点集里，'
+        + (m.regPx > 0 ? '套印偏差 ' + fmt(m.regPx, 2) + 'px' : '所有版严格对齐')
+        + '。总墨量 ' + fmt(m.tac * 100, 0) + '% 是**覆盖率之和**（本页门限 '
+        + fmt(covLimit() * 100, 0) + '%：四色按行业上限 300%、六色按 Hexachrome 惯例 340%），'
+        + '滑杆压的墨量 w 另算。');
+
+    /* 1:1 放大镜：从画布左上 1/4 处取 160×90 设备像素，不插值 */
+    var z = $('zoom').getContext('2d');
+    z.imageSmoothingEnabled = false;
+    z.fillStyle = '#F2F3F2'; z.fillRect(0, 0, 320, 180);
+    z.drawImage(cv, Math.round(cv.width * 0.22), Math.round(cv.height * 0.18),
+      Math.round(cv.width * 0.16), Math.round(cv.height * 0.16), 0, 0, 320, 180);
+  }
+
+  /* ── 三连对照：一次画三张，各带自己的读数 ──
+     三张**共用主画布那一份 plates**（同一组墨、同一条分色路径、同一组网角），只换位移与微转 ——
+     否则对照图跟主画就不是同一件事了，读者会拿两套分色的差别去解释错位的差别。 */
+  function paintStrip() {
+    if (!plates) return;
+    var specs = [
+      ['cA', 'vA', 0, 0],
+      ['cB', 'vB', 2.5, 0.2],
+      ['cC', 'vC', 6, 0.45]
+    ];
+    specs.forEach(function (sp) {
+      var c = $(sp[0]);
+      var i = DotInk.press.create({
+        canvas: c, cssW: 480, cssH: 270, scale: 1,
+        cell: st.cell * 1.4, maxFrac: st.mf, areaMap: true, floor: 0.02,
+        inks: INKSETS[st.ink], plates: plates,
+        /* 速度也跟主画一致：三张小图之间只该差位移与微转，不该再差一个"晃得多快" ——
+           那会让读者把相位差当成套印误差去读。 */
+        drift: driftOf(sp[2], sp[3], st.seed, st.spd),
+        tacLimit: st.tac, ucr: st.ucr, duration: DUR
+      });
+      i.draw(tNow);
+      var m = i.measure();
+      var v = $(sp[1]);
+      v.textContent = m.colors + ' 色 · 漏色 ' + fmt(m.fringe * 100, 1) + '% · 偏差 ' + fmt(m.regPx, 1) + 'px';
+    });
+  }
+
+  /* ── 走带 ── */
+  function tick() {
+    if (!playing) return;
+    var t = ((performance.now() - t0) / 1000) % DUR;
+    /* 画面源本身也随时间动：每一帧都重新分色（这就是"视频帧"的路径，没有增量缓存可蹭）。
+       sweeps 用播放档而不是静止档：实测 dpr1 整帧 35 → 21 ms，省的 14 ms 全在分色上（24.7 → 10.8）。
+       代价是墨量解得粗一点：平均 |Δw| 0.019、差超过 0.08 的格占 8.6% —— 1-bit 网点上看不出。
+       拖进度条 / 方向键 / 暂停时回 sweeps 30，把颜色解到位。
+       （两档怎么选在 SWEEPS_PLAY 那段注释里；改之前先重量一遍，别照抄数。） */
+    plates = separateNow(t, SWEEPS_PLAY);
+    inst.setPlates(plates);
+    render(t);
+    raf = requestAnimationFrame(tick);
+  }
+  function play(on) {
+    playing = on;
+    $('play').setAttribute('aria-pressed', String(on));
+    $('play').textContent = on ? '暂停' : '播放';
+    $('state').setAttribute('data-state', on ? 'playing' : 'paused');
+    $('state').textContent = on ? '播放中' : '已暂停';
+    /* 每一轮播放单独记一组：混着上一轮的数会把「拖进度条时的 30 sweeps」算进播放中位数里。
+       清空只在**开始**时做 —— 暂停后再清，读者就看不到刚测出来的播放数字了。 */
+    if (on) {
+      ['src', 'sep', 'draw', 'meas'].forEach(function (k) { perf.play[k].length = 0; });
+      /* t0 从"当前时刻"接上，不要从 0 重来 —— 暂停再播不应该跳回开头 */
+      t0 = performance.now() - tNow * 1000;
+      raf = requestAnimationFrame(tick);
+    } else { cancelAnimationFrame(raf); updatePerfNote(); }
+  }
+
+  /* ── 绑定 ── */
+  document.querySelectorAll('[data-src]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-src]').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      st.src = b.getAttribute('data-src');
+      $('capSrc').textContent = SRCNAME[st.src];
+      rebuild();
+    });
+  });
+  document.querySelectorAll('[data-ink]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-ink]').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      st.ink = b.getAttribute('data-ink');
+      $('capAng').textContent = INKNAME[st.ink];
+      applyTacDefault();
+      rebuild();
+    });
+  });
+
+  /* TAC 的默认值跟着版数走，但**记着每档自己调过的值**：切到四色给 2.4、切回六色给 4.2，
+     用户在某档上拖过的值不会被另一档覆盖掉（否则一换墨组就得重拖一次）。 */
+  function applyTacDefault() {
+    var n = INKSETS[st.ink].length;
+    if (st.tac !== undefined && tacMemo[st._lastPlates] !== undefined) tacMemo[st._lastPlates] = st.tac;
+    st._lastPlates = n;
+    st.tac = tacMemo[n] !== undefined ? tacMemo[n] : (TAC_BY_PLATES[n] || 2.4);
+    if (st.tac > 6) st.tac = 6;
+    $('tac').value = String(Math.round(st.tac * 100));
+    $('tacV').textContent = st.tac.toFixed(2);
+  }
+
+  /* 分色档：换的是 plates 的算法，必须重解；公式档下「底色去除」才有意义，
+     覆盖域档里那个旋钮是死的 —— 让控件如实反映"它现在有没有作用"，比留个能拖但没用的滑杆诚实。 */
+  function applySepUI() {
+    var cov = st.sep === 'cov';
+    $('ucr').disabled = cov;
+    $('ucrRow').classList.toggle('pr-off', cov);
+    /* 公式档永远只解 C/M/Y/K 四版，所以「几版」要取它与当前墨组的交集 ——
+       三色墨组配公式档时实际只叠三版，写死「4 版」就是标签骗人。 */
+    var n = INKSETS[st.ink].length;
+    $('capEnc').textContent = cov
+      ? '面积映射 √ · 覆盖域分色（separateCov）· ' + n + ' 版减色叠印'
+      : '面积映射 √ · 公式 UCR 分色 · ' + Math.min(4, n) + ' 版减色叠印'
+        + (n > 4 ? '（O / G 解不出）' : '');
+  }
+  document.querySelectorAll('input[name=sep]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      if (!this.checked) return;
+      st.sep = this.value;
+      applySepUI();
+      rebuild();
+    });
+  });
+
+  function bindRange(id, out, fn, fmtFn) {
+    var el = $(id);
+    el.addEventListener('input', function () {
+      var v = +el.value;
+      var shown = fn(v);
+      $(out).textContent = fmtFn ? fmtFn(shown) : String(shown);
+      return shown;
+    });
+  }
+  $('amp').addEventListener('input', function () { st.amp = +this.value; $('ampV').textContent = st.amp.toFixed(1) + 'px'; softUpdate(); paintStrip(); });
+  $('spd').addEventListener('input', function () { st.spd = +this.value / 10; $('spdV').textContent = st.spd.toFixed(2); softUpdate(); });
+  $('rot').addEventListener('input', function () { st.rot = +this.value / 10; $('rotV').textContent = st.rot.toFixed(2) + '°'; softUpdate(); paintStrip(); });
+  $('cell').addEventListener('input', function () { st.cell = +this.value; $('cellV').textContent = st.cell + 'px'; rebuild(); });
+  $('mf').addEventListener('input', function () { st.mf = +this.value / 100; $('mfV').textContent = st.mf.toFixed(2); rebuild(); });
+  $('ucr').addEventListener('input', function () { st.ucr = +this.value / 100; $('ucrV').textContent = st.ucr.toFixed(2); rebuild(); });
+  $('tac').addEventListener('input', function () {
+    st.tac = +this.value / 100; tacMemo[INKSETS[st.ink].length] = st.tac;
+    $('tacV').textContent = st.tac.toFixed(2);
+    softUpdate(); paintStrip();
+  });
+
+  $('play').addEventListener('click', function () { play(!playing); });
+  $('align').addEventListener('click', function () {
+    st.amp = 0; st.rot = 0;
+    $('amp').value = '0'; $('ampV').textContent = '0.0px';
+    $('rot').value = '0'; $('rotV').textContent = '0.00°';
+    softUpdate(); paintStrip();
+  });
+  $('reseed').addEventListener('click', function () {
+    st.seed = (st.seed * 7 + 5) % 997;
+    softUpdate(); paintStrip();
+  });
+  $('framePng').addEventListener('click', function () {
+    var a = document.createElement('a');
+    a.download = 'dotink-press-' + Date.now() + '.png';
+    a.href = cv.toDataURL('image/png');
+    a.click();
+  });
+  $('scrub').addEventListener('input', function () {
+    var t = (+this.value / 1000) * DUR;
+    plates = separateNow(t, SWEEPS_STILL); inst.setPlates(plates);
+    if (playing) play(false);
+    render(t);
+  });
+
+  /* 键盘：空格播放、方向键步进、Home/End */
+  $('frame').addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); play(!playing); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (playing) play(false);
+      var d = (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 1 : 0.1);
+      var t = Math.max(0, Math.min(DUR, tNow + d));
+      plates = separateNow(t, SWEEPS_STILL); inst.setPlates(plates); render(t);
+    } else if (e.key === 'Home') { e.preventDefault(); if (playing) play(false); plates = separateNow(0, SWEEPS_STILL); inst.setPlates(plates); render(0); }
+    else if (e.key === 'End') { e.preventDefault(); if (playing) play(false); plates = separateNow(DUR - 0.001, SWEEPS_STILL); inst.setPlates(plates); render(DUR - 0.001); }
+  });
+
+  /* 标题行：墨组与分色档都是"这一帧是什么"的一部分，换档必须跟着换 —— 否则读者拿旧标签看新画面 */
+  function updateCap() {
+    $('capAng').textContent = INKNAME[st.ink];
+    applySepUI();
+  }
+
+  /* 尺寸变化：重建（缓冲跟 backing 走） */
+  var lastW = 0, lastD = 0, rz = 0;
+  function onResize() {
+    var w = ($('frame').parentElement || $('frame')).clientWidth, d = window.devicePixelRatio || 1;
+    if (w === lastW && d === lastD) return;
+    lastW = w; lastD = d;
+    clearTimeout(rz);
+    rz = setTimeout(function () { rebuild(); }, 120);
+  }
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe($('frame').parentElement || $('frame'));
+  addEventListener('resize', onResize);
+
+  $('capSrc').textContent = SRCNAME[st.src];
+  $('capAng').textContent = INKNAME[st.ink];
+  applySepUI();
+  st._lastPlates = INKSETS[st.ink].length;
+  $('motionNote').textContent = '画面源自身也在动：每一帧重新分色 → 重新出 ' + INKSETS[st.ink].length + ' 版（视频就是这条路径）';
+  rebuild(0);
+  onResizeImmediate();
+  function onResizeImmediate() { lastW = ($('frame').parentElement || $('frame')).clientWidth; lastD = window.devicePixelRatio || 1; }
+})();
+</script>
+</body>
+</html>

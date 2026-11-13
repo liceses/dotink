@@ -53,3 +53,36 @@ Pearson 1993 · Witten & Sander 1981 · Kuramoto 1975 · Feigenbaum 1978 · 双�
 正文 sha256 与上游一致，可用 [`tools/vendor-markplate.mjs`](tools/vendor-markplate.mjs) 复验/重取。
 
 它用到的厂标路径数据许可与商标口径**同 §1**（simple-icons **CC0 1.0**；商标归各家；指称使用；商用前过法务）。
+
+---
+
+## 7 · 套印片源照片（[`media/press-src-*.jpg`](media) · [`tools/press-reel.html`](tools/press-reel.html)）
+
+《套印不齐》片源的三张样张用**真实照片**而不是手绘 —— 这一层的立论是「颜色只落在 2^N 个格点上」，
+必须有真实连续调的内容才能暴露「四色压不出饱和橙绿」。手绘示意图反而证明相反的事（画什么都是一块色）。
+
+三张全部 **CC0 1.0 Universal**（公有领域奉献，无署名义务；此处仍列出作者与出处）：
+
+| 用途 | 文件 | 原图 / 作者 | 出处 | 许可 |
+| --- | --- | --- | --- | --- |
+| 01 果物 | [`press-src-fruit.jpg`](media/press-src-fruit.jpg) 1200×800 | *Basket of blood oranges* · Linh Pham (`lhpham12`) · 2016-11-13 · 原件 5184×3456 | [Commons](https://commons.wikimedia.org/wiki/File:Basket_of_blood_oranges_(Unsplash).jpg) · [Unsplash](https://unsplash.com/photos/sZnRKLItmwo) | [CC0 1.0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) |
+| 02 肌肤 | [`press-src-skin.jpg`](media/press-src-skin.jpg) 1200×800 | *Face portrait* · William Stitt (`willpower`) · 2016-10-19 · 原件 5184×3456 | [Commons](https://commons.wikimedia.org/wiki/File:Face_portrait_(Unsplash).jpg) · [Unsplash](https://unsplash.com/photos/PgSu429ID5o) | [CC0 1.0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) |
+| 03 风景 | [`press-src-land.jpg`](media/press-src-land.jpg) 1200×676 | *Snow and sunset at Isolation Lake* · Sergei Akulich (`sakulich`) · 2016-09-24 · 原件 4001×2251 | [Commons](https://commons.wikimedia.org/wiki/File:Snow_and_sunset_at_Isolation_Lake_(Unsplash).jpg) · [Unsplash](https://unsplash.com/photos/AoGduv67dss) | [CC0 1.0](http://creativecommons.org/publicdomain/zero/1.0/deed.en) |
+
+**改动**：仅裁切与缩放（`ffmpeg -vf scale=…:flags=lanczos`），**未改色、未修图、未重绘**。
+片源在运行时另做一层按格尺度的高斯低通（`PHOTO_BLUR = 4` 源像素）—— 见
+[`docs/05-misregistration.md`](docs/05-misregistration.md)「照片源与低通」一节：
+一格 ≈ 4 源像素、印在 10.5 设备像素上，比一格更细的东西（毛孔、发丝、叶脉）落进格子只会变成
+「这格该是哪个墨」的抖动，糊到格尺度之后才是连续的肤色网纹。
+
+曾经用过又换掉的：*Sunset over Peyto Lake*（Mark Basarab，CC0）—— 整体背光偏暗，
+1-bit 下 K 版吃掉 50.1% 面积、六色只剩三版出活，一张「暗」的样张证明不了色域宽。
+
+### 7.1 · 管线示例片段（[`media/press-pipe-clip.mp4`](media/press-pipe-clip.mp4)）
+
+`press.html`「管线：任意素材进，套印片出」那一节的示例片，素材是**从上表的三张 CC0 照片各做的一段缓推镜头**
+（`ffmpeg` 的 z/x/y 裁剪随帧线性推进，3 秒 90 帧，无重绘、无合成新素材）。因此它的许可与署名**同上表**，
+不再引入第四个来源。
+
+这一点值得写清楚：片子看起来像「随手拍的视频」，但它不是 —— 是拿仓库里已有的静帧做的推镜。
+如果换成真正实拍的外部片段，必须在这里补一行来源与许可，否则进不了开源包。

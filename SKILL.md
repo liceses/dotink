@@ -1,6 +1,6 @@
 ---
 name: dotink
-description: 点墨（Dot Ink）—— 1-bit 成像标准：画面只有墨与纸两种像素，所有中间调由点的面积表达。用户要做「点墨 / 网点 / 半调 / 1-bit 图 / 传真感 / 印刷感 / 点阵画 / 用点把一张图或一段字画出来」，或提到点距、点径、覆盖率、墨量、装饰墨/信息墨、净空、抖动(dither)、Floyd–Steinberg、Bayer，或要求"把某张图/某句话变成点阵"时，落点就是这里。
+description: 点墨（Dot Ink）—— 1-bit 成像标准：画面只有墨与纸两种像素，所有中间调由点的面积表达（多版叠印是另一层，见 press.js / docs/05）。用户要做「点墨 / 网点 / 半调 / 1-bit 图 / 传真感 / 印刷感 / 点阵画 / 用点把一张图或一段字画出来」，或提到点距、点径、覆盖率、墨量、装饰墨/信息墨、净空、抖动(dither)、Floyd–Steinberg、Bayer，或要求"把某张图/某句话变成点阵"时，落点就是这里。
 whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点阵画面是否成立（点读不读得成点、覆盖够不够、墨量分配是否失衡）。**判据唯一真相在 STANDARD.md**；实现是 fields.js + render.js + judge.js + host.js（dotink.js 只做汇总）；判据计算器是 preview.html。
 ---
 
@@ -19,11 +19,14 @@ whenToUse: 需要点墨/网点/半调/1-bit 质感的画面；或要判一套点
 | [`preview.html`](preview.html) | 判据计算器 + 参数实验台（双击即开），带 **1:1 放大镜** |
 | [`gallery.html`](gallery.html) | **画廊（视觉产品）**：九项现象**现场渲染**（8px 真圆盘 · 线性半径 · 每屏一句大字标题）+ 实时判据（**M1/M2/M3 分开报**）+ **映射 A/B** + 1:1 放大镜 —— 想知道"配方长什么样"就开它 |
 | [`transition.js`](transition.js) · [`transition.html`](transition.html) | **场转场**：两张同网格、同编码的场之间 `wipe / radial / dissolve / tone（按墨量显影）/ mask（沿字形·logo 轮廓揭示）`；`p` 的纯函数、端点严格、可倒放；`tr.renderHints` 给出与编码配对的 render 选项（γ 恒 1、shutter 0）。**不是** markplate 的 morph（插形状）/ reveal（从纸上浮现）。规范 [`docs/04-transitions.md`](docs/04-transitions.md) |
+| [`press.js`](press.js) · [`press.html`](press.html) | **套印不齐（N 张版叠印）**：一张画面分成 2–8 张版，每版仍是 1-bit，颜色靠**减色叠印**查表得来；版间用确定性的 `drift`（`{amp, speed, seed, rot}`）偏移 → 边缘漏色重影。**单版 + `angle 0` + `shutter 0` 与单色层逐字节相同**（所以是 render 的严格超集）。判据是**另外四条**（越界像素 / TAC / 色数 / 每版有墨），M1/M2/M3 在这里恒假。规范 [`docs/05-misregistration.md`](docs/05-misregistration.md) |
 | [`hero.html`](hero.html) | **hero 示例**：把点墨当**网站视觉重心**的完整写法（自适应 `scale` = DPR + 像素预算 · 后台暂停 · `reduced-motion` 定格 · 实时判据读数）—— 想知道"接到自己页面上要补哪几件事"就开它 |
 | [`logo.js`](logo.js) · [`logo-demo.html`](logo-demo.html) | **字版 logo 组件（即插即用）**：三行引脚本 + 一次 `mount`，把「字拼成的标 + 阅读波浮现 + 字不断浮动」挂到**任意视频/网页**上；支持内置 47 家 / 自备 SVG；见 §「字版 logo 组件」 |
 | [`marks-type.html`](marks-type.html) · [`markplate.js`](markplate.js) | **字版厂标（移植自主库 markplate）**：厂标用**字**拼出来（每格一个字，字的大小按距离场走），`reveal` = 阅读波 → **字逐格浮现**；47 家 · 0.8s/家 · 37.6s 一遍 |
 | [`marks.html`](marks.html) | **点墨版厂标墙**：同一批 47 家厂标用**点**画（网点 / 实墨 1-bit 剪影 两种落墨）；版权口径见 [`NOTICE.md`](NOTICE.md) |
 | [`icon.svg`](icon.svg) · [`icon.html`](icon.html) | **品牌图标**（几何即 §3/§4 的一次应用：15×15 网点 · maxFrac 0.406 · √ 映射 · 一颗 accent 点）+ **图标工坊**（任意尺寸导出、0 灰阶自检） |
+| [`theme/palettes.json`](theme/palettes.json) · [`THEME.md`](THEME.md) | **六套配色（可选，不属本标准）**：唯一真源 JSON → 生成 `theme.css`/`theme.js`；只有 `original` 是 standard，其余五套 edition。画布取色走 `DotInkTheme.canvas()`，换套后**必须重建实例** |
+| [`site/nav.json`](site/nav.json) · [`spec.html`](spec.html) | **站点信息架构**：5 分区 + 1 资源；顶栏/副条/面包屑/页内目录/页脚/meta 全部由它生成，**手改会被 `check/site.mjs` 打回** |
 
 ## 0.5 · 在产线里怎么落（优先这条）
 
@@ -120,6 +123,23 @@ python lab/tools/measure/ink-budget.py --frames <帧目录>
 
 ## 5 · 边界
 
-- 本标准只管**纸+墨两色**的 1-bit 成像；彩色/多色网点（`lab/tools/halftone/press.html` 四色各一角度）**未纳入**。
+- **单色层**只管**纸+墨两色**的 1-bit 成像。
+- 彩色/多色网点**已单独立册**：[`docs/05-misregistration.md`](docs/05-misregistration.md)（`press.js`）。它有自己的四条判据，**不与本节这套互套** —— M1/M2/M3 在套印层恒假。
+- 套印层的默认体裁是**准同角度**（四版同 45°）而不是印刷厂的玫瑰斑；玫瑰斑是可选体裁，风险是「彩纸屑」。
 - 抖动（Floyd–Steinberg / Bayer）是合法第三档，但会破坏"点距:点径"的整齐 → 判据改为 1:1 目视 + 覆盖率。
 - 判据的数字来源见 STANDARD.md §12 的出处索引；**标了"待标定"的阈值不要当硬门禁用**。
+- **配色（六套）不属本标准**：只有 `original` 是 standard，其余五套是 edition（改了墨/纸三元组本身，判据不适用）。
+  要换皮改 [`theme/palettes.json`](theme/palettes.json) 再 `node tools/build-theme.mjs`；**不要**在页面里写颜色
+  （`check/theme.mjs` 的裸色禁令会红）。画布取色只能走 `DotInkTheme.canvas()`，换套后**必须重建实例**。
+- **导航不手改**：顶栏/副条/面包屑/页脚/`meta` 都由 [`site/nav.json`](site/nav.json) 生成，
+  `node tools/build-site.mjs` 写盘、`check/site.mjs` 查零漂移。改页面结构别改头。
+
+## 6 · 改完必跑
+
+```powershell
+npm run check          # 90 test + 两个 --check 零漂移 + 链接 600 条
+```
+
+只跑一部分：`node --test check/core.mjs check/theme.mjs check/site.mjs` ·
+`node tools/build-theme.mjs --check` · `node tools/build-site.mjs --check` · `node tools/check-links.mjs`。
+**"跑绿"不等于"对"**：§2 第 8 条仍然成立 —— 数值只用来定位，签字的是人的眼睛。

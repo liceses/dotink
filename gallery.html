@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>点墨 · 现象画廊</title>
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
 <style>
   :root{
-    --ink:#0C0D0E; --paper:#F2F3F2; --mute:#5A5F61; --hair:#D2D6D5; --panel:#E4E7E6; --accent:#FF4B1F;
     --f-d:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
     --f-m:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   }
@@ -49,24 +50,45 @@
   #zoom{width:240px;height:135px;border:2px solid var(--ink);image-rendering:pixelated;background:var(--paper)}
   .note{font-size:12px;color:var(--mute);margin-top:8px}
 </style>
+<!-- site:meta:begin -->
+<meta name="description" content="八种只用点面积表达的场：从灰度映射到莫尔纹，同一套 API 换参数就是一整个画廊。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="现象画廊 · 点墨">
+<meta property="og:description" content="八种只用点面积表达的场：从灰度映射到莫尔纹，同一套 API 换参数就是一整个画廊。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/gallery.html">
+<link rel="canonical" href="gallery.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
 </head>
 <body>
-<header class="site-head">
-  <div class="in">
-    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
-    <nav class="site-nav">
-      <a href="gallery.html" aria-current="page">现象画廊</a>
-      <a href="transition.html">场转场</a>
-      <a href="preview.html">判据计算器</a>
-      <a href="marks-type.html">字版厂标</a>
-      <a href="marks.html">点墨厂标</a>
-      <a href="icon.html">品牌图标</a>
-      <a href="logo-demo.html">logo 组件</a>
-      <a href="STANDARD.md">标准</a>
-    </nav>
-  </div>
-</header>
-
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html" aria-current="page">现象</a>
+    <a href="marks-type.html">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><span>现象画廊</span></nav>
+</div>
+</div>
+<!-- site:head:end -->
 <section class="page-intro">
   <p class="kicker"><i></i>Dot Ink · Gallery · 1-bit</p>
   <h1 class="display">现象画廊</h1>
@@ -111,19 +133,16 @@
   </aside>
 </main>
 
-<footer class="site-foot">
-  <div class="in">
-    <span>出处：公式与来源见主库 <code>lab/PHENOMENA.md</code> 01–08；参考配方与对标件见
-      <a href="media/phenomena-8/SOURCE.md">SOURCE.md</a></span>
-    <span class="links">
-      <span>离线 · 零外部请求 · 同一 t 两次逐像素一致</span>
-      <a href="README.md">包说明</a>
-      <a href="STANDARD.md">标准</a>
-      <a href="https://github.com/liceses/dotink">GitHub</a>
-    </span>
-  </div>
-</footer>
-
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>公式与来源见主库 lab/PHENOMENA.md 01–08；参考配方与对标件见 SOURCE.md。</span>
+  <span class="links"><a href="media/phenomena-8/SOURCE.md">SOURCE.md</a>
+    <a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
 <script src="fields.js"></script>
 <script src="render.js"></script>
 <script src="judge.js"></script>
@@ -136,6 +155,12 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const W = 1280, H = 720;
+  /* ── 画布配色：**从令牌取**，不写三元组 ──────────────────────────────────────
+     theme.js 把六套配色的 canvas 令牌（ink / paper 各一个 [r,g,b]）摊在
+     DotInkTheme.canvas() 上；默认套逐位等于 STANDARD §1 的 [12,13,14]/[242,243,242]，
+     其余五套是 §11 登记的 edition。换主题 = 换这两个数 → 必须**重建实例**
+     （实例在 create() 时就把 ink/paper 收进闭包了，改 opts 不会生效）。 */
+  const inkOpts = () => { const c = DotInkTheme.canvas(); return { ink: c.ink, paper: c.paper }; };
   /* ── 渲染比例：**跟着画布在屏幕上的真实设备像素走** ────────────────────────────
      以前写死 S = 1.5（backing 1920×1080）。实测这一页的画布 CSS 盒是 1014×570，
      于是 devPerCss = 1920/1014 = 1.893 —— **非整数缩放**。浏览器重采样把 1-bit 硬边
@@ -259,16 +284,16 @@
          不要再手写一份（手写过一次：沙粒另算、相位环漏算 → 缩略图空白且没人发现）。 */
       const g = p.mk(16, 9);
       if (typeof g.pointsAt === 'function') {
-        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9,
-          cell: 3.5, shutter: 0, pointsAt: (tt) => thumbPoints(g.pointsAt, tt) });
+        inst = DotInk.create(Object.assign({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9,
+          cell: 3.5, shutter: 0, pointsAt: (tt) => thumbPoints(g.pointsAt, tt) }, inkOpts()));
       } else {
         /* 缩略图是"辨识用"不是"微缩"：格子必须**粗**（16×9 → cell 3.5 CSS px，
            点才够大到看得见），而墨量要**逐现象调**（§14：逐现象手调）——
            p.tg 是这一条的缩略图增益：默认 .8，向日葵这种整盘高值的压到 .5 才不会糊成黑块，
            分叉/凝聚这种天生稀疏的抬到 1.3–1.4 才看得见结构。 */
         const tg = p.tg === undefined ? .8 : p.tg;
-        inst = DotInk.create({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9,
-          cell: 3.5, shutter: 0, gain: tg, maxFrac: .42, areaMap: false, field: g.field });
+        inst = DotInk.create(Object.assign({ canvas: c, cssW: 56, cssH: 32, scale: 1.5, cols: 16, rows: 9,
+          cell: 3.5, shutter: 0, gain: tg, maxFrac: .42, areaMap: false, field: g.field }, inkOpts()));
       }
       inst.draw(t);
     } catch (e) { /* 缩略图失败不影响画廊 */ }
@@ -325,7 +350,7 @@
            格子值不翻墨就不存在（§5 净空的做法）。 */
         knock: true,
       })],
-    }, g));
+    }, g, inkOpts()));
     $('why').innerHTML = p.why;
     $('src').textContent = p.src;
     document.querySelectorAll('.item').forEach((el, k) => el.setAttribute('aria-current', String(k === i)));
@@ -440,6 +465,10 @@
   };
   if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.getElementById('stage'));
   else window.addEventListener('resize', onResize);
+
+  /* 换配色 → 缩略图与主画布都得重建：实例在 create() 时就把 ink/paper 收进闭包了。
+     顺序是"先缩略图、后主图"，因为 select() 会改 st.t（rebuild 里已经把它保回来了）。 */
+  DotInkTheme.onChange(() => { buildList(); rebuild(); });
 
   buildList();
   select(0);

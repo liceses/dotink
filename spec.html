@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · 标准与五册</title>
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
+<style>
+  /* 这一页是「规范」的入口：目录在前、判据在中、怎么验收在后 */
+  .docs{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);margin:16px 0 0}
+  .doc{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;padding:15px 16px;background:var(--page);
+    text-decoration:none;transition:background .14s ease}
+  .doc:hover{background:var(--panel)}
+  .doc .no{font:800 22px/1 var(--f-m);color:var(--accent);grid-row:1 / 3}
+  .doc b{font:800 14.5px/1.35 var(--f-d)}
+  .doc p{margin:0;font:400 12.5px/1.6 var(--f-d);color:var(--fg-mute)}
+  .doc small{display:block;margin-top:5px;font:600 10px/1 var(--f-m);letter-spacing:.1em;color:var(--fg-mute)}
+
+  .gates{width:100%;border-collapse:collapse;margin:16px 0 0;font:400 13px/1.6 var(--f-d)}
+  .gates th,.gates td{border-bottom:1px solid var(--rule);padding:9px 10px;text-align:left;vertical-align:top}
+  .gates thead th{font:700 10px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--fg-mute)}
+  .gates td.m{font:800 13px/1.3 var(--f-m);white-space:nowrap}
+  .gates .num{font:600 12px/1.5 var(--f-m);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .gates tr[data-mode] td:first-child{border-left:2px solid var(--accent)}
+
+  pre.cmd{margin:12px 0 0;padding:12px 14px;background:var(--panel);border-left:2px solid var(--fg);
+    overflow-x:auto;font:500 12px/1.75 var(--f-m)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:16px 0 0}
+  @media (max-width:820px){ .two{grid-template-columns:1fr} }
+  .box{border:1px solid var(--rule);padding:14px 16px;background:var(--page)}
+  .box h3{margin:0 0 8px;font:800 13px/1.3 var(--f-d)}
+  .box ul{margin:0;padding-left:18px;font:400 12.5px/1.7 var(--f-d);color:var(--fg-mute)}
+  .box code{font:600 11.5px/1 var(--f-m);background:var(--panel);padding:2px 5px}
+</style>
+<!-- site:meta:begin -->
+<meta name="description" content="点墨的判据从哪来、五册文档各管什么、怎么自己跑一遍验收。规范是唯一真相，其余四块都是它的推论。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="标准与五册 · 点墨">
+<meta property="og:description" content="点墨的判据从哪来、五册文档各管什么、怎么自己跑一遍验收。规范是唯一真相，其余四块都是它的推论。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/spec.html">
+<link rel="canonical" href="spec.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
+</head>
+<body>
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html" aria-current="true">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><a href="spec.html">规范</a><span class="sep">/</span><span>标准与五册</span></nav>
+  <nav class="subnav" aria-label="规范">
+    <a href="spec.html" aria-current="page">标准与五册</a>
+    <a href="preview.html">判据计算器</a>
+  </nav>
+</div>
+<nav class="toc-jump" aria-label="本页目录">
+  <a href="#sec-1">五册</a>
+  <a href="#sec-2">三条主判据</a>
+  <a href="#sec-3">怎么自己验收</a>
+  <a href="#sec-4">边界</a>
+</nav>
+</div>
+<!-- site:head:end -->
+
+<section class="page-intro">
+  <p class="kicker"><i></i>Dot Ink · Standard · 五册</p>
+  <h1 class="display">规范是唯一真相</h1>
+  <p>这一套东西只有一份判据：<code>STANDARD.md</code>。其余四册（现象、厂标、转场、套印）都是它的推论 ——
+    每一册里能算的都写成了脚本，能在断网的机器上重跑一遍。</p>
+  <p>所以「看着对」不算通过。<b>签字的必须是人的眼睛</b>，脚本只负责把不该签字的东西挡在前面。</p>
+</section>
+
+<main class="page-body">
+  <h2 id="sec-1">五册</h2>
+  <p class="note">按读的顺序排。① 是判据本身；②–⑤ 是判据在不同题材上的落地，每册都带一套可跑的检查。</p>
+  <div class="docs">
+    <a class="doc" href="docs/01-standard.md">
+      <span class="no">01</span><b>点墨的规范</b>
+      <p>令牌、三个几何量、半径映射、M1/M2/M3、墨量预算、禁令、出片前自查。判据的唯一出处。</p>
+      <small>STANDARD.md · 与 docs/01-standard.md 同源</small>
+    </a>
+    <a class="doc" href="docs/02-phenomena.md">
+      <span class="no">02</span><b>自然现象 + 整套代码</b>
+      <p>八种只用点面积表达的场：灰度映射、莫尔纹、干涉、DLA、Gray-Scott … 每个都带确定性截图。</p>
+      <small>check/core.mjs · 场构造器与确定性</small>
+    </a>
+    <a class="doc" href="docs/03-marks-logo.md">
+      <span class="no">03</span><b>字符 logo 系统</b>
+      <p>用字符本身拼厂标：笔画边界就是网点边界。含 47 家字版数据与图标缩到 32px 的判据。</p>
+      <small>check/core.mjs · 字版与 vendored 移植一致性</small>
+    </a>
+    <a class="doc" href="docs/04-transitions.md">
+      <span class="no">04</span><b>场转场</b>
+      <p>两个场之间怎么过渡：逐帧确定性、不许补间、不许随机。退出条件写在判据里，不在感觉里。</p>
+      <small>check/transition.mjs · 帧序可复现</small>
+    </a>
+    <a class="doc" href="docs/05-misregistration.md">
+      <span class="no">05</span><b>套印不齐</b>
+      <p>多版成像：四个版、四个颜色，网点错位怎么发生、又怎么被收回 1-bit。判据单列一套 P1–P4。</p>
+      <small>check/press.mjs · 与 M1–M3 不可互套</small>
+    </a>
+  </div>
+
+  <h2 id="sec-2">三条主判据</h2>
+  <p class="note">先问「这一屏的墨是在铺面，还是在勾线」，再选模式。选错模式，判据会把对的画面判死。</p>
+  <table class="gates">
+    <thead><tr><th>模式</th><th>管什么</th><th>门限</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr data-mode="M1">
+        <td class="m">M1</td>
+        <td>网点模式：点要读成<b>点</b></td>
+        <td class="num">点距 : 点径（中位）≥ 3 : 1<br>点径 &lt; 点距 / 2</td>
+        <td>实测固化</td>
+      </tr>
+      <tr data-mode="M2">
+        <td class="m">M2</td>
+        <td>面场模式：点当<b>面</b>用</td>
+        <td class="num">区域覆盖率 ≥ 8%<br>可见地板 ≥ 2% · 天花板 ≤ 55%</td>
+        <td>实测固化</td>
+      </tr>
+      <tr data-mode="M3">
+        <td class="m">M3</td>
+        <td>结构线刻：点只落在<b>结构</b>上</td>
+        <td class="num">报出结构处的<b>局部</b>覆盖率<br>不用整区 ≥8% 判它，必须 1:1 看一眼</td>
+        <td>待标定</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note" style="margin-top:10px">另外两条所有模式共用：
+    <b>墨量预算</b>（装饰墨 : 信息墨 ≤ 1:1，目标 ≤ 0.33:1）、
+    <b>1-bit 纪律</b>（<code>compose()</code> 之后非墨即纸，灰阶像素必须是 0）。</p>
+
+  <h2 id="sec-3">怎么自己验收</h2>
+  <div class="two">
+    <div class="box">
+      <h3>跑一遍</h3>
+      <pre class="cmd">npm run check
+# = node --test check/core.mjs check/transition.mjs
+#   check/press.mjs check/theme.mjs check/site.mjs
+#   &amp;&amp; node tools/build-theme.mjs --check
+#   &amp;&amp; node tools/build-site.mjs --check
+#   &amp;&amp; node tools/check-links.mjs</pre>
+      <p class="note" style="margin-top:10px">当前基线：<b>全部通过</b>。条数会随页面增加，
+        以命令自己的输出为准。这些都不进 CI —— <code>check/README.md</code> 写明了理由：签字的是人的眼睛。</p>
+    </div>
+    <div class="box">
+      <h3>配色与站点骨架</h3>
+      <pre class="cmd">node --test check/theme.mjs   # 令牌 / 对比度 / 零漂移
+node --test check/site.mjs    # 导航 / 元信息 / 无孤儿页
+node tools/build-theme.mjs --check
+node tools/build-site.mjs --check</pre>
+      <p class="note" style="margin-top:10px">生成件不进 CI 的构建，但进仓：
+        <code>theme.css</code>、<code>theme.js</code> 与每页的导航区都必须是「跑一遍生成器后的样子」。</p>
+    </div>
+  </div>
+
+  <h2 id="sec-4">边界（已知偏差）</h2>
+  <p class="note">标准里专门留了一节登记「这部分不属本标准」。改配色时最重要的一条是：</p>
+  <div class="two">
+    <div class="box">
+      <h3>画布 vs 界面</h3>
+      <ul>
+        <li>画布的墨与纸是硬令牌，标准套逐位等于 <code>[12,13,14]</code> / <code>[242,243,242]</code></li>
+        <li>站点的界面色（纸底、辅助灰、描线）从来不是标准条款</li>
+        <li>五套 edition 的<b>画布</b>也能换 —— 但它们不是标准套，登记在 §11 的偏差账里</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>两套判据不可互套</h3>
+      <ul>
+        <li>M1 / M2 / M3 在套印层<b>恒假</b>：它量的是单版覆盖率与点距:点径</li>
+        <li>套印层一帧里叠着 N 张版，得用 P1–P4（badPixels / tac / colors / 每版有墨）</li>
+        <li>两边都跑一遍也不能互相担保</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>规范只约束画面；站点界面是 DOM，不在此列。</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
+</body>
+</html>

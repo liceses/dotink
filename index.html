@@ -5,14 +5,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>点墨 · Dot Ink</title>
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
+<!-- site:meta:begin -->
+<meta name="description" content="点墨 Dot Ink：画面只有墨与纸两色像素，中间调由点面积表达。1-bit、零灰阶、逐帧确定性。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="点墨 · 点墨">
+<meta property="og:description" content="点墨 Dot Ink：画面只有墨与纸两色像素，中间调由点面积表达。1-bit、零灰阶、逐帧确定性。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/index.html">
+<link rel="canonical" href="index.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
+<noscript><meta http-equiv="refresh" content="0; url=hero.html"></noscript>
 <link rel="canonical" href="hero.html">
 <style>
-  html,body{margin:0;height:100%;background:#F2F3F2;color:#0C0D0E}
-  body{display:grid;place-items:center;font:500 14px ui-monospace,monospace;letter-spacing:.08em}
-  a{color:#0C0D0E;text-underline-offset:3px}
-  @media (prefers-color-scheme:dark){html,body{background:#0C0D0E;color:#F2F3F2}a{color:#F2F3F2}}
+  /* 只是一层跳转壳：配色仍走令牌，免得首帧闪一下旧纸色 */
+  html,body{margin:0;height:100%;background:var(--page);color:var(--fg)}
+  body{display:grid;place-items:center;
+    font:500 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em}
+  a{color:var(--fg);text-underline-offset:3px}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 </style>
-<noscript><meta http-equiv="refresh" content="0; url=hero.html"></noscript>
 </head>
 <body>
 <p>点墨 · DOT INK ｜ 正在进入 <a href="hero.html">hero</a> …</p>

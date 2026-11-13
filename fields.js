@@ -91,20 +91,35 @@
     /* 真图 → 覆盖率场（img2field v2 的口径：**先二值化再算每格深色占比**，绝不做面积平均）
      * 为什么：白底细线的图做面积平均会被平均成 8%，整张图消失（踩过）。
      * ⚠ 默认 gamma .45 / gain 1.6 = **已标定**的场 → 配 areaMap:false（线性）。
-     *   要配 render 默认的 √，传 {gamma: 1, gain: 1}；两个默认直接相接是双重校正（STANDARD §3）。 */
+     *   要配 render 默认的 √，传 {gamma: 1, gain: 1}；两个默认直接相接是双重校正（STANDARD §3）。
+     * ⚠ 二值化口径：**给了 ink / paper 就按"离哪个颜色更近"判墨**，不再用亮度阈值。
+     *   亮度阈值只在浅纸深墨下成立 —— 深色画布（夜墨套 ink=[242,243,242]/paper=[12,13,14]）
+     *   会把纸判成墨，整个场翻过来（实测 marks 的覆盖率 23.20% → 54.04%，标成了反相）。
+     *   反锯齿的边缘像素走"更近的那一侧"，所以带 AA 的栅格图也照样能用。 */
     fromImageData(data, w, h, cols, rows, o) {
       o = o || {};
-      const thr = o.thr === undefined ? 0.62 : o.thr;   /* 亮度阈值（0..1） */
+      const thr = o.thr === undefined ? 0.62 : o.thr;   /* 亮度阈值（0..1），仅在没给 ink/paper 时用 */
       const gamma = o.gamma === undefined ? 0.45 : o.gamma;
       const gain = o.gain === undefined ? 1.6 : o.gain;
+      const ink = o.ink || null, paper = o.paper || null;
+      const byColor = !!(ink && paper);
+      const i0 = byColor ? ink[0] : 0, i1 = byColor ? ink[1] : 0, i2 = byColor ? ink[2] : 0;
+      const p0 = byColor ? paper[0] : 0, p1 = byColor ? paper[1] : 0, p2 = byColor ? paper[2] : 0;
       const acc = new Float32Array(cols * rows), cnt = new Float32Array(cols * rows);
       for (let y = 0; y < h; y++) {
         const cy = Math.min(rows - 1, Math.floor(y / h * rows));
         for (let x = 0; x < w; x++) {
           const cx = Math.min(cols - 1, Math.floor(x / w * cols));
           const i = (y * w + x) * 4;
-          const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
-          const dark = lum < thr ? 1 : 0;
+          let dark;
+          if (byColor) {
+            const a0 = data[i] - i0, a1 = data[i + 1] - i1, a2 = data[i + 2] - i2;
+            const b0 = data[i] - p0, b1 = data[i + 1] - p1, b2 = data[i + 2] - p2;
+            dark = (a0 * a0 + a1 * a1 + a2 * a2) <= (b0 * b0 + b1 * b1 + b2 * b2) ? 1 : 0;
+          } else {
+            const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+            dark = lum < thr ? 1 : 0;
+          }
           acc[cy * cols + cx] += dark; cnt[cy * cols + cx] += 1;
         }
       }

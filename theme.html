@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · 色彩模板（六套纸墨）</title>
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
+<style>
+  /* 本页 eigene 版式：只排版，不写颜色（颜色全部来自 theme.css 的令牌） */
+  .tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;
+    background:var(--rule);border:1px solid var(--rule);margin:18px 0 0}
+  .tok{background:var(--page);padding:14px 16px}
+  .tok b{display:block;font:700 12px/1.3 var(--f-m);letter-spacing:.04em}
+  .tok small{display:block;margin-top:4px;font:500 11.5px/1.55 var(--f-d);color:var(--fg-mute)}
+  .tok code{font:600 11px/1 var(--f-m);background:var(--panel);padding:2px 5px;margin-top:8px;display:inline-block}
+
+  .pals{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;margin:18px 0 0}
+  .pal{border:1px solid var(--rule);border-top:2px solid var(--fg);background:var(--page);
+    display:flex;flex-direction:column}
+  .pal > .hd{display:flex;align-items:baseline;gap:8px;padding:12px 14px 10px;border-bottom:1px solid var(--rule)}
+  .pal > .hd b{font:800 16px/1.2 var(--f-d);letter-spacing:-.01em}
+  .pal > .hd small{font:600 9.5px/1 var(--f-m);letter-spacing:.14em;color:var(--fg-mute)}
+  .pal .tags{margin-left:auto;display:flex;gap:5px}
+  .pal .tag{font:600 9.5px/1 var(--f-m);letter-spacing:.06em;padding:4px 6px 3px;
+    border:1px solid var(--rule);color:var(--fg-mute)}
+  .pal .tag.std{border-color:var(--fg);color:var(--fg)}
+  .pal .tag.ed{border-color:var(--accent);color:var(--accent)}
+  .sw{display:flex;height:34px;border-bottom:1px solid var(--rule)}
+  .sw i{flex:1 1 auto;display:block;box-shadow:inset -1px 0 0 var(--rule)}
+  .sw i:last-child{box-shadow:none}
+  .swk{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin:0;padding:10px 14px 11px;
+    font:500 10px/1.75 var(--f-m);border-bottom:1px solid var(--rule)}
+  .swk > div{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+    border-bottom:1px dotted var(--rule);padding-bottom:1px}
+  .swk dt{margin:0;color:var(--fg-mute)}
+  .swk dd{margin:0;color:var(--fg);font-weight:600;letter-spacing:.02em}
+  .pal .body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;flex:1 1 auto}
+  .wedge{display:block;width:100%;max-width:260px;border:1px solid var(--rule);image-rendering:pixelated}
+  .pal .note{margin:0;font:400 12px/1.6 var(--f-d);color:var(--fg-mute)}
+  .pal .ft{display:flex;align-items:center;gap:8px;padding:0 14px 14px}
+  .pal .verdict{font:600 11px/1 var(--f-m);letter-spacing:.04em}
+  .pal .verdict.ok{color:var(--fg)}
+  .pal .verdict.bad{color:var(--alert)}
+  .pal .use{margin-left:auto}
+
+  .matrix{width:100%;border-collapse:collapse;margin:16px 0 0;font:500 12px/1.5 var(--f-m)}
+  .matrix th,.matrix td{border:1px solid var(--rule);padding:6px 9px;text-align:right;white-space:nowrap}
+  .matrix th:first-child,.matrix td:first-child{text-align:left}
+  .matrix thead th{font:700 10px/1.3 var(--f-m);letter-spacing:.08em;text-transform:uppercase;
+    color:var(--fg-mute);background:var(--panel)}
+  .matrix td.ok{color:var(--fg)}
+  .matrix td.bad{color:var(--alert);font-weight:700}
+  .matrix caption{caption-side:bottom;padding-top:10px;text-align:left;
+    font:400 12px/1.6 var(--f-d);color:var(--fg-mute)}
+  .map{width:100%;border-collapse:collapse;margin:16px 0 0;font:400 13px/1.6 var(--f-d)}
+  .map th,.map td{border-bottom:1px solid var(--rule);padding:8px 10px;text-align:left;vertical-align:top}
+  .map thead th{font:700 10px/1.3 var(--f-m);letter-spacing:.1em;text-transform:uppercase;color:var(--fg-mute)}
+  .map code{font:600 11.5px/1 var(--f-m);background:var(--panel);padding:2px 5px}
+  pre.cmd{margin:12px 0 0;padding:12px 14px;background:var(--panel);border-left:2px solid var(--fg);
+    overflow-x:auto;font:500 12px/1.7 var(--f-m)}
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+<!-- site:meta:begin -->
+<meta name="description" content="六套配色与三层令牌：标准套只改 DOM，五套 edition 连画布一起换。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="色彩模板 · 点墨">
+<meta property="og:description" content="六套配色与三层令牌：标准套只改 DOM，五套 edition 连画布一起换。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/theme.html">
+<link rel="canonical" href="theme.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
+</head>
+<body>
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html" aria-current="page">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><span>色彩模板</span></nav>
+</div>
+<nav class="toc-jump" aria-label="本页目录">
+  <a href="#sec-1">令牌三层</a>
+  <a href="#sec-2">六套配色</a>
+  <a href="#sec-3">对比度门禁</a>
+  <a href="#sec-4">加一套</a>
+</nav>
+</div>
+<!-- site:head:end -->
+
+<section class="page-intro">
+  <p class="kicker"><i></i>Dot Ink · Theme · 6 palettes</p>
+  <h1 class="display">六套纸墨</h1>
+  <p>标准只认两个颜色：墨 <code>[12,13,14]</code>、纸 <code>[242,243,242]</code>。
+    但那<b>是画布的</b>规矩，不是站点的。这一页把两层拆开：<b>界面令牌</b>随便换，<b>画布令牌</b>要换就得记账。</p>
+  <p>点右上角的方块换纸色 —— 整个站点（含这一页的表格）会一起换，画布上的点也跟着换墨色。
+    选择存在本地，刷新不丢；选「跟随系统」就交回给 <code>prefers-color-scheme</code>。</p>
+</section>
+
+<main class="page-body">
+  <h2 id="sec-1">令牌三层</h2>
+  <p class="note">第一层进 canvas，第二层只进 DOM，第三层是给旧页面用的别名。换主题时三层的联动是自动的。</p>
+  <div class="tokens">
+    <div class="tok"><b>① 画布层</b><small>只有这两个颜色会进 <code>DotInk.create({ink,paper})</code>。标准套里它们逐位等于 STANDARD §1。</small><code>--c-ink · --c-paper</code></div>
+    <div class="tok"><b>② 界面层</b><small>正文、辅助字、描线、面板、强调、警示、焦点环。这一层可以抗锯齿，不受「只有墨与纸」约束。</small><code>--fg · --page · --rule …</code></div>
+    <div class="tok"><b>③ 兼容别名</b><small><code>--ink</code> 指向 <code>--fg</code>，<code>--paper</code> 指向 <code>--page</code>。旧页面不改一个字也能跟着换。</small><code>--ink → --fg</code></div>
+  </div>
+
+  <h2 id="sec-2">六套配色</h2>
+  <p class="note">每张卡下方是「网点梯尺」：同一个场，八个墨量档，点面积按 <code>r = rMax·√w</code> 走。
+    这就是为什么要成套换 —— 只换界面不改画布，梯度会散架。</p>
+  <div class="pals" id="pals"></div>
+
+  <h2 id="sec-3">对比度门禁</h2>
+  <p class="note">下面每一个数都是 <code>theme.js</code> 里现算的（<code>DotInkTheme.gates()</code>），
+    与 <code>check/theme.mjs</code> 判的是同一份代码。门限：正文类 ≥ 4.5，装饰类 ≥ 3.0。</p>
+  <div id="matrix"></div>
+
+  <h2 id="sec-4">加一套</h2>
+  <p class="note">配色是数据，不是样式产物。改完必须重跑生成器，否则 <code>npm run check</code> 会红。</p>
+  <pre class="cmd"># 1) 在 theme/palettes.json 的 palettes 里加一条（slug 用 kebab-case）
+# 2) 重新生成 theme.css / theme.js —— 对比度不过会直接 exit 1
+node tools/build-theme.mjs
+# 3) 验收：结构、门禁、零漂移、裸色禁令
+node --test check/theme.mjs</pre>
+  <table class="map">
+    <thead><tr><th>要改什么</th><th>改哪里</th><th>别改哪里</th></tr></thead>
+    <tbody>
+      <tr><td>某一套的纸色 / 墨色</td><td><code>theme/palettes.json</code></td><td><code>theme.css</code>、<code>theme.js</code>（生成件）</td></tr>
+      <tr><td>画布的墨与纸</td><td><code>theme/palettes.json</code> 的 <code>canvas</code></td><td>页面的 <code>DotInk.create</code> 参数</td></tr>
+      <tr><td>新增界面令牌</td><td><code>tools/theme-core.mjs</code> 的 <code>UI_KEYS</code> + 门禁</td><td>各页的 <code>&lt;style&gt;</code></td></tr>
+      <tr><td>标准套的两个颜色</td><td>不能改：那是 STANDARD §1</td><td>——</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>点墨 Dot Ink · 画面只有墨与纸两色像素，中间调由点面积表达</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
+
+<script>
+(function () {
+  'use strict';
+  var T = window.DotInkTheme;
+  if (!T) return;
+
+  var TOKENS = [
+    ['page', '纸'], ['panel', '面板'], ['fg', '墨'], ['fgDeep', '正文深'],
+    ['fgMute', '辅助字'], ['rule', '描线'], ['accent', '强调'],
+    ['accentFg', '强调上的字'], ['alert', '文字级警示'], ['focus', '焦点环']
+  ];
+
+  /* ── 梯尺：八档墨量，r = rMax·√w（STANDARD §3 的面积映射）── */
+  function wedge(ink, paper) {
+    var CELL = 26, N = 8, DPR = 2;
+    var c = document.createElement('canvas');
+    c.className = 'wedge';
+    c.width = CELL * N * DPR;
+    c.height = CELL * DPR;
+    c.style.height = CELL + 'px';
+    var g = c.getContext('2d');
+    g.scale(DPR, DPR);
+    g.fillStyle = 'rgb(' + paper.join(',') + ')';
+    g.fillRect(0, 0, CELL * N, CELL);
+    g.fillStyle = 'rgb(' + ink.join(',') + ')';
+    var rMax = 0.48 * CELL;
+    for (var i = 0; i < N; i++) {
+      var w = i / (N - 1);
+      var r = rMax * Math.sqrt(w);
+      if (r <= 0) continue;
+      g.beginPath();
+      g.arc(CELL * i + CELL / 2, CELL / 2, r, 0, Math.PI * 2);
+      g.fill();
+    }
+    return c;
+  }
+
+  /* ── 卡片 ── */
+  var box = document.getElementById('pals');
+  var slugs = T.slugs();
+  slugs.forEach(function (slug) {
+    var p = T.pals[slug];
+    var card = document.createElement('article');
+    card.className = 'pal';
+
+    var sw = TOKENS.map(function (t) {
+      return '<i style="background:' + p.ui[t[0]] + '" title="' + t[1] + ' ' + p.ui[t[0]] + '"></i>';
+    }).join('');
+    var keys = TOKENS.map(function (t) {
+      return '<div><dt>' + t[1] + '</dt><dd>' + p.ui[t[0]] + '</dd></div>';
+    }).join('');
+
+    var g = T.gates(slug);
+    var bad = g.filter(function (x) { return !x.ok; });
+    var pass = g.length - bad.length;
+
+    card.innerHTML =
+      '<div class="hd"><b>' + p.name + '</b><small>' + p.en + '</small>' +
+        '<span class="tags">' +
+          '<span class="tag ' + (p.conformance === 'standard' ? 'std' : 'ed') + '">' +
+            (p.conformance === 'standard' ? '标准' : 'edition') + '</span>' +
+          '<span class="tag">' + p.mode + '</span>' +
+        '</span>' +
+      '</div>' +
+      '<div class="sw">' + sw + '</div>' +
+      '<dl class="swk">' + keys + '</dl>' +
+      '<div class="body">' +
+        '<div class="wslot"></div>' +
+        '<p class="note">' + p.note + '</p>' +
+      '</div>' +
+      '<div class="ft">' +
+        '<span class="verdict ' + (bad.length ? 'bad' : 'ok') + '"' +
+          (bad.length ? ' title="' + bad.map(function (x) { return x.key + '/' + x.against; }).join(' · ') + '"' : '') + '>' +
+          pass + '/' + g.length + ' 门禁通过' +
+        '</span>' +
+        '<button type="button" class="ink-btn use" data-use="' + slug + '">用这套</button>' +
+      '</div>';
+
+    card.querySelector('.wslot').replaceWith(wedge(p.canvas.ink, p.canvas.paper));
+    box.appendChild(card);
+  });
+
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-use]');
+    if (!b) return;
+    T.set(b.getAttribute('data-use'));
+  });
+
+  /* ── 矩阵：行是门禁，列是配色 ── */
+  var m = document.getElementById('matrix');
+  var gates = T.GATES;
+  var head = '<tr><th>门禁</th><th>下限</th>' + slugs.map(function (s) {
+    return '<th>' + T.pals[s].name + '</th>';
+  }).join('') + '</tr>';
+  var rows = gates.map(function (g) {
+    return '<tr><td>' + g.key + ' / ' + g.against + ' <span style="color:var(--fg-mute)">' + g.why + '</span></td>' +
+      '<td>' + g.min.toFixed(2) + '</td>' +
+      slugs.map(function (s) {
+        var v = T.contrast(T.pals[s].ui[g.key], T.pals[s].ui[g.against]);
+        var ok = v >= g.min - 1e-9;
+        return '<td class="' + (ok ? 'ok' : 'bad') + '">' + v.toFixed(2) + (ok ? '' : ' ✗') + '</td>';
+      }).join('') + '</tr>';
+  }).join('');
+  m.innerHTML = '<table class="matrix"><thead>' + head + '</thead><tbody>' + rows + '</tbody>' +
+    '<caption>数字由 <code>DotInkTheme.gates()</code> 现算；改 palettes.json 后这张表自己会变。</caption></table>';
+
+  /* 换主题时把「用这套」的高亮跟上 */
+  T.onChange(function (slug) {
+    document.querySelectorAll('.pal').forEach(function (el, i) {
+      el.style.borderTopColor = (slugs[i] === slug) ? 'var(--accent)' : 'var(--fg)';
+    });
+  });
+})();
+</script>
+</body>
+</html>

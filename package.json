@@ -1,8 +1,8 @@
 {
   "name": "dotink",
-  "version": "2.2.0",
-  "description": "点墨 · 1-bit 成像标准与参考实现（场 / 渲染 / 判据 / 宿主 拆件 + 可选 HUD 叠加层）+ 现象画廊 + 厂标墙 + 字版厂标 + 即插即用 logo 组件 + hero 示例",
-  "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks", "typeplate", "logo-overlay", "hero"],
+  "version": "2.3.0",
+  "description": "点墨 · 1-bit 成像标准与参考实现（场 / 渲染 / 判据 / 宿主 拆件 + 可选 HUD 叠加层）+ 现象画廊 + 厂标墙 + 字版厂标 + 即插即用 logo 组件 + hero 示例 + 六套配色模板",
+  "keywords": ["halftone", "1-bit", "dither", "dot-screen", "printing", "canvas", "dot-ink", "deterministic", "phenomena", "gallery", "brand-marks", "typeplate", "logo-overlay", "hero", "theme", "palette", "design-tokens"],
   "license": "MIT",
   "type": "commonjs",
   "main": "dotink.js",
@@ -18,16 +18,21 @@
     "./markplate.js": "./markplate.js",
     "./logo.js": "./logo.js",
     "./transition.js": "./transition.js",
+    "./theme.css": "./theme.css",
+    "./theme.js": "./theme.js",
+    "./theme/palettes.json": "./theme/palettes.json",
+    "./site/nav.json": "./site/nav.json",
     "./package.json": "./package.json"
   },
   "files": [
     "dotink.js", "fields.js", "render.js", "judge.js", "host.js", "hud.js", "pheno.js", "transition.js",
-    "gallery.html", "hero.html", "preview.html", "marks.html", "marks-type.html", "logo-demo.html", "icon.html", "transition.html", "ink.css",
-    "marks.js", "markplate.js", "logo.js",
+    "gallery.html", "hero.html", "preview.html", "marks.html", "marks-type.html", "logo-demo.html", "icon.html", "transition.html", "press.html",
+    "spec.html", "theme.html", "index.html", "ink.css", "theme.css", "theme.js", "theme", "site",
+    "marks.js", "markplate.js", "logo.js", "press.js",
     "icon.svg", "icon-512.png", "icon-192.png", "icon-64.png", "icon-32.png",
     "tools", "check", "docs", "demo",
     "media/*.png", "media/*.gif", "media/*.mp4", "media/phenomena-8",
-    "STANDARD.md", "SKILL.md", "NOTICE.md", "README.md", "CHANGELOG.md", "LICENSE"
+    "STANDARD.md", "THEME.md", "SKILL.md", "NOTICE.md", "README.md", "CHANGELOG.md", "LICENSE"
   ],
   "scripts": {
     "gallery": "node -e \"console.log('open gallery.html in a browser')\"",
@@ -36,7 +41,11 @@
     "marks-type": "node -e \"console.log('open marks-type.html in a browser')\"",
     "logo": "node -e \"console.log('open logo-demo.html in a browser')\"",
     "preview": "node -e \"console.log('open preview.html in a browser')\"",
-    "check": "node --test check/core.mjs check/transition.mjs && node tools/check-links.mjs",
+    "spec": "node -e \"console.log('open spec.html in a browser')\"",
+    "theme": "node -e \"console.log('open theme.html in a browser')\"",
+    "build": "node tools/build-theme.mjs && node tools/build-site.mjs",
+    "build:check": "node tools/build-theme.mjs --check && node tools/build-site.mjs --check",
+    "check": "node --test check/core.mjs check/transition.mjs check/press.mjs check/theme.mjs check/site.mjs && node tools/build-theme.mjs --check && node tools/build-site.mjs --check && node tools/check-links.mjs",
     "prepublishOnly": "npm run check"
   },
   "private": false

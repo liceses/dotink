@@ -3,6 +3,173 @@
 > 版本号跟 [`package.json`](package.json) 走（`dotink.js` 的 `version` 必须与它一致，测试会查）。
 > `pheno.js` / `logo.js` / 移植的 `markplate.js` 各有自己的内部版本号，见各自文件头。
 
+## 2.3.0 — 2026-11-13
+
+**新增：六套配色（`theme/`）+ 站点信息架构（`site/`）**
+
+*配色：数据 → 生成件 → 页面*
+- 唯一真源 [`theme/palettes.json`](theme/palettes.json)：六套 × （10 个界面令牌 + 画布 `ink`/`paper` 三元组）。
+  `original` 是**唯一** `conformance: "standard"`（画布逐位等于 STANDARD §1 的 `[12,13,14]`/`[242,243,242]`），
+  其余五套 `edition`：`night`（纸墨翻转，dark）· `newsprint` · `cyanotype` · `xerox` · `vermilion`。
+- 生成件 [`theme.css`](theme.css) / [`theme.js`](theme.js)，生成器 `tools/build-theme.mjs`（`--check` 零漂移）。
+  `renderJs` 把 `hexToRgb` / `relLum` / `contrast` 的**函数源码**嵌进生成件 —— 页面现算的数与测试判的数同一份代码。
+- 三层令牌：① 画布 `--c-ink` / `--c-paper`（三元组，给 `<canvas>`）② 语义 `--page/--panel/--fg/--fg-deep/--fg-mute/--rule/--accent/--accent-fg/--alert/--focus`
+  ③ 兼容别名 `--ink/--paper/--mute/--hair`（老写法）。**拆 `--accent` 与 `--alert`**：原件的橙 `#FF4B1F` 压纸只有 **3.01:1**，
+  只能当装饰（按 3.0 判），文字级强调走 `--alert` = `#B23A0D`（**5.39:1**）。
+- 八条对比度门禁（`fg`/`fgDeep`/`fgMute`/`alert` 对 `page` ≥4.5；`accentFg` 对 `accent` ≥4.5；`accent` 对 `page` ≥3.0；
+  `rule` ≥1.2；`panel` ≥1.02），六套全过。生成前先跑门禁，不过就 exit 1。
+- 画布接入：`DotInkTheme.canvas()` 取 `{ink,paper}`，`onChange()` 里**重建实例**（`render.js` 在 `create()` 时就把两色收进闭包了）。
+  已接：gallery / hero / marks / preview / transition。豁免：`icon.html`（品牌图标必须逐位等于标准）、
+  `press.html`（多版 inks 是作品美术）、`demo/index.html`（最小接入）、`tools/press-reel.html`（离线工具）。
+- *深色画布暴露出的三处「按亮度判墨」（都修了，都有回归测试）*
+- `render.js` 的 `toMask()`：原来 `PX[i] < 128` 判墨 —— `night` 套纸是 `[12,13,14]`（也 <128），
+  于是掩膜全 1、整帧被写成墨色（实测 gallery 夜墨下覆盖率虚报 100%）。改成**精确等于 INK** 判墨；
+  注意 `toMask` 的语义是「只置 1、不清零」（overlays 只加墨的契约靠这条）。
+- `fields.js` 的 `fromImageData()`：新增 `o.ink` / `o.paper`，给了就按**离哪个颜色更近**判墨，
+  没给才回落亮度阈值（向后兼容纯黑白栅格的 preview / transition）。原来 marks 的场在 `night` 下整体反相
+  （覆盖率 23.20% → 54.04%）。
+- `marks-type.html` 的判据读数：`r < 128` 判墨 + 硬编码 `242,243,242` 判纸 → `night` 下墨纸全落进灰阶。
+  改成按 `DotInkTheme.canvas()` 逐通道比（容差 2），并给 `MarkPlate.create()` 注入 `ink`/`paper`
+  （引擎支持这两个选项，但它是逐字节移植件，只能用不改编）；换套时重建实例并接回「这一家 / 阶段 / 时刻」。
+- `marks.html` 的同类修正：常量 `INK`/`PAPER` 与像素循环里的 `12/13/14`、`242/243/242` 全部改读调色板；
+  读数改成 `near(d,i,ink)` / `near(d,i,paper)`。
+- 回归测试：`check/core.mjs` 新增两条 —— 「深色画布：覆盖率与掩膜跟配色无关」「`fromImageData` 给了 ink/paper 就按最近色判墨」。
+
+*信息架构：一份 nav.json → 每页标记区*
+- 唯一真源 [`site/nav.json`](site/nav.json)：**5 分区**（规范 / 现象 / 字符与厂标 / 场转场 / 套印）+ 1 资源（色彩模板），
+  每页带 `title` / `desc` / `footNote` / `footLinks`。
+- 生成器 `tools/build-site.mjs`：把顶栏 / 副条 / 面包屑 / 页内目录 / 页脚 / `meta description` + `og:*` + `canonical` + `theme-color`
+  写进 `<!-- site:* -->` 标记区；顺带给缺 `id` 的 `<h2>` 补 `id="sec-N"`（页内目录**零 JS**）。
+- aria 规则：顶栏分区多页时 `aria-current="true"`、精确页由副条标 `"page"`、面包屑末项是普通 `<span>` ——
+  **全页恰好一个 `aria-current="page"`**（`check/site.mjs` 强制）。
+- 新页：[`spec.html`](spec.html)（规范入口 + 五册 + 三条主判据 + 怎么自己验收）、
+  [`theme.html`](theme.html)（六套配色卡 + 8 档网点梯尺 + 门禁矩阵，全部**现算**）。
+- `hero.html` 从"手抄 9 项导航"改成装站点外壳（`.hero > .site-head` 覆盖在舞台上），并补 `<main>`；
+  顶栏底色改为纸色 + 26px 淡出带（原来是全透明 —— 夜墨态下浅色文字压在浅色网点上直接糊掉）；
+  `preview.html` 补 `<main>`；`index.html` 收成跳转壳（只装 `theme.css`）。
+- 删掉 8 个页面各自手抄的 `:root` 颜色声明（颜色只剩 `theme.css` 一处）；`ink.css` 里硬编码的
+  `rgba(242,243,242,.90)` / `#2A2D2E` / `rgba(255,75,31,.28)` 全部令牌化；
+  `icon.html` 的 `code{background:#E4E7E6}` → `var(--panel)`（夜墨态下浅底浅字，实测看不见）。
+- 页内目录的标签去掉括注（`键盘（焦点在画布或页面上时）` → `键盘`）：横向跳转条不该被说明性文字撑宽。
+- 修 `preview.html` 页脚「标准原文」重复（页级 footLinks 与全站页脚撞了）。
+
+**文档**
+- 新册 [`THEME.md`](THEME.md)：三层令牌、六套配色、八条门禁（附六套实测值）、禁令与豁免、边界。
+- `STANDARD.md`：§1 加一句「这一层是标准套（`original`），不是唯一一套」并指向 THEME.md；
+  §11 加**五套 edition 登记表**（含"不能拿来验证本标准"的理由与"必须仍是两色零灰阶"的硬约束）。
+- `README.md`：新增「站点地图（信息架构）」与「六套配色」两节；文件表补 THEME / palettes / 生成件 / 两个生成器 / 两个 check。
+
+**自查**
+- `check/theme.mjs`（15 条）：结构 / 恰好一套 standard / 默认套画布逐位 / 六套门禁 / 对比度自反 / 两个生成件零漂移 /
+  主题块与别名 / 打印回落 / 无 ESM / **裸色禁令**（页面 `<style>` 与 ink.css 里不许 hex 或 `rgba(数字`）/ 引入顺序 / 画布取色。
+- `check/site.mjs`（10 条）：nav 合法 / 文件存在 / 标记成对 / **零漂移** / aria 唯一 / 面包屑 = title / 目录锚点 / 无孤儿页 / meta / `<main>`+`h1`。
+- 现状：`npm run check` = **90 test 全过 · 链接 568 条全在 · 两个 `--check` 零漂移**（`scripts.check` 已把 theme/site 与两个生成器都接进去）。
+
+**新增：套印不齐 `press.js`（可选脚本，不进汇总入口）+ 演示页 `press.html`**
+- 一张画面分成 **2–8 张版**，每版每格仍只有「有墨/没墨」；颜色靠**减色叠印**查表（透过率相乘，非加色）。
+  `paletteOf(inks, paper)` 第 k 项 = 位掩码 k 的叠印色，**`palette[1]` 精确等于单版 ink 色** ——
+  单版 + `angle 0` + `shutter 0` 时与 `render.js` 直画**逐字节相同**（实测 1920×1080 diff **0**），是严格超集。
+  注意 `angle 45` 的版与单色那张 45° 网屏**不**等价（点阵被旋转）：同帧 **315 723 / 921 600 = 34.26%** 的像素不同
+  （旧稿写的 18.2% 是按通道数算的，按像素是 34–35%）。
+- 纯函数：`separate(rgba, w, h, cols, rows, {ucr})`（RGB → C/M/Y/K 每格墨量）、`paletteOf`
+  `regOf(drift, name, i, t)`、`distinctColors` / `collisionsOf`。分色、调色板、偏移全部确定，无 `Math.random`。
+- 版间偏移 `drift: {amp, speed, seed, rot}`：每版相位取 `mulberry32(seed*7919 + i*131)`（**自带的私有实现**，不借全局，装载顺序无关），
+  双频正弦叠加 → **同参数同帧**（能出视频、能复现的前提）。实测 `regRot` 峰值 = `rot`、均值 0.887·rot；
+  `regPx` 峰值 **0.705–1.238·amp**（6 seed × 4 版 × 601 点）；建议 2–7 px / 6–12 s / 0.2–0.5°。
+- **四版不是 16 色**：CMY 叠印（code 7）与 CMYK 叠印（code 15）减色算出来都是纯黑 → 格点集实到 **15** 色
+  （`collisions = [[7,15]]`）。三版 CMY **不**碰撞（8 掩码 = 8 色）；六色 Hexachrome 64 → **35 色**（29 对）；
+  八色（Hex + 蓝 + 红）256 → **85 色**（171 对）；四色再挂四个灰阶则 1→8 版 = 2/4/8/15/29/57/109/**173** 色。
+  版数上限 8（`paletteOf` 抛错，2^8 = 256 掩码已够多）。
+- 总墨量：全部版面**物化之后**再统一按比例压回 `tacLimit`（默认 2.4 = 240%）—— 顺序反了就成了「每版各自压」。
+  `ucr`（底色去除）默认 0.55；实测四版满墨（`maxFrac .40`）时 tacLimit **不压 / 4 / 2.4 / 1.2 / 0.5 → tac 2.05 / 2.05 / 1.12 / 0.50 / 0.25**，色相不动。
+  ⚠ `tacLimit ≥ N` 是空操作（`lim >= N` 直接 `return`）；且它压的是**每格墨量 w 之和**，`measure().tac` 报的是**覆盖率之和** ——
+  两个口径差一条 `coverageCurve`，所以 `maxFrac ≳ .54` 时 `tac ≤ tacLimit` 并不成立（口径差，不是 bug）。
+- `measure()` 给四条硬判据的原料：`badPixels`（越界像素，`=== 0`）、`tac`、
+  `colors ≤ paletteColors`、每版 `cov > 0`；另给 `fringe`（漏色重影占比）与 `platesPerInk`（平均叠版数）。
+  `opts` 是活引用（改 `tacLimit` / `drift` 立即生效）；换 `inks` 必须重建实例（`setInks()` 故意抛错）。
+- 默认体裁是**准同角度**（四版同 45°，靠 drift 晃开），不是印刷厂的玫瑰斑：异角度在 cell 8 / maxFrac .28–.45 下
+  四色点互相错开成彩虹点阵，读起来像「彩纸屑」，图像内容被吃掉（玫瑰斑对齐态 `fringe` 就已 **0.3069**，同角度 **0.0623**）。
+  六色反过来：玫瑰斑才是默认（对齐就 35 色 / 64 掩码），准同角度对齐时六版同心塌回 15 色、一错位炸到 0.4536。
+- 性能（本机 headless Edge，1280×720 CSS × scale 1.5 = 1920×1080 背板，cell 8 = 160×90 格，只算 `draw(t)`）：
+  0 版 6.2–6.5 ｜ 1 版 6.6–7.6 ｜ 2 版 8.9–10.3 ｜ 3 版 10.8–12.5 ｜ **4 版 12.3–14.4（p90 15–18）** ｜ 6 版 18.3–21.0 ｜ 8 版 22.5–23.0 ms；
+  1280×720 背板四版 7.7–7.9 ms。单色层对照 `shutter 1/28` 20.1–20.3 / `shutter 0` 13.4 ms（运动模糊要画两帧，四版反而更便宜）。
+  同参数跨轮次可差 1.9 倍（四版见过 12.3 / 14.4 / 15.4 / 20.4 / 35.7），拿它当**数量级**不是常数。
+  `measure()`（整帧 `getImageData` 读回）另加 **4.8 ms** → 实时预览只 `draw`，量测留给离线导出（0.02–0.03 s/帧）。
+  **多色的瓶颈是分色不是绘制**：六色 `separateCov` sweeps 24 约 42 ms、sweeps 30 约 52 ms；`coverageCurve` 18–24 ms 且必须缓存。
+- 演示页 `press.html`：三连对照（对齐 / 2.5 px·0.2° / 6 px·0.45°）+ 1:1 放大镜 + amp/speed/rot/cell/maxFrac/ucr/tacLimit 滑杆 +
+  实时四条判据读数。
+
+**新增：套印片 `tools/press-reel.html`（片源，逐帧纯函数）+ `tools/press-reel.mjs`（`__reel.frame(t)` → ffmpeg）**
+- 17.00 s / 510 帧 @30fps，四段题材各 4.25 s：果物 / 肌肤 / 风景（三张 **CC0 照片**，出处见 `NOTICE.md`）+ 字版（canvas 现画）。
+  片源必须是**真实连续调**：手绘侧脸在 183 格宽的点阵里永远是一块色 —— 脸宽约 110 格、鼻梁转折 2–3 格、眼皮 0.6 格、睫毛 0.4 格，
+  低于一格的笔画在 1-bit 里不存在（四轮返工全败的记录留在片源页的分片注释里）。
+- **照片必须低通**（采样定理，不是审美）：源画布按格定（`SW = COLS·SPX`，`SPX` 默认 6，母版 274×154 格时 1644×924 = 一格 6 源像素），
+  细于一格的东西（毛孔 / 发丝 / 叶脉）落进格子只会变成「这一格该是哪个墨」的抖动 → 远看是噪、1:1 是彩色纸屑。
+  `PHOTO_BLUR` 默认 **4** 源像素（`ctx.filter = 'blur(Npx)'`）；母版 274 格实测 `fidelity.mean` blur 0 / 2 / 4 / 6 → 果物 25.05 / 24.93 / **24.98** / 25.19、肌肤 27.58 / 27.54 / **27.46** / 27.50、风景 26.35 / 26.10 / **26.16** / 26.34 —— 格均几乎不动（极差 <0.25），保留 4 的理由是**网点更干净**，不是误差更小。
+- 版心 `contentH() = SH·(1 − CAP_BAND)` = 0.66·SH，恒为 **2.69:1**，源图 3:2 所以 `u = 1` 只看得见源高 55.7% —— **不能适配整张图**，只能取一条带
+  （果物 u .90→.84 / 肌肤 1.00→.93 / 风景 .94→.88，`cx/cy` 见 `docs/05` §10.3）。
+- 媒体：`media/press-reel-clip.mp4`（1280×720 · yuv444p · crf 33 · 510 帧 · **7.53 MB**）、`media/press-reel-poster.png`、`media/press-specimen-01..04.png`、
+  `media/press-src-{fruit,skin,land}.jpg`（1200×800 / 1200×800 / 1200×676）。母版与 1080p 附件在 `media/_release/`（gitignore，走 Release）。
+- 编码口径：`yuv420p` 按 2×2 下采样色度，会把网点边缘一两像素宽的彩边抹掉 —— 实测 `qp0` 解码回与 PNG **逐字节相同**、`qp12` 已有 **13.9%** 像素偏离格点集、
+  `crf 18 + yuv420p` 有 **58%** 偏离，所以导出取 `yuv444p`（或 `libx264rgb`）。
+- 调试接口 `window.__reel`：`ready`(getter) / `photos()` / `frame(t)` / **`src(t)`**（分色**前**的源画布，把「取景错」与「分色错」分开看）/ `measure()` /
+  `fidelity(t)` / `benchParts(n)` / `dur·fps·w·h·cols·rows·inks·sep·angles·mode·scenes·curve`。
+- 顺手修掉两个真 bug：`measure()` 在第一帧之前抛 `TypeError: Cannot read properties of null (reading 'amp')`（`lastMeta` 初值改成 `stateAt(0)`）；
+  `ready` 改成 getter 之后 `syncReady()` 还在给它赋值，三张图 `onload` 各抛一次 `TypeError: Cannot set property ready … only a getter`（改成由计数器现算）。
+  教训同一条：**把状态做成派生值，别做成要人推的缓存。**
+
+**新增：分册 `docs/05-misregistration.md`（套印不齐）**
+- 与 `docs/01` / `docs/04` 同一口气：是什么 / 与单色层的关系 / 色彩上限与碰撞表 / 两个网角体裁 /
+  偏移模型 / 判据（四条硬判据 + 两个体裁绑定指标）/ 性能边界 / 最小用法 / 反面清单 / 自查覆盖 / 已知瑕疵 / 边界。
+- 写进两条容易写错的口径：① **`colors` / `codes` / `paletteSize` / `paletteColors` 是四个不同的量**
+  （源 A 严格对齐时 `paletteSize 16` / `paletteColors 15` / `codes 8` / `colors 7`；drift 起来是 16 / 15 / 16 / 15）；
+  ② `fringe` 与 `platesPerInk` **只对同角度基准有意义**，且**强依赖画面内容**（对齐态：中调源 0.0623 / 浅色源 0.0360 / 深色源 0.0097，
+  差 6.4 倍；`amp 5` 时 0.2804 / 0.0493 / 0.3217），不能跨画面当硬门禁用。
+- 记录一个**已知实现瑕疵**：`separate()`（`press.js:167`）与 `cellAverages()`（`press.js:352`）都用 `Math.floor(y / h * rows)` 映射，
+  源尺寸与网格**恰好 1:1** 时浮点误差会吞掉整行/整列（160×90 → 160×90 丢 5.56%；213×120 丢 3.76%；183×103 丢 8.91%；
+  1280×720 → 160×90 这种整数倍不踩）。两条分色路径都踩、**症状相反**：`separate` 少墨（白线）、`separateCov` 把空格子读成
+  纯黑目标（黑线）—— 换路径并不能解决。四条判据都抓不到它，绕法是让源画布大于网格。
+
+**新增：管线化 `tools/press-clip.mjs` —— 任意视频进，套印片出**
+- 两个工具接成一条链：`node tools/press-clip.mjs --in a.mp4 --out a.png`（视频 → **格子图集** PNG + 同名 `.json` sidecar），
+  再由 `node tools/press-reel.mjs --clips "01 果物~a.png~3|02 肌肤~b.png~3" --type 3` 出片。多段**必须用 `|` 分隔**；
+  单条可以只给路径，标签由文件名推（逗号串**不支持**，会被当成一个路径载入失败）。
+- 为什么中间要过一张图集：分色按**格**取平均，直接从视频解码会让同一个 `t` 出不同帧；压成图集之后**一格 = 一个像素**，
+  取平均只做一次，往下的每一帧仍然只是 `t` 的纯函数。掉到格分辨率是零损失（分色只吃格均值），内存小两个数量级
+  （128 帧 × 274×102×4 B ≈ 14 MB，同样 128 帧的 1080p RGBA 是 1.06 GB）。`cols = ceil(√N)` 按格数取方：90 帧 → 10×9 = 2740×918、128 帧 → 12×11 = 3288×1122。
+- **四个 `exit 0` 却画坏的坑**（写进 `docs/05` §11.3，都实测复现）：
+  ① `tile` 在帧数不足时**静默补满并退出 0**（10 帧进 4×4 → 后 6 格整格纸色 1536/1536 = 242,243,242；128 帧进 12×11 末尾 4 格亦然）
+  →「恰好 N 帧」只能自己数：两路命名实例 `showinfo@real` / `showinfo@total`，对不上就 die；
+  ② `format=rgb24` 必须放在 `scale` **之前**，否则面积平均是在解码器原生 yuv420p（色度已半分辨率）上做的 ——
+  实测源与目标同尺寸时差 **0.00**，降到一格一像素（274×102）时亮度平均差 **1.19–1.34 / 255**、`max` 9、差 ≥2 的格 **3.9–17.4%**，
+  按 1-bit 口径翻面 **0.47–0.68%**（小，但正好落在边缘格上）。字节差随素材在 0%–12% 乱跳，**那个数不是判据**；
+  ③ `fps` 滤镜边界帧由浮点决定 → `-t (DUR + 1.5/fps)` 给 headroom 再 `trim=end_frame=N`；
+  ④ 导出帧数必须取**页面报的**片长（`Math.round(meta.dur * FPS)`），用手写 DUR 会让长片后半段全是重复末帧。
+- 时间轴参数化：所有时间常数乘 `TS = DUR / 17`，`TS === 1` 时 `Object.is` 逐位相等（5 帧 SHA-256 两轮相等，默认那条 17 s 片一个像素没变）；
+  `fall` 不能反算（`(14.00 − 12.70) === 1.3000000000000007`）。**素材模式**下回落段锚在**字版起点**：
+  `rise = max(0.2, tType − 0.2 − a)`、`fall = min(1.3·TS, TYPE_DUR × 0.55)`，否则长片会先归位、把最该被看见的那一秒半挪到没人注意的地方。
+- 示例片：三段各 3 s + 字版 3 s = **12.00 s / 360 帧**，母版 1920×1080 `libx264rgb` qp18 = **182 966 965 B**（渲染三次 **71.8 / 71.9 / 74.5 s** ≈ 199–207 ms/帧（整片摊薄）），
+  网页版 `media/press-pipe-clip.mp4`（1280×720 `yuv444p` crf33）= **5 425 225 B**。站内四件：`press-pipe-{clip.mp4,poster.png,pair.png,atlas.png}`。
+  素材不引第四个来源 —— 三段都是那三张 CC0 照片各做的一段缓推镜头（`zoompan`，3 s 90 帧），许可与署名见 `NOTICE.md` §7.1。
+- 素材门槛（判据，不是建议）：**16:9**、**有明确主体、明暗各半**。反例是仓里那段 `media/demo-clip.mp4`（854×480 抽象彩块），
+  链路跑得通，但压到 274×102 格后只剩几道等高线状的弧 —— 不是管线坏了，是素材的细节尺度比格子还细。
+- 文档：`docs/05` 新增 **§11 管线化**（原 §11–§14 顺延为 §12–§15，§11 分 11.1–11.8）；`STANDARD.md` §11 边界与 §12 出处索引各加一条管线指针；`README.md` 加「管线：任意素材进，套印片出」。
+- 自查边界：`check/press.mjs` **不覆盖**管线（依赖 ffmpeg 与本机 Chromium，进不了 `node --test`）；
+  它靠能重跑的物证：图集逐格 = 源第 k 帧（k = 0/50/100/127 抠格比对 **diff 0**）、默认片 5 帧 SHA-256 两轮相等、`__reel.clips().fail` 必须空、**整片逐字节可复现**（原样重跑 §11.5 的命令 → `md5 `6ce966c3e1558d3e3303e2c087a0355c`` 与仓里母版相同）。
+
+**文档（索引接进新分册）**
+- `STANDARD.md`：开头加**分册**一行（① 规范 · ② 现象 · ③ 字符 logo · ④ 场转场 · ⑤ 套印不齐）；§0 与 §1 的「只有纸与墨两色」
+  限定为**单色层**的令牌表；§11 边界把「彩色未纳入」改成「另有分册，判据不可互套」。
+- `README.md`：可选脚本从 `transition.js` 一个变两个；文件表加 `press.js · press.html` 一行；
+  新增「套印不齐（可选件 `press.js`）」一节（可跑的最小示例 + 四条硬判据 + 实测性能）。
+- `SKILL.md`：§0 只读表加 `press.js` 一行；§5 边界拆成「单色层只管两色 / 彩色已单独立册、判据不互套 /
+  默认体裁是准同角度」三条；frontmatter 的 description 补一句多版叠印另有一层。
+
+**自查**
+- `check/press.mjs`（**26 条测试 / 633 条断言**（含 1 条汇总自检）：调色板与碰撞 · 单版逐字节等价 · 确定性 · 分色与 TAC · 色数 · 每版有墨 ·
+  漂移单调性 · 装载顺序无关 · 覆盖域分色 · 六色真的更多色 · 换 inks 必须重建）。已接进 `npm run check`（`scripts.check` = core + transition + press）。
+- 现状：`npm run check` **65 test 全过 · 链接 477 条全在**（`scripts.check` = core + transition + press + `tools/check-links.mjs`）。
+
 ## 2.2.0 — 2026-11-12
 
 **修正：字形被双重缩放（有效字号成了 `px²/20`）—— §7-2 与 §14 的共同根因**

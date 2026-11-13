@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "default": "original",
+  "darkDefault": "night",
+  "palettes": [
+    {
+      "slug": "original",
+      "name": "原件",
+      "en": "ORIGINAL",
+      "mode": "light",
+      "conformance": "standard",
+      "note": "标准即默认。画布两个颜色逐位等于 STANDARD §1 的 ink/paper，不许改。",
+      "ui": {
+        "page": "#F2F3F2",
+        "panel": "#E4E7E6",
+        "fg": "#0C0D0E",
+        "fgDeep": "#22262A",
+        "fgMute": "#5A5F61",
+        "rule": "#D2D6D5",
+        "accent": "#FF4B1F",
+        "accentFg": "#0C0D0E",
+        "alert": "#B23A0D",
+        "focus": "#FF4B1F"
+      },
+      "canvas": { "ink": [12, 13, 14], "paper": [242, 243, 242] }
+    },
+    {
+      "slug": "night",
+      "name": "夜墨",
+      "en": "NIGHT INK",
+      "mode": "dark",
+      "conformance": "edition",
+      "note": "纸墨翻转。暗底上强调色反而更亮（6.84），六套里唯一越暗越好用的。",
+      "ui": {
+        "page": "#0C0D0E",
+        "panel": "#17191B",
+        "fg": "#F2F3F2",
+        "fgDeep": "#D8DCDD",
+        "fgMute": "#9AA0A2",
+        "rule": "#2A2E30",
+        "accent": "#FF6A3D",
+        "accentFg": "#0C0D0E",
+        "alert": "#FF8A66",
+        "focus": "#FF6A3D"
+      },
+      "canvas": { "ink": [242, 243, 242], "paper": [12, 13, 14] }
+    },
+    {
+      "slug": "newsprint",
+      "name": "新闻纸",
+      "en": "NEWSPRINT",
+      "mode": "light",
+      "conformance": "edition",
+      "note": "暖纸深褐墨，印刷感最强的一套。",
+      "ui": {
+        "page": "#F4EFE2",
+        "panel": "#EAE3D3",
+        "fg": "#17130E",
+        "fgDeep": "#2E271E",
+        "fgMute": "#5F564A",
+        "rule": "#D8CFBE",
+        "accent": "#B3261E",
+        "accentFg": "#F4EFE2",
+        "alert": "#B3261E",
+        "focus": "#B3261E"
+      },
+      "canvas": { "ink": [23, 19, 14], "paper": [244, 239, 226] }
+    },
+    {
+      "slug": "cyanotype",
+      "name": "蓝晒",
+      "en": "CYANOTYPE",
+      "mode": "light",
+      "conformance": "edition",
+      "note": "冷蓝铁锈红。墨/纸 11.67，比原件低一档但仍远过 AA。",
+      "ui": {
+        "page": "#E9EFF2",
+        "panel": "#DCE7EB",
+        "fg": "#10323F",
+        "fgDeep": "#1B4552",
+        "fgMute": "#4E6570",
+        "rule": "#C8D7DD",
+        "accent": "#B23A0D",
+        "accentFg": "#E9EFF2",
+        "alert": "#B23A0D",
+        "focus": "#B23A0D"
+      },
+      "canvas": { "ink": [16, 50, 63], "paper": [233, 239, 242] }
+    },
+    {
+      "slug": "xerox",
+      "name": "静电",
+      "en": "XEROX",
+      "mode": "light",
+      "conformance": "edition",
+      "note": "中性灰配电光蓝，最“机器”的一套，也是唯一强调色不走暖色的。",
+      "ui": {
+        "page": "#ECECEA",
+        "panel": "#E0E0DD",
+        "fg": "#111112",
+        "fgDeep": "#24242A",
+        "fgMute": "#59595B",
+        "rule": "#CFCFCC",
+        "accent": "#1B4DFF",
+        "accentFg": "#ECECEA",
+        "alert": "#1B4DFF",
+        "focus": "#1B4DFF"
+      },
+      "canvas": { "ink": [17, 17, 18], "paper": [236, 236, 234] }
+    },
+    {
+      "slug": "vermilion",
+      "name": "朱墨",
+      "en": "VERMILION",
+      "mode": "light",
+      "conformance": "edition",
+      "note": "米纸朱砂，最“东方”的一套。与新闻纸同属暖纸，看版面上二选一。",
+      "ui": {
+        "page": "#F6F1E7",
+        "panel": "#EDE6D8",
+        "fg": "#2A2420",
+        "fgDeep": "#3A322B",
+        "fgMute": "#6A6058",
+        "rule": "#DCD3C4",
+        "accent": "#A33B2A",
+        "accentFg": "#F6F1E7",
+        "alert": "#A33B2A",
+        "focus": "#A33B2A"
+      },
+      "canvas": { "ink": [42, 36, 32], "paper": [246, 241, 231] }
+    }
+  ]
+}

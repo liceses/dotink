@@ -1,0 +1,93 @@
+/* ============================================================================
+ * theme.css · 配色令牌（三层：画布 / 界面 / 兼容别名）
+ * ----------------------------------------------------------------------------
+ * ⚠ 这是**生成件**：由 `node tools/build-theme.mjs` 从 theme/palettes.json 生成。
+ *   要改配色请改 palettes.json，然后重跑；check/theme.mjs 会比对逐字节一致。
+ *
+ * 三层令牌（STANDARD §1 的墨水纸只约束①，②是 DOM 界面，可以抗锯齿）：
+ *   ① --c-ink / --c-paper      进 canvas 的两个颜色，由页面传给 DotInk.create({ink,paper})
+ *   ② --page --panel --fg …    只有 DOM 用
+ *   ③ --ink/--paper/--mute/--hair  兼容别名，旧页面不改一个字也能跟着换
+ *
+ * 引入顺序：theme.css → ink.css → 页面自己的 <style>。
+ * ========================================================================== */
+
+:root{
+  --c-ink:#0C0D0E; --c-ink-rgb:12,13,14;
+  --c-paper:#F2F3F2; --c-paper-rgb:242,243,242;
+  --page:#F2F3F2; --page-rgb:242,243,242;
+  --panel:#E4E7E6; --fg:#0C0D0E; --fg-deep:#22262A;
+  --fg-mute:#5A5F61; --rule:#D2D6D5;
+  --accent:#FF4B1F; --accent-rgb:255,75,31;
+  --accent-fg:#0C0D0E; --alert:#B23A0D; --focus:#FF4B1F;
+  /* ③ 兼容别名（指向②，所以换主题时自动跟随） */
+  --ink:var(--fg); --paper:var(--page); --mute:var(--fg-mute); --hair:var(--rule);
+}
+
+/* 夜墨 NIGHT INK · edition · dark */
+[data-theme="night"]{
+  --c-ink:#F2F3F2; --c-ink-rgb:242,243,242;
+  --c-paper:#0C0D0E; --c-paper-rgb:12,13,14;
+  --page:#0C0D0E; --page-rgb:12,13,14;
+  --panel:#17191B; --fg:#F2F3F2; --fg-deep:#D8DCDD;
+  --fg-mute:#9AA0A2; --rule:#2A2E30;
+  --accent:#FF6A3D; --accent-rgb:255,106,61;
+  --accent-fg:#0C0D0E; --alert:#FF8A66; --focus:#FF6A3D;
+}
+
+/* 新闻纸 NEWSPRINT · edition · light */
+[data-theme="newsprint"]{
+  --c-ink:#17130E; --c-ink-rgb:23,19,14;
+  --c-paper:#F4EFE2; --c-paper-rgb:244,239,226;
+  --page:#F4EFE2; --page-rgb:244,239,226;
+  --panel:#EAE3D3; --fg:#17130E; --fg-deep:#2E271E;
+  --fg-mute:#5F564A; --rule:#D8CFBE;
+  --accent:#B3261E; --accent-rgb:179,38,30;
+  --accent-fg:#F4EFE2; --alert:#B3261E; --focus:#B3261E;
+}
+
+/* 蓝晒 CYANOTYPE · edition · light */
+[data-theme="cyanotype"]{
+  --c-ink:#10323F; --c-ink-rgb:16,50,63;
+  --c-paper:#E9EFF2; --c-paper-rgb:233,239,242;
+  --page:#E9EFF2; --page-rgb:233,239,242;
+  --panel:#DCE7EB; --fg:#10323F; --fg-deep:#1B4552;
+  --fg-mute:#4E6570; --rule:#C8D7DD;
+  --accent:#B23A0D; --accent-rgb:178,58,13;
+  --accent-fg:#E9EFF2; --alert:#B23A0D; --focus:#B23A0D;
+}
+
+/* 静电 XEROX · edition · light */
+[data-theme="xerox"]{
+  --c-ink:#111112; --c-ink-rgb:17,17,18;
+  --c-paper:#ECECEA; --c-paper-rgb:236,236,234;
+  --page:#ECECEA; --page-rgb:236,236,234;
+  --panel:#E0E0DD; --fg:#111112; --fg-deep:#24242A;
+  --fg-mute:#59595B; --rule:#CFCFCC;
+  --accent:#1B4DFF; --accent-rgb:27,77,255;
+  --accent-fg:#ECECEA; --alert:#1B4DFF; --focus:#1B4DFF;
+}
+
+/* 朱墨 VERMILION · edition · light */
+[data-theme="vermilion"]{
+  --c-ink:#2A2420; --c-ink-rgb:42,36,32;
+  --c-paper:#F6F1E7; --c-paper-rgb:246,241,231;
+  --page:#F6F1E7; --page-rgb:246,241,231;
+  --panel:#EDE6D8; --fg:#2A2420; --fg-deep:#3A322B;
+  --fg-mute:#6A6058; --rule:#DCD3C4;
+  --accent:#A33B2A; --accent-rgb:163,59,42;
+  --accent-fg:#F6F1E7; --alert:#A33B2A; --focus:#A33B2A;
+}
+
+/* 打印：暗色主题打在纸上是全黑，强制回到默认套（html[data-theme] 的权重高于 [data-theme="…"]） */
+@media print{
+  html[data-theme]{
+    --c-ink:#0C0D0E; --c-ink-rgb:12,13,14;
+    --c-paper:#F2F3F2; --c-paper-rgb:242,243,242;
+    --page:#F2F3F2; --page-rgb:242,243,242;
+    --panel:#E4E7E6; --fg:#0C0D0E; --fg-deep:#22262A;
+    --fg-mute:#5A5F61; --rule:#D2D6D5;
+    --accent:#FF4B1F; --accent-rgb:255,75,31;
+    --accent-fg:#0C0D0E; --alert:#B23A0D; --focus:#FF4B1F;
+  }
+}

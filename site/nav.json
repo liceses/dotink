@@ -1,0 +1,161 @@
+{
+  "site": "https://liceses.github.io/dotink/",
+  "themeColor": "#F2F3F2",
+  "brand": {
+    "name": "点墨",
+    "en": "Dot Ink",
+    "href": "index.html",
+    "icon": "icon.svg",
+    "tagline": "画面只有墨与纸两色像素，中间调由点面积表达"
+  },
+  "sections": [
+    {
+      "slug": "spec",
+      "name": "规范",
+      "en": "STANDARD",
+      "pages": [
+        {
+          "file": "spec.html",
+          "title": "标准与五册",
+          "desc": "点墨的判据从哪来、五册文档各管什么、怎么自己跑一遍验收。规范是唯一真相，其余四块都是它的推论。",
+          "footNote": "规范只约束画面；站点界面是 DOM，不在此列。"
+        },
+        {
+          "file": "preview.html",
+          "title": "判据计算器",
+          "desc": "把 M1 / M2 / M3 三条判据做成可调参数的实时计算器：改一个数，看它到底违反了哪一条。",
+          "footNote": "判据实现在 judge.js，与 check/core.mjs 同源。"
+        }
+      ],
+      "blurb": "判据从哪来：五册文档、验收脚本、标准原文。"
+    },
+    {
+      "slug": "phenomena",
+      "name": "现象",
+      "en": "PHENOMENA",
+      "pages": [
+        {
+          "file": "gallery.html",
+          "title": "现象画廊",
+          "desc": "八种只用点面积表达的场：从灰度映射到莫尔纹，同一套 API 换参数就是一整个画廊。",
+          "footNote": "公式与来源见主库 lab/PHENOMENA.md 01–08；参考配方与对标件见 SOURCE.md。",
+          "footLinks": [
+            {
+              "href": "media/phenomena-8/SOURCE.md",
+              "label": "SOURCE.md"
+            }
+          ]
+        }
+      ],
+      "blurb": "八种只用点面积表达的场，从灰度映射到莫尔纹。"
+    },
+    {
+      "slug": "marks",
+      "name": "字符与厂标",
+      "en": "MARKS",
+      "pages": [
+        {
+          "file": "marks-type.html",
+          "title": "字版厂标",
+          "desc": "用字符本身拼成厂标：字母的笔画边界就是网点边界，47 家逐字可数。",
+          "footNote": "字符集与字版数据在 marks.js / markplate.js，离线可用。"
+        },
+        {
+          "file": "marks.html",
+          "title": "点墨厂标",
+          "desc": "把字符压成点、再用点拼回字：47 家厂标全部由墨/纸两色像素构成，缩放不糊。",
+          "footNote": "像素由 1-bit 直接写入，不走抗锯齿。"
+        },
+        {
+          "file": "logo-demo.html",
+          "title": "logo 组件",
+          "desc": "把字版厂标挂到任意容器上：给一段视频、一张图或一块纯色，组件自己算出该在哪落点。",
+          "footNote": "组件入口 logo.js，零依赖，可嵌任意页面。"
+        },
+        {
+          "file": "icon.html",
+          "title": "品牌图标",
+          "desc": "同一套判据缩到 32px：图标是标准自身的应用，也是最容易被缩放毁掉的一件。",
+          "footNote": "图标由 tools/make-icon.mjs 生成，尺寸与点阵逐档校验。"
+        }
+      ],
+      "blurb": "字符、厂标、图标：同一套判据一路缩到 32px。"
+    },
+    {
+      "slug": "transitions",
+      "name": "场转场",
+      "en": "TRANSITIONS",
+      "pages": [
+        {
+          "file": "transition.html",
+          "title": "场转场",
+          "desc": "两个场之间怎么过渡：逐帧确定性、不许补间、不许随机，退出条件写在判据里。",
+          "footNote": "转场实现在 transition.js，帧序可复现。"
+        }
+      ],
+      "blurb": "两个场之间怎么过渡，逐帧可复现。"
+    },
+    {
+      "slug": "press",
+      "name": "套印",
+      "en": "PRESS",
+      "pages": [
+        {
+          "file": "press.html",
+          "title": "套印不齐",
+          "desc": "多版套印的失控与校准：四个版、四个颜色，看网点怎么错位、又怎么被收回 1-bit。",
+          "footNote": "套印层的四条判据 P1–P4 与主判据 M1–M3 不可互套。",
+          "footLinks": [
+            {
+              "href": "docs/05-misregistration.md",
+              "label": "套印分册"
+            }
+          ]
+        }
+      ],
+      "blurb": "多版套印的失控与校准，四条判据单列。"
+    }
+  ],
+  "resources": [
+    {
+      "file": "theme.html",
+      "title": "色彩模板",
+      "desc": "六套配色与三层令牌：标准套只改 DOM，五套 edition 连画布一起换。",
+      "blurb": "六套配色、三层令牌，切换器就在右上角。"
+    }
+  ],
+  "foot": {
+    "links": [
+      {
+        "href": "STANDARD.md",
+        "label": "标准原文"
+      },
+      {
+        "href": "THEME.md",
+        "label": "配色说明"
+      },
+      {
+        "href": "README.md",
+        "label": "包说明"
+      },
+      {
+        "href": "https://github.com/liceses/dotink",
+        "label": "GitHub"
+      }
+    ]
+  },
+  "extra": [
+    {
+      "file": "index.html",
+      "title": "点墨",
+      "desc": "点墨 Dot Ink：画面只有墨与纸两色像素，中间调由点面积表达。1-bit、零灰阶、逐帧确定性。",
+      "chrome": false
+    },
+    {
+      "file": "hero.html",
+      "title": "首页",
+      "desc": "点墨 Dot Ink：一个把「只有墨与纸」推到极致的画面系统 —— 现象、厂标、转场、套印，全部由点面积构成。",
+      "minimal": true
+    }
+  ]
+}

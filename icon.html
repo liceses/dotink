@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
 <title>点墨 · 品牌图标（图标工坊）</title>
 <style>
-  :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--accent:#FF4B1F;
+  :root{
         --fd:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
         --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   *{box-sizing:border-box}
@@ -34,26 +36,53 @@
   th{font:500 11px var(--fm);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
   .kv{font:500 12px var(--fm)}
   .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
-  code{font:500 12px var(--fm);background:#E4E7E6;padding:1px 4px}
+  code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
 </style>
+<!-- site:meta:begin -->
+<meta name="description" content="同一套判据缩到 32px：图标是标准自身的应用，也是最容易被缩放毁掉的一件。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="品牌图标 · 点墨">
+<meta property="og:description" content="同一套判据缩到 32px：图标是标准自身的应用，也是最容易被缩放毁掉的一件。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/icon.html">
+<link rel="canonical" href="icon.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
 </head>
 <body>
-<header class="site-head">
-  <div class="in">
-    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
-    <nav class="site-nav">
-      <a href="gallery.html">现象画廊</a>
-      <a href="transition.html">场转场</a>
-      <a href="preview.html">判据计算器</a>
-      <a href="marks-type.html">字版厂标</a>
-      <a href="marks.html">点墨厂标</a>
-      <a href="icon.html" aria-current="page">品牌图标</a>
-      <a href="logo-demo.html">logo 组件</a>
-      <a href="STANDARD.md">标准</a>
-    </nav>
-  </div>
-</header>
-
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html" aria-current="true">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><a href="marks-type.html">字符与厂标</a><span class="sep">/</span><span>品牌图标</span></nav>
+  <nav class="subnav" aria-label="字符与厂标">
+    <a href="marks-type.html">字版厂标</a>
+    <a href="marks.html">点墨厂标</a>
+    <a href="logo-demo.html">logo 组件</a>
+    <a href="icon.html" aria-current="page">品牌图标</a>
+  </nav>
+</div>
+</div>
+<!-- site:head:end -->
 <section class="page-intro">
   <p class="kicker"><i></i>Dot Ink · Mark · drawn by the standard itself</p>
   <h1 class="display">品牌图标</h1>
@@ -94,18 +123,15 @@
   </aside>
 </main>
 
-<footer class="site-foot">
-  <div class="in">
-    <span>图标即标准的一次应用（§3 面积映射 + §4 点径上限）：<code>tools/make-icon.mjs</code> 生成矢量源，
-      四档 PNG 全部 <b>0 灰阶</b>。</span>
-    <span class="links">
-      <a href="README.md">包说明</a>
-      <a href="STANDARD.md">标准</a>
-      <a href="https://github.com/liceses/dotink">GitHub</a>
-    </span>
-  </div>
-</footer>
-
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>图标由 tools/make-icon.mjs 生成，尺寸与点阵逐档校验。</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
 <script src="fields.js"></script>
 <script src="render.js"></script>
 <script src="judge.js"></script>

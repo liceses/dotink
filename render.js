@@ -68,6 +68,15 @@
 
     /* 净空分区（**格坐标**：列/行）：用来把墨分成"信息"与"装饰"（judge.js 读它） */
     regions: null,          /* {info:[{x,y,w,h}], deco:[{x,y,w,h}]} */
+
+    /* 只要掩膜（不给画面）：给 press.js 这种"一帧多版"的调用方复用圆盘栅格化用。
+       maskOnly 时 draw() 只填 MASK，不 compose、不 putImageData —— 于是**一个实例**
+       就能被反复用来栅格化 N 张版，不必为每版各留一份 1080p 缓冲（N=4 时省 ~57MB）。 */
+    maskOnly: false,
+    /* maskTarget + maskBit：maskOnly 时把墨像素 **按位 OR 进外部数组**（press.js 用它
+       直接合成多版套印码），省掉"每版拷一份掩膜再整帧扫"的开销。
+       掩膜语义不变：maskTarget 为空时仍然写 core.mask。 */
+    maskTarget: null, maskBit: 1,
   };
 
   function merge(base, o) {
@@ -106,9 +115,31 @@
     for (let k = 0; k < PB.length; k += 4) { PB[k] = PAPER[0]; PB[k + 1] = PAPER[1]; PB[k + 2] = PAPER[2]; PB[k + 3] = 255; }
     const IMG = CTX.createImageData(DW, DH), PX = IMG.data;
     const MASK = new Uint8Array(DW * DH);
+    /* maskOnly 的落点：外部给了 maskTarget 就写它（press 的套印码），否则写自己的 MASK */
+    const MT = o.maskOnly ? (o.maskTarget || null) : null;
+    /* MBIT 是**可变**的：press 用同一个 render 实例逐版换位（每版一位），
+       于是"合成套印码"就在栅格化里顺带完成，不需要事后按版扫全帧。 */
+    let MBIT = o.maskBit | 0 || 1;
+    const TARGET = MT || MASK;
+    /* 本版新盖到的像素数（精确：只在"这一位原本是 0"时 +1，重叠的圆盘不重复计） */
+    let inkNew = 0;
+    const stampIdx = (idx) => { if (!(TARGET[idx] & MBIT)) { TARGET[idx] |= MBIT; inkNew++; } };
     let draws = 0, lastT = 0;
-    const clear = () => { PX.set(PB); };
-    const toMask = () => { for (let i = 0, j = 0; i < PX.length; i += 4, j++) if (PX[i] < 128) MASK[j] = 1; };
+    /* maskOnly 直接栅格化进 MASK，**不经 RGBA**：省掉每帧 PX.set(PB) 的 8MB 拷贝
+       与 toMask() 的 8MB 回读。press.js 逐版取用时这正好是全部开销的大头。 */
+    const clear = o.maskOnly ? () => {} : () => { PX.set(PB); };
+    /* 判墨**不能**按亮度阈值。旧写法 `PX[i] < 128` 只在浅纸深墨下成立；
+       换到深色画布（夜墨套 ink=[242,243,242] / paper=[12,13,14]）时纸也被判成墨，
+       compose() 于是把整帧写成墨色 —— 实测整屏翻转、覆盖率虚报 100%。
+       这里按**精确等于 INK** 判：toMask 跑的时候 PX 里只可能有两个值
+       （dot / inkGlyph 写 INK，clear / PB 写 PAPER，没有中间值）。
+       ⚠ 只置 1、不清零 —— 覆盖层那一轮前面已经 clear() 过 PX，场只活在 MASK 里。 */
+    const toMask = o.maskOnly ? () => {} : () => {
+      const r = INK[0], g = INK[1], b = INK[2];
+      for (let i = 0, j = 0; i < PX.length; i += 4, j++) {
+        if (PX[i] === r && PX[i + 1] === g && PX[i + 2] === b) MASK[j] = 1;
+      }
+    };
     /* ① 1-bit 纪律的落点：非墨即纸，不留灰阶 */
     const compose = () => {
       for (let i = 0, j = 0; i < PX.length; i += 4, j++) {
@@ -120,7 +151,22 @@
     /* 解析圆盘：**像素中心落在真半径内**才算墨（旧版是 `Math.round(r·S)` 查整数表，
        那会把 0.06→0.165 这么宽的一段场值压成同一个点径 —— 调幅就断了）。
        包围盒按 ceil(rf) 走，再按画布边界收窄；半径本身不设上限（clamp 到边界即可）。 */
-    const dot = function (cx, cy, r) {
+    const dot = o.maskOnly ? function (cx, cy, r) {
+      const x = Math.round(cx * S), y = Math.round(cy * S);
+      if (x < 0 || y < 0 || x >= DW || y >= DH) return;
+      const rf = r * S;
+      if (!(rf > 0)) return;
+      const r2 = rf * rf;
+      const ed = Math.min(x, y, DW - 1 - x, DH - 1 - y);
+      let lim = Math.ceil(rf); if (lim > ed) lim = ed; if (lim < 0) return;
+      for (let dy = -lim; dy <= lim; dy++) {
+        const dy2 = dy * dy, base = (y + dy) * DW;
+        for (let dx = -lim; dx <= lim; dx++) {
+          if (dx * dx + dy2 > r2) continue;
+          stampIdx(base + x + dx);
+        }
+      }
+    } : function (cx, cy, r) {
       const x = Math.round(cx * S), y = Math.round(cy * S);
       if (x < 0 || y < 0 || x >= DW || y >= DH) return;
       const rf = r * S;
@@ -206,7 +252,8 @@
         for (let j = 0; j < segs.length; j++) {
           const xa = Math.max(0, xC + segs[j][0]);
           const xb = Math.min(DW, xC + segs[j][1] + 1);
-          for (let xx = xa; xx < xb; xx++) {
+          if (o.maskOnly) { for (let xx = xa; xx < xb; xx++) stampIdx(rowBase + xx); }
+          else for (let xx = xa; xx < xb; xx++) {
             const t = (rowBase + xx) * 4;
             PX[t] = INK[0]; PX[t + 1] = INK[1]; PX[t + 2] = INK[2]; PX[t + 3] = 255;
           }
@@ -334,11 +381,15 @@
     /* ── draw(t)：纯函数 ── */
     function draw(t) {
       draws = 0; lastT = t;
-      MASK.fill(0);
+      /* 外部目标（press 的 CODE）由调用方每帧自己清零 —— 这里清会把别的版一起擦掉 */
+      if (!MT) MASK.fill(0);
+      inkNew = 0;
       /* 运动模糊：快门内两帧取并集（不这样快速 3D 移动会频闪） */
       const sh = o.shutter || 0;
       clear(); paint(t + sh * 0.5); toMask();
       if (sh > 0) { clear(); paint(t - sh * 0.5); toMask(); }
+      /* maskOnly：到此为止 —— MASK 就是产物（press.js 逐版取用），不落屏、不留色 */
+      if (o.maskOnly) { draws = 1; return { t: t, draws: draws, points: ptsDrawn, ink: inkNew }; }
       compose();
       if (OV && OV.length) {
         /* ⚠ 这里**不能** clear MASK —— 场已经记在掩膜里了；只需清 PX 再叠覆盖层，
@@ -366,6 +417,8 @@
 
     return {
       draw: draw, reset: function () { RC.clear(); },
+      /* 换本版在目标数组里的位（只对 maskOnly 有意义；同时把像素计数归零） */
+      setMaskBit: function (b) { MBIT = b | 0 || 1; inkNew = 0; },
       debug: function () { return dbg; },
       opts: o, cols: COLS, rows: ROWS, cell: CELL, rMax: RMAX,
       duration: o.duration, canvas: cv, draws: () => draws,

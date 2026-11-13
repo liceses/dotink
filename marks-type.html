@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
 <title>点墨 · 字版厂标（47 家 · 字拼成的标）</title>
 <style>
-  :root{--ink:#0C0D0E;--paper:#F2F3F2;--mute:#5A5F61;--hair:#D2D6D5;--panel:#E4E7E6;--accent:#FF4B1F;
+  :root{
         --fd:"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
         --fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   *{box-sizing:border-box}
@@ -37,24 +39,51 @@
   .ok{font-weight:700}.bad{color:var(--accent);font-weight:700}
   code{font:500 12px var(--fm);background:var(--panel);padding:1px 4px}
 </style>
+<!-- site:meta:begin -->
+<meta name="description" content="用字符本身拼成厂标：字母的笔画边界就是网点边界，47 家逐字可数。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="字版厂标 · 点墨">
+<meta property="og:description" content="用字符本身拼成厂标：字母的笔画边界就是网点边界，47 家逐字可数。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/marks-type.html">
+<link rel="canonical" href="marks-type.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
 </head>
 <body>
-<header class="site-head">
-  <div class="in">
-    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
-    <nav class="site-nav">
-      <a href="gallery.html">现象画廊</a>
-      <a href="transition.html">场转场</a>
-      <a href="preview.html">判据计算器</a>
-      <a href="marks-type.html" aria-current="page">字版厂标</a>
-      <a href="marks.html">点墨厂标</a>
-      <a href="icon.html">品牌图标</a>
-      <a href="logo-demo.html">logo 组件</a>
-      <a href="STANDARD.md">标准</a>
-    </nav>
-  </div>
-</header>
-
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html" aria-current="true">字符与厂标</a>
+    <a href="transition.html">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><a href="marks-type.html">字符与厂标</a><span class="sep">/</span><span>字版厂标</span></nav>
+  <nav class="subnav" aria-label="字符与厂标">
+    <a href="marks-type.html" aria-current="page">字版厂标</a>
+    <a href="marks.html">点墨厂标</a>
+    <a href="logo-demo.html">logo 组件</a>
+    <a href="icon.html">品牌图标</a>
+  </nav>
+</div>
+</div>
+<!-- site:head:end -->
 <section class="page-intro">
   <p class="kicker"><i></i>MarkPlate · 47 marks · letters form the mark</p>
   <h1 class="display">字版厂标</h1>
@@ -97,19 +126,15 @@
   </aside>
 </main>
 
-<footer class="site-foot">
-  <div class="in">
-    <span>厂标路径来自 simple-icons（<b>CC0 1.0</b>）；商标归各家，这里用于<b>指称</b> ——
-      商用发布前按法务口径过一遍（见 <a href="NOTICE.md">NOTICE.md</a>）。</span>
-    <span class="links">
-      <a href="marks.html">点墨版厂标</a>
-      <a href="README.md">包说明</a>
-      <a href="STANDARD.md">标准</a>
-      <a href="https://github.com/liceses/dotink">GitHub</a>
-    </span>
-  </div>
-</footer>
-
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>字符集与字版数据在 marks.js / markplate.js，离线可用。</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
 <script src="markplate.js"></script>
 <script src="marks.js"></script>
 <script>
@@ -136,15 +161,25 @@
     + '这不是加一层纹理，是一套成像方式：二值、可逐帧确定性渲染、断网双击就能播。'
     + '字版承载形状，实墨正文承载可读的字，三维只做透视。';
 
-  const mp = MarkPlate.create({
-    canvas: $('cv'),
-    icons: M.icons,                                  /* 依赖注入：用包内的 marks.js，不引主库 icons.js */
-    marks: M.order.map(s => [s, M.icons[s].title || s]),
-    text: TEXT,
-    actSeconds: FORM_ACT,
-    zoom: [0.98, 1.12],                              /* 47 家翻得快，晃大了看不清（lab-field22 的取值） */
-    reveal: st.reveal,
-  });
+  /* 画布颜色跟着配色走：markplate.js 的 DEFAULTS 里就有 ink/paper，但它是**逐字节移植**的
+     上游文件（sha256 要一致），所以颜色只能从这一层注入，不能改引擎。
+     ⚠ 实例在 create() 时就把 INK/PAPER 收进闭包（markplate.js:109），改 opts 不生效 → 换配色必须重建。 */
+  const pal = () => DotInkTheme.canvas();
+
+  function makePlate() {
+    const c = pal();
+    return MarkPlate.create({
+      canvas: $('cv'),
+      icons: M.icons,                                  /* 依赖注入：用包内的 marks.js，不引主库 icons.js */
+      marks: M.order.map(s => [s, M.icons[s].title || s]),
+      text: TEXT,
+      actSeconds: FORM_ACT,
+      zoom: [0.98, 1.12],                              /* 47 家翻得快，晃大了看不清（lab-field22 的取值） */
+      reveal: st.reveal,
+      ink: c.ink, paper: c.paper,                      /* ← 配色 */
+    });
+  }
+  let mp = makePlate();
   st.mp = mp;
 
   /* 把第 i 家放到下标 0，**并且把下标 1 也设成同一家** —— 就地改数组（引擎持有同一个引用），
@@ -202,6 +237,23 @@
     readout(info, icon);
   }
 
+  /* 换配色：重建实例，把「这一家 / 阶段 / 时刻」原样接回去 —— 观感上是同一帧换了个墨色，不是重播 */
+  function recolor() {
+    const held = st.held, phase = st.phase, t = st.t;
+    mp = makePlate();
+    st.mp = mp;
+    if (window.__mtype) window.__mtype.mp = mp;
+    rotateTo(held);
+    mp.opts.actSeconds = phase === 'hold' ? HOLD_ACT : FORM_ACT;
+    mp.opts.zoom = phase === 'hold' ? [1, 1] : [0.98, 1.12];
+    st.phase = phase;
+    st.t = t;
+    lastRead = 0;                                      /* 判据读数立刻按新墨色重算一次 */
+    draw();
+    try { mp.warm(); } catch (e) {}
+  }
+  DotInkTheme.onChange(recolor);
+
   let lastRead = 0;
   function readout(info, icon) {
     /* 判据读数要 getImageData(1920×1080) —— 每帧做会白吃十几毫秒，节流到 ~4/s */
@@ -209,11 +261,15 @@
     if (nowMs - lastRead < 250) return;
     lastRead = nowMs;
     const cv = $('cv'), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    /* 判墨**不能按亮度**（`r < 128`）：夜墨套墨=242、纸=12，阈值会整体反过来 →
+       墨纸都数成灰阶，读数直接报 bad（同一个坑 render.js 的 toMask 也踩过）。按调色板逐通道比。 */
+    const p = pal();
+    const isC = (r, g, b, c) => Math.abs(r - c[0]) <= 2 && Math.abs(g - c[1]) <= 2 && Math.abs(b - c[2]) <= 2;
     let ink = 0, pap = 0, gray = 0;
     for (let i = 0; i < d.length; i += 4) {
       const r = d[i], g = d[i + 1], b = d[i + 2];
-      if (r < 128) ink++;
-      else if (Math.abs(r - 242) <= 2 && Math.abs(g - 243) <= 2 && Math.abs(b - 242) <= 2) pap++;
+      if (isC(r, g, b, p.ink)) ink++;
+      else if (isC(r, g, b, p.paper)) pap++;
       else gray++;
     }
     const tot = cv.width * cv.height;

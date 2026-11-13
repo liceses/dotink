@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>点墨 · 场转场（擦除 / 径向 / 溶解）</title>
 <link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="ink.css">
+<script src="theme.js"></script>
 <style>
   /* 站点头 / 页头 / 页脚 / 交互件全部来自 ink.css —— 这里只留本页的布局 */
   .tr{display:grid;grid-template-columns:minmax(0,1fr) 372px;align-items:stretch;max-width:1600px;margin:0 auto}
@@ -58,27 +60,56 @@
   .tr-legend{display:flex;flex-wrap:wrap;gap:6px}
   .tr-keys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:12.5px;align-items:center}
   .tr-keys dt{white-space:nowrap}
-  .tr-keys dd{margin:0;color:#2A2D2E}
+  .tr-keys dd{margin:0;color:var(--fg-deep)}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
+<!-- site:meta:begin -->
+<meta name="description" content="两个场之间怎么过渡：逐帧确定性、不许补间、不许随机，退出条件写在判据里。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="场转场 · 点墨">
+<meta property="og:description" content="两个场之间怎么过渡：逐帧确定性、不许补间、不许随机，退出条件写在判据里。">
+<meta property="og:site_name" content="点墨 Dot Ink">
+<meta name="theme-color" content="#F2F3F2">
+<meta property="og:url" content="https://liceses.github.io/dotink/transition.html">
+<link rel="canonical" href="transition.html">
+<!-- site:meta:end -->
+<!-- site:boot:begin -->
+<script>/* 防 FOUC：首帧之前就把主题定下来（规则与 theme.js 一致，别在这里加逻辑） */
+(function(){try{
+  var k='dotink.theme',v=localStorage.getItem(k),d=document.documentElement,pals=["original","night","newsprint","cyanotype","xerox","vermilion"];
+  if(v&&pals.indexOf(v)<0)v=null;
+  if(!v&&window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)v="night";
+  if(v&&v!=="original")d.setAttribute('data-theme',v);
+}catch(e){}})();</script>
+<!-- site:boot:end -->
 </head>
 <body>
-<header class="site-head">
-  <div class="in">
-    <a class="brand" href="hero.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
-    <nav class="site-nav" aria-label="站点">
-      <a href="gallery.html">现象画廊</a>
-      <a href="transition.html" aria-current="page">场转场</a>
-      <a href="preview.html">判据计算器</a>
-      <a href="marks-type.html">字版厂标</a>
-      <a href="marks.html">点墨厂标</a>
-      <a href="icon.html">品牌图标</a>
-      <a href="logo-demo.html">logo 组件</a>
-      <a href="STANDARD.md">标准</a>
-    </nav>
-  </div>
-</header>
-
+<!-- site:head:begin -->
+<header class="site-head"><div class="in">
+  <a class="brand" href="index.html"><img src="icon.svg" alt="">点墨<small>Dot Ink</small></a>
+  <nav class="site-nav" aria-label="站点">
+    <a href="spec.html">规范</a>
+    <a href="gallery.html">现象</a>
+    <a href="marks-type.html">字符与厂标</a>
+    <a href="transition.html" aria-current="page">场转场</a>
+    <a href="press.html">套印</a>
+    <a href="theme.html">色彩模板</a>
+  </nav>
+  <div class="theme-switch" data-theme-switch></div>
+</div></header>
+<div class="site-sub"><div class="in">
+  <nav class="crumbs" aria-label="面包屑"><a href="index.html">点墨</a><span class="sep">/</span><span>场转场</span></nav>
+</div>
+<nav class="toc-jump" aria-label="本页目录">
+  <a href="#sec-1">模式</a>
+  <a href="#sec-2">过渡带</a>
+  <a href="#sec-3">图案与编码</a>
+  <a href="#sec-4">节奏</a>
+  <a href="#sec-5">状态示例</a>
+  <a href="#sec-6">键盘</a>
+</nav>
+</div>
+<!-- site:head:end -->
 <section class="page-intro">
   <h1 class="display">场转场</h1>
   <p>同一张网格上，两张<b>同编码</b>的场 A → B：<b>定向擦除</b>、<b>径向揭示</b>、<b>种子溶解</b>，以及按<b>墨量显影</b>、沿<b>字形 / logo 轮廓</b>生长的遮罩揭示。
@@ -129,7 +160,7 @@
 
   <aside class="tr-aside" aria-label="参数">
     <section class="ink-panel">
-      <h2>模式</h2>
+      <h2 id="sec-1">模式</h2>
       <div class="ink-tabs tr-modes" role="tablist" aria-label="转场模式" id="tabs">
         <button class="ink-tab" role="tab" id="tab-wipe" aria-controls="pane-wipe" aria-selected="true" tabindex="0" data-mode="wipe" title="定向擦除">擦除<small>wipe</small></button>
         <button class="ink-tab" role="tab" id="tab-radial" aria-controls="pane-radial" aria-selected="false" tabindex="-1" data-mode="radial" title="径向揭示">径向<small>radial</small></button>
@@ -194,7 +225,7 @@
     </section>
 
     <section class="ink-panel">
-      <h2>过渡带</h2>
+      <h2 id="sec-2">过渡带</h2>
       <label class="ink-param"><span>带宽 edge</span>
         <input class="ink-range" id="edge" type="range" min="0" max="50" step="1" value="12">
         <output id="edgeV" for="edge">0.12</output></label>
@@ -208,7 +239,7 @@
     </section>
 
     <section class="ink-panel">
-      <h2>图案与编码</h2>
+      <h2 id="sec-3">图案与编码</h2>
       <label class="ink-param"><span>A</span>
         <select id="patA" class="wide"></select></label>
       <label class="ink-param"><span>B</span>
@@ -223,7 +254,7 @@
     </section>
 
     <section class="ink-panel">
-      <h2>节奏</h2>
+      <h2 id="sec-4">节奏</h2>
       <label class="ink-param"><span>时长</span>
         <input class="ink-range" id="dur" type="range" min="4" max="40" step="1" value="16">
         <output id="durV" for="dur">1.6 s</output></label>
@@ -235,7 +266,7 @@
     </section>
 
     <section class="ink-panel">
-      <h2>状态示例</h2>
+      <h2 id="sec-5">状态示例</h2>
       <div class="tr-legend" aria-label="状态签的六种取值">
         <span class="ink-status" data-state="at-a">停在 A</span>
         <span class="ink-status" data-state="playing">播放中 A→B</span>
@@ -247,7 +278,7 @@
     </section>
 
     <section class="ink-panel">
-      <h2>键盘（焦点在画布或页面上时）</h2>
+      <h2 id="sec-6">键盘（焦点在画布或页面上时）</h2>
       <dl class="tr-keys">
         <dt><kbd class="ink-kbd">Space</kbd></dt><dd>播放 / 暂停（到头再按 = 往回放）</dd>
         <dt><kbd class="ink-kbd">←</kbd> <kbd class="ink-kbd">→</kbd></dt><dd>逐步 1%（按住 Shift 为 10%）</dd>
@@ -260,17 +291,15 @@
   </aside>
 </main>
 
-<footer class="site-foot">
-  <div class="in">
-    <span>API 与动效规范：<a href="docs/04-transitions.md">docs/04-transitions.md</a> · 实现：<a href="transition.js">transition.js</a></span>
-    <span class="links">
-      <span>零依赖 · 离线 · 同一 p 两次逐像素一致</span>
-      <a href="README.md">包说明</a>
-      <a href="STANDARD.md">标准</a>
-    </span>
-  </div>
-</footer>
-
+<!-- site:foot:begin -->
+<footer class="site-foot"><div class="in">
+  <span>转场实现在 transition.js，帧序可复现。</span>
+  <span class="links"><a href="STANDARD.md">标准原文</a>
+    <a href="THEME.md">配色说明</a>
+    <a href="README.md">包说明</a>
+    <a href="https://github.com/liceses/dotink">GitHub</a></span>
+</div></footer>
+<!-- site:foot:end -->
 <script src="fields.js"></script>
 <script src="render.js"></script>
 <script src="judge.js"></script>
@@ -431,9 +460,12 @@
     cols = Math.max(16, Math.round(cssW / CELL)); rows = Math.max(9, Math.round(cssH / CELL));
     buildFields();
     cv.width = 0; cv.height = 0;                      /* 先释放旧缓冲 */
+    /* 画布配色从令牌取：换主题必须走 buildInstance()（实例把 ink/paper 收在闭包里） */
+    const pc = DotInkTheme.canvas();
     inst = DotInk.create(Object.assign({
       canvas: cv, cssW: cssW, cssH: cssH, scale: dpr, cols: cols, rows: rows,
       maxFrac: MAXFRAC, floor: 0.02, duration: 1,
+      ink: pc.ink, paper: pc.paper,
       field: (i, x, y, p) => tr.value(i, p, x, y, p),
     }, tr.renderHints));                              /* areaMap 跟编码配对；gamma 1；shutter 0 */
     render(true);
@@ -693,6 +725,8 @@
   addEventListener('resize', onResize);               /* 只缩放（DPR 变）时 ResizeObserver 不一定触发 */
 
   window.__tr = { st: st, dbg: dbg, get tr() { return tr; }, get inst() { return inst; }, play: play, pause: pause, seek: seek, reverse: reverse, setMode: setMode };
+  /* 换配色 → 重建实例（场与 tr 不变，只有 ink/paper 变了） */
+  DotInkTheme.onChange(() => { const wasPlaying = st.playing; buildInstance(); if (wasPlaying) play(); });
   encNote(); motionNote();
   lastW = frame.parentElement.clientWidth;
   buildInstance();

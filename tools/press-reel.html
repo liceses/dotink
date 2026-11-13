@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>点墨 · 套印片渲染器（离线导出用）</title>
+<style>
+  html,body{margin:0;background:#111;color:#9BA1A0;font:12px/1.5 ui-monospace,monospace}
+  #cv{display:block;max-width:100%;height:auto}
+  #log{padding:8px 12px;white-space:pre}
+</style>
+</head>
+<body>
+<!-- ============================================================================
+     tools/press-reel.html —— 「套印片」的离线渲染器（被 tools/press-reel.mjs 驱动）
+     ----------------------------------------------------------------------------
+     为什么单独一页、不做成站点页面：这一页的任务是**逐帧确定性出图**，没有交互，
+     也不该出现在导航里。press.html 是给人看的实验台，这一页是给 ffmpeg 吃的片源。
+     两者的画面源代码有重复 —— 这是有意的：实验台要能随手改参数，片源要冻结成
+     可复现的一段叙事，混在一起会互相拖累。
+     ★ 这一版把「一张画面」换成了**四张画面**：果物 / 肌肤 / 字版 / 风景。
+     起因是体裁自己要说的话。四色网点能承载的题材很窄，六版 Hexachrome 的卖点不是
+     「颜色更多」，而是「同一套套印语言能不能扛住不同题材」。只拍一张夕阳，看的人
+     没法判断它能不能拍人、拍字、拍商品。所以这一版按**样张**（specimen sheet）的
+     逻辑组织：四个题材并置，套印偏差走**同一条曲线**（对齐 → 逐步失准 → 归位），
+     换的只是题材。这样比较的不是"哪个题材好看"，而是"同一台机器印四种东西是什么样"。
+     ----------------------------------------------------------------------------
+     ★ 三种运行模式，都在这一页里：
+       ① 默认（不给参数）    四张内置样张，17 秒，就是上面说的那条分镜。
+       ② 换时长 / 换幅度     dur= / amp= / type= 改时间轴与偏差曲线；所有时间常数乘
+                            TS = DUR/17，TS = 1 时浮点逐位不变（默认路径 5 帧 SHA-256 与改造前相同）。
+       ③ 素材模式           clips= 喂若干「格子图集」（tools/press-clip.mjs 把视频压成
+                            一格 = 一帧一像素的 PNG + sidecar.json），每段自带时长，
+                            末尾自动补一张字版收尾。片长由素材决定，不再由 dur= 决定。
+     为什么素材要压成图集：分色器按**格**取平均。若每帧都从视频解码，同一格的平均值会随
+     解码器与缩放算法漂，片子就不再是「同一个 t 出同一帧」。压成图集后一格 = 一个像素，
+     取平均被提前做掉、且只做一次 —— 导出的确定性保住了。
+     素材写法：clips=01 果物~media/a.png~4.25|02 街景~media/b.png~4.25
+              （label~图集~秒数；只给逗号分隔路径时标签从文件名推）
+     素材模式下偏差曲线**锚在字版上**，不锚在秒数上：见下面 DRIFT 的注释。
+     ========================================================================== -->
+<canvas id="cv"></canvas>
+<div id="log">boot…</div>
+
+<script src="../fields.js"></script>
+<script src="../render.js"></script>
+<script src="../judge.js"></script>
+<script src="../host.js"></script>
+<script src="../dotink.js"></script>
+<script src="../press.js"></script>
+<script>
+(function () {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  /* ★ 母版是 1920×1080 / cell 7 / scale 1 —— 也就是 274 × 154 格。
+     这三个数不是随便选的：字版那一页是按 274 × 101.6 格做的版面（见 sceneType 的表），
+     而 154 × (1−0.34) = 101.64 —— 只有这一档，设计格与真实格严丝合缝。
+     早先跑 1280 CSS × 1.5 scale（backing 也是 1920×1080，但只有 183×103 格），
+     字版的版面被缩到 0.67 倍，序号与副题掉到 1.4 格字干，整页碎成网点（成片里就是那一版）。
+     网页演示（press.html）仍用 1280 CSS：那是屏幕尺寸，不是母版。 */
+  var CSSW = +(q.get('w') || 1920), CSSH = +(q.get('h') || 1080);
+  var SCALE = +(q.get('scale') || 1);
+  var CELL = +(q.get('cell') || 7);
+  /* 版面三行的高度都写在这里，因为「可读性」是三个数的**联合**结果，不是单看字号：
+       band  = 0.34 h   字幕带高（纸色底）
+       cap   = 0.20 h   大字字高（题材名）→ 母版 1080 高 / cell 7 时 = 0.20×1080/7 ≈ 30.8 格
+       small = 0.42 cap 小字字高 → ≈ 12.9 格（原 0.36 cap ≈ 11 格，两段文案在中间撞车，先降字号再压文案）
+     判据只看**格数**：黑体字干约占字高 1/7，所以「字高 ≥ 14 格」是硬底线
+     （字干 ≥ 2 格）；小字行同理，「小字 ≥ 7 格」才不碎。 */
+  var CAP = +(q.get('cap') || 0.20);
+  var CAP_BAND = +(q.get('band') || 0.34);
+  var SMALL = CAP * 0.42;
+  /* 满墨半径 = maxFrac · 点距。三个数各说一件事，别再混：
+     0.5    —— areaMap 下 r = rMax·√w，圆盘只盖住 π/4 ≈ 78.5% 的格面积，四角永远露纸，
+               「墨量 1」印不出实地。这是「点相切」的古典定义，不是满墨。
+     1/√2   —— 圆盘并集刚好盖满方格（母版实测覆盖率 97.6%，缺的那点是抗锯齿的角像素）。
+               片源默认取这一档：它是方点阵上唯一能印出实地的半径。
+     0.85   —— 允许的上限，只在**调试大字实地**时用（1/√2 时四盘只在格角相切，抗锯齿的
+               角像素连成珠串；0.85 能盖住）。但实测整帧保真度会掉：t=6.5 的 fidelity.mean
+               0.7071 → 0.76/0.80/0.84 = 28.99/30.26/31.13，bias 从 −8 恶化到 −12。
+               原因是覆盖率曲线与 r=rMax·√w 是一起标定的，只抬 rMax 等于「同样的墨量盖更多面积」。
+     所以：成片锁 1/√2，字幕带的针孔改用 solidBand() 按格铺实墨解决（见 kOnlyBand / frame），
+     不靠抬半径。 */
+  var MAXFRAC = Math.min(0.85, +(q.get('maxfrac') || 0.70710678));
+  /* 两行在带内的位置也写死成比例：小字基线 0.22·带高、大字基线 0.87·带高。
+     这两个数是被「小字上升部不越线、大字下降部不触底」两头夹出来的，改任一都要重算。 */
+  var SMALL_Y = 0.22, BIG_Y = 0.87;
+  /* 字幕带落墨阈值，打在**源图亮度**上（不是墨量，见 kOnlyBand 的注释）：
+     字色 rgb(44,46,50) 亮度 0.18、纸 242 亮度 0.95，0.55 把两者干净分开。 */
+  var BAND_INK = 0.55;
+  /* 纸色必须与引擎同源：press 的分离按 1-max(r,g,b) 取黑，纸只要偏几个色阶
+     就会被算成"有墨"，整片纸长出彩色噪点。 */
+  var PAPER = [242, 243, 242];
+  /* 17s = 四段 × 4.25s，这是基准分镜。
+     ★ 所有时间常数都乘 TS = DUR/17（TS 声明在 _p5 的时间轴一节）：写 `0.5 * TS` 而不是 `0.5`，
+       DUR = 17 时 TS = 1、乘法不改变浮点值 —— 默认路径逐字节不变（验收方式是 5 帧 SHA-256 全等）。
+       改 --dur 时曲线跟着一起缩，不会压在错误的位置。
+     ⚠ 别把 TS 折进常量（写 a = 0.5*TS 再写 b = a + 12*TS）：实测那一版在 10891 处差 1e-15，
+       字幕上的读数会跟着变。保留原式子，只把每个字面量各自乘 TS。
+     ⚠ fall 不能反算：(14.00-12.70) 在浮点里是 1.3000000000000007，必须写成 1.3*TS。
+     给了 clips= 之后 DUR 由素材自己算（各段 span 之和 + 字版长度），这里的默认值失效。 */
+  var DUR = +(q.get('dur') || 17);
+  var TAC = +(q.get('tac') || 2.4);
+  var UCR = +(q.get('ucr') || 0.55);
+  var cv = document.getElementById('cv');
+  var COLS = Math.round(CSSW / CELL), ROWS = Math.round(CSSH / CELL);
+  /* 源画布：**按格**定，不按 CSS 宽定 —— 每格 6 源像素。
+     为什么不能跟 CSS 走：源画布是一支画笔，格子是画布的刻度。同一页要在 183 格与 274 格
+     两种网格上出图，按 CSS 定就会让"每格几个源像素"随格数变。274 格时若仍是 1056 宽，
+     一格只有 3.85 源像素 —— 26 格的大字只有 100px，字的抗锯齿边缘占满半个格子，
+     覆盖率掉到 0.5 上下，K 场被解成 0.6 的墨，整页实墨印出来是**半调网纹**（实测就是这一版）。
+     每格 6 源像素 = 每格有 36 个采样点，抗锯齿只占 1/6，面积判据才稳。
+     实测：3.85 → 6 源像素/格后，26 格大字从「一格一网点」变回「实墨块」。 */
+  var SPX = +(q.get('spx') || 6);
+  var SW = Math.round(COLS * SPX), SH = Math.round(ROWS * SPX);
+  var sc = document.createElement('canvas'); sc.width = SW; sc.height = SH;
+  var sx = sc.getContext('2d', { willReadFrequently: true });
+  /* 墨组：默认经典四色；inks=hex 时是 Hexachrome 六色（CMYK + 橙 + 绿）。
+     六色不是为了好看 —— 四色的格点集实到 15 色，六色实到 35 色以上（见 docs/05 §格点集）。
+     角度全部 45°：这是「套印不齐」的体裁（异角度会变成彩纸屑）。多出来的两版也守这一条，
+     否则错位段会从「漏色重影」变成「彩色噪点」，体裁就散了。 */
+  var HEX = q.get('inks') === 'hex';
+  /* 分色模式（只对 sep=cov 且六版时有意义）：
+       base —— 先让 CMYK 背调子，橙绿只吃残差。
+       free —— 六版一起解。
+     ⚠ 默认是 free，不是 base。原因不是"哪个更准"，是 base 在本片源的几何下**会退化成四色**：
+     覆盖率曲线 maxFrac 1/√2 时满墨能盖 98.8% 的格面积，CMYK 四版足以把残差压到 0，
+     于是 O/G 的目标恒等于「不许再暗」→ 两版覆盖率实测**恒为 0.0%**（六版白装）。
+     换成 free 后六版都出活：色数 35、每版叠印 1.82、橙 11.4% / 绿 24.0%。 */
+  var SMODE = q.get('mode') || 'free';
+  /* 用哪套分色：
+     formula —— 印厂那套带 UCR 的四色公式。四色的正解，但只认 CMYK，且墨量口径是「密度」；
+     cov     —— separateCov：正模型写在**覆盖率**域（R = Π(1 − c_i·d_i)），与引擎的记账口径一致。
+                 实测 10 色靶（maxFrac 1/√2）：玫瑰角平均偏差 10.2–11.7、同角度 24.8–47.8；
+                 公式分色分别是 26.7 / 52.3。差一个数量级，所以默认它。
+     nnls    —— separateN：解密度域的最小二乘，任意墨组都能解（六色只能用它）。
+     默认 cov：这一版的重点是**调子对**，不是「分色的数学更漂亮」。 */
+  var SEP = q.get('sep') || 'cov';
+  /* 网角：rose = 15/75/0/45（真实胶印的玫瑰斑组，六色时 O 30 / G 60）；
+     same = 各版全 45°（四版圆盘**同心**叠在一起）。
+     ⚠ 这**不只是美学，是分色能不能对的前提**。实测（同一帧、量渲染出来的画布与源图逐格比，
+     sRGB 平均差）：玫瑰角 24.7；同角度 56.5（对齐相位）——差一倍多。原因不是哪个模型更好，
+     是同角度时四版圆盘同心，覆盖率必须**互相嵌套**，而 separateCov 的正模型是独立的
+     R = Π(1 − c·d)；用同心嵌套模型重算，同角度的误差才降到 15 左右（见 docs/05 的实测表）。
+     所以片源默认 rose：它既准，又正是「早期印刷机套不准」这件事真正发生过的几何。 */
+  var ANGLES = q.get('angles') || 'rose';
+  var ANG = ANGLES === 'rose'
+    ? { C: 15, M: 75, Y: 0, K: 45, O: 30, G: 60 }
+    : { C: 45, M: 45, Y: 45, K: 45, O: 45, G: 45 };
+  var INKS = HEX ? [
+    { name: 'C', title: '青',   rgb: [0, 174, 239], angle: ANG.C },
+    { name: 'M', title: '品红', rgb: [236, 0, 140], angle: ANG.M },
+    { name: 'Y', title: '黄',   rgb: [255, 241, 0], angle: ANG.Y },
+    { name: 'K', title: '黑',   rgb: [12, 13, 14],  angle: ANG.K },
+    { name: 'O', title: '橙',   rgb: [255, 108, 0], angle: ANG.O },
+    { name: 'G', title: '绿',   rgb: [0, 166, 81],  angle: ANG.G }
+  ] : [
+    { name: 'C', title: '青',   rgb: [0, 174, 239], angle: ANG.C },
+    { name: 'M', title: '品红', rgb: [236, 0, 140], angle: ANG.M },
+    { name: 'Y', title: '黄',   rgb: [255, 241, 0], angle: ANG.Y },
+    { name: 'K', title: '黑',   rgb: [12, 13, 14],  angle: ANG.K }
+  ];
+
+  /* ── 四张样张共用的"版面骨架" ──────────────────────────────────────────────
+     每一张都在**内容区**里构图（= 整幅减去底部字幕带），不是整幅。
+     字幕带是这套版式的**家具**（furniture），不属于任何一张图 —— 四张之间换题材，
+     家具不动。这也是真实样张的做法：图版在版心内，caption 在版心外的页脚。
+     所以每个场景开头都写 \'var h = SH * (1 - CAP_BAND)\'，把 h 重定义成内容高；
+     场景里所有按 h 的比例算出来的位置就自动落在版心内，不会压到字幕。 */
+  function contentH() { return SH * (1 - CAP_BAND); }
+
+  /* 一个格在源画布上有几个像素。**所有字号都该用它当单位**：
+     cell 7 / 1280 宽时 CS ≈ 3.85 源像素，内容区高 68 格。
+     这条是这一版最硬的发现：判据只看**格数**，黑体字干约占字高 1/7，
+     所以「字高 ≥ 14 格」才不断（字干 2 格）。68 格的内容区里只装得下
+     4 种字号 —— 这就是这套点距下排版的天花板，不是设计选择。 */
+  var CS = SW / COLS;
+
+
+  /* ── 照片源（CC0）──────────────────────────────────────────────────────────
+     ★ 这一版把三张样张（果物 / 肌肤 / 风景）从**手绘**换成了**照片**。
+     不是为了好看，是为了让立论站得住：这一层的说法是「颜色只在 2^N 个格点集上」，
+     它必须落在**真实的连续调**上才成立 —— 饱和橙、肤色过渡、湖面的青绿。
+     手绘的示意图反而证明了相反的事：画出来的脸在 183 格宽的点阵里永远是一块色，
+     因为它本来就没有照片那样的高频细节。
+
+     三张都是 Wikimedia Commons 上的 CC0（作者与出处见 NOTICE.md）：
+       fruit  Basket of blood oranges  / Linh Pham
+       skin   Face portrait            / William Stitt
+       land   Snow and sunset at Isolation Lake / Sergei Akulich
+     统一缩到 1200 宽：导出最长边 1920、一格 7px 时一格约 3.9 源像素，
+     源图再大也不会多出一个格子的信息。
+
+     ⚠ 载入是异步的，paint() 是同步的 —— 所以必须三张都 decode 完才把
+     __reel.ready 打开（tools/press-reel.mjs 轮询的就是这个标志）。
+     少一张就会导出一段白片，且不会报错，所以 onerror 也计数、并把名字记进 __reel.photos。 ── */
+  var PHOTO_BLUR = +(q.get('blur') || 4);
+  var PHOTO_SRC = {
+    fruit: "../media/press-src-fruit.jpg",
+    skin:  "../media/press-src-skin.jpg",
+    land:  "../media/press-src-land.jpg"
+  };
+  var PHOTOS = {}, PHOTO_N = 0, PHOTO_OK = 0, PHOTO_FAIL = [];
+  /* ready 在 __reel 上是个 getter（见 _p7），这里不用置位 —— 计数器一变，读它的地方就看到新值。
+     原先这里写 window.__reel.ready = … 会炸：给只有 getter 的属性赋值，严格模式下直接抛
+     TypeError（实测 Unchecked runtime.lastError 那一行就是它）。 */
+  function syncReady() { /* 计数器即状态，无副作用 */ }
+  /* 有 clips 时不载入内置的三张照片：它们只服务四张写死的样张，白拉 3.6 MB 还会拖慢启动。
+     ⚠ 这里必须查 query，不能读 CLIPS —— `var CLIPS` 声明在文件更下面（提升只提升声明，
+     值还是 undefined），第一版写成 CLIPS.length 直接抛 TypeError，整页 __reel 都没建起来。 */
+  (function loadPhotos() {
+    if (q.get('clips')) return;
+    function one(name, url) {
+      var im = new Image();
+      im.onload = function () { PHOTO_OK++; syncReady(); };
+      im.onerror = function () { PHOTO_FAIL.push(name); PHOTO_OK++; syncReady(); };
+      im.src = url;
+      PHOTOS[name] = im;
+    }
+    for (var k in PHOTO_SRC) { if (PHOTO_SRC.hasOwnProperty(k)) { PHOTO_N++; one(k, PHOTO_SRC[k]); } }
+  })();
+
+  /* 本张样张已经走了多少（0..1）：用来给照片的推拉定速度 */
+  function spanP(t, si) {
+    var p = (t - si * SPAN) / SPAN;
+    return p < 0 ? 0 : p > 1 ? 1 : p;
+  }
+
+  /* 把照片按「看得见的源区域」贴进版心。
+     u  = 可见源宽占比（1 = 整幅宽；越小推得越近）
+     cx / cy = 可见区域在源图里的中心（0..1）
+
+     ★ 几何是死的，先算再骂：源 3:2、版心 1644×610 = 2.69:1（母版 274 格），
+     所以 u = 1 时只看得见源高的 55.7%。这不是裁坏了 —— 宽银幕就是从 3:2 里取一条带。
+     反过来说，**不能**去"适配"整张图：那会把 2.69:1 压成 3:2，人脸会矮一截。
+     所以每张样张真正要定的只有三件事：取多宽的带（u）、带中心落在谁的眉眼上（cy）、
+     以及 4.25 秒里推多近（u0 → u1）。这三点写在各场景的注释里。
+
+     超出边界的部分用 clamp 兜住：u 接近 1 时 cx/cy 会算到负的 sx0，
+     不夹住会画出纸边（画布上就是一道白线，分色后成了白点）。 ── */
+  function photoInto(name, t, si, cfg) {
+    var g = sx, w = SW, h = contentH();
+    g.fillStyle = "rgb(" + PAPER.join(",") + ")";
+    g.fillRect(0, 0, w, h);
+    var im = PHOTOS[name];
+    if (!im || !im.width) return;                 /* 还没 decode 完：留纸，别留脏 */
+    var p = spanP(t, si);
+    var u = cfg.u0 + (cfg.u1 - cfg.u0) * p;
+    var cx = cfg.cx0 + (cfg.cx1 - cfg.cx0) * p;
+    var cy = cfg.cy0 + (cfg.cy1 - cfg.cy0) * p;
+    var iw = im.width, ih = im.height;
+    var sw = iw * u, sh = sw * (h / w);
+    if (sh > ih) { sh = ih; sw = sh * (w / h); }   /* u 给大了也不许露边 */
+    var sx0 = cx * iw - sw / 2, sy0 = cy * ih - sh / 2;
+    if (sx0 < 0) sx0 = 0;
+    if (sx0 > iw - sw) sx0 = iw - sw;
+    if (sy0 < 0) sy0 = 0;
+    if (sy0 > ih - sh) sy0 = ih - sh;
+    /* 低通：把照片先糊到「点距」尺度再分色。
+       这条不是审美，是**采样定理**：这一屏一格 ≈ 3.85 源像素、印在 10.5 设备像素上，
+       源图里比一格更细的东西（毛孔、发丝、叶脉）落进格子只会变成"这一格该是哪个墨"的抖动 ——
+       相邻两格差一点点，解出来的版就换一张，远看是噪，1:1 是彩色纸屑（实测过：
+       不糊时皮肤的 1:1 是一片红黄绿黑的小点，糊到一格后才是连续的肤色网纹）。
+       印厂的说法是"这个网线数印不出这种细节"，同一件事。
+       sigma 以**源像素**为单位，默认 3.9 ≈ 一格。 */
+    if (PHOTO_BLUR > 0) g.filter = "blur(" + PHOTO_BLUR.toFixed(2) + "px)";
+    g.drawImage(im, sx0, sy0, sw, sh, 0, 0, w, h);
+    if (PHOTO_BLUR > 0) g.filter = "none";
+  }
+
+  /* ── 视频素材：格子图集（cell-resolution atlas）──────────────────────────────
+     ★ 这是管线化（m10571 p1=A）的入口：**任意视频进 → 套印片出**。
+
+     为什么是「图集」而不是逐帧图片：这套引擎的每个格子只吃一格的平均色，
+     比格子更细的信息在分色时就被平均掉了。所以视频进片源的最优形态不是 1080p，
+     而是**一格一像素**（母版 274×102）—— 掉到格分辨率是零损失，内存还小两个数量级。
+     图集把 N 帧排成一张大 PNG（cols×rows 行优先），一次 load 就拿到整段画面，
+     免掉 N 次网络请求与 N 次 decode。生成端是 tools/press-clip.mjs。
+
+     用法（query）：
+       clips=01 果物~../media/x.atlas.png~4.25|02 街景~../media/y.atlas.png~4.25
+     每段三段式 label~src~dur，段与段之间用 | 分隔。
+       label  题材名（字幕带大字用它；开头的两位数字会被当作段号，可省）
+       src    图集 PNG 的路径；同目录同名 .json 是该图集的 sidecar
+       dur    这一段占多少秒（不给则按 4.25 秒，并让总片长由素材自己决定）
+
+     ⚠ **取景不在这里**：cx/cy 是图集生成时的事（tools/press-clip.mjs --cx/--cy）。
+        在格分辨率上再裁一次等于二次采样，只会更糊 —— 裁切必须在 1080p 那一端做。
+     ⚠ 图集必须**同源**（同目录、同 http 服务），否则 canvas 会被弄脏，
+        getImageData 直接抛 SecurityError。片源本来就只跑在本地静态服务上，这条不是限制。 ── */
+   var CLIPS = [], CLIP_N = 0, CLIP_OK = 0, CLIP_FAIL = [];
+
+   function parseClips(spec) {
+     var out = [];
+     if (!spec) return out;
+     var segs = String(spec).split("|");
+     for (var i = 0; i < segs.length; i++) {
+       var f = segs[i].split("~");
+       if (!f[0]) continue;
+       /* 两种写法都收：
+            "01 街景~a.png~4.25"   带标签（推荐，字幕带大字就是它）
+            "a.png~4.25"           只有路径 —— 标签由文件名推出来
+          判据是「第一段像不像路径」：含 / 或 . 就当路径。
+          ⚠ 多段只能用 | 分隔 —— 逗号串（a.png,b.png）会被当成一个路径，载入直接失败。 */
+       var looksPath = /[\/\\.]/.test(f[0]) && f.length >= 1;
+       if (looksPath) { f = ["", f[0]].concat(f.slice(1)); }
+       var label = f[0];
+       if (!label) {
+         /* 文件名兜底成标签：去掉扩展名，再抹掉 .atlas 这个后缀（图集的通用命名），
+            否则字幕带会印出 "demo.atlas" 这种半截文件名。 */
+         var base = (f[1] || "clip").split("/").pop()
+           .replace(/\.(png|jpe?g)$/i, "").replace(/\.atlas$/i, "");
+         label = base;
+       }
+       if (!f[1]) continue;
+       var mm = /^(\d{2})\s+(.*)$/.exec(label);
+       /* 路径统一成「相对**仓库根**」的写法：页面在 /tools/ 下，所以不是 ../ 开头、
+          也不是绝对/URL 的，一律补 ../ 。这样命令行可以写 media/x.atlas.png（跟别的
+          工具一致），不必记得页面在子目录里。 */
+       var src = f[1];
+       if (!/^(\.\.\/|\/|https?:)/.test(src)) src = "../" + src;
+       out.push({
+         raw: label,
+         idx: mm ? mm[1] : ("0" + (i + 1)).slice(-2),
+         name: mm ? mm[2] : label,
+         src: src,
+         dur: f[2] ? +f[2] : 0,
+         img: null, side: null, ready: false
+       });
+     }
+     return out;
+   }
+
+   (function loadClips() {
+     CLIPS = parseClips(q.get("clips"));
+     if (!CLIPS.length) return;
+     CLIP_N = CLIPS.length;
+     for (var i = 0; i < CLIPS.length; i++) {
+       (function (c) {
+         var sideUrl = c.src.replace(/\.png$/i, ".json");
+         var im = new Image();
+         var sideDone = false, imgDone = false;
+         function settle() {
+           if (!(sideDone && imgDone)) return;
+           c.ready = !!(c.side && c.img && c.img.width);
+           if (!c.ready) CLIP_FAIL.push(c.name);
+           CLIP_OK++; syncReady();
+         }
+         /* sidecar 必须到：没有它不知道一行有几帧，宁可整段判失败（会记进 __reel.clips）。 */
+         fetch(sideUrl).then(function (r) { return r.ok ? r.json() : null; })
+           .then(function (j) { c.side = j; })
+           .catch(function () { c.side = null; })
+           .then(function () { sideDone = true; settle(); });
+         im.onload = function () { imgDone = true; settle(); };
+         im.onerror = function () { imgDone = true; c.img = null; settle(); };
+         im.src = c.src;
+         c.img = im;
+       })(CLIPS[i]);
+     }
+   })();
+
+   /* 把图集里第 k 帧（一格一像素）贴进版心。
+      缩放必须是**整数倍**且关掉插值：一格 = SPX 个源像素，那么一个图集像素正好铺 SPX×SPX，
+      这与引擎「按格取平均」的口径完全对齐。双线性插值会把邻格的墨蹭过来，
+      等于凭空造出格子之间不存在的颜色，分色会把它解成一版多余的墨。
+      行数取 round(版心高/SPX) = 102：102×6 = 612 略高于版心 609.84，多出的两像素被裁掉；
+      用 clip 而不是缩到正好，是为了保住「一格 = 6 像素」这条整数关系。 */
+   function clipInto(c, t, seg) {
+     var g = sx, w = SW, h = contentH();
+     g.fillStyle = "rgb(" + PAPER.join(",") + ")";
+     g.fillRect(0, 0, w, h);
+     if (!c.ready) return;
+     var tw = c.side.tileW, th = c.side.tileH, n = c.side.n, cols = c.side.cols;
+     var p = (t - seg.t0) / seg.span;
+     p = p < 0 ? 0 : p > 1 ? 1 : p;
+     var k = Math.min(n - 1, Math.floor(p * n));
+     var tx = (k % cols) * tw, ty = Math.floor(k / cols) * th;
+     var rows = Math.max(1, Math.round(h / SPX));
+     g.save();
+     g.imageSmoothingEnabled = false;
+     g.beginPath(); g.rect(0, 0, w, h); g.clip();
+     g.drawImage(c.img, tx, ty, tw, th, 0, 0, tw * SPX, rows * SPX);
+     g.restore();
+   }
+
+   /* 场景函数的第二参数是**本段对象**（stateAt 里的 scene），不是序号 ——
+      序号拿不到 t0/span，而段时长可以各不相同。 */
+   function clipScene(c) {
+     return function (t, seg) { clipInto(c, t, seg); };
+   }
+
+  /* ── 01 果物 ───────────────────────────────────────────────────────────────
+     一颗切开的血橙。为什么是它：CMYK 印不出干净的高饱和橙 —— 橙要靠 M+Y 叠出来，
+     叠出来的橙一有套印偏差边缘就发脏；而血橙的果肉又把**暗红 / 紫**这一档拉进来，
+     那是四色最容易塌成褐色的一段。旁边那片叶绿是第二块短板（四色的绿是 Y+C 叠的，偏黄偏脏）。
+     所以第一张不是"好看的水果"，是这块色域本身。
+
+     取景：切面在源图 (0.44, 0.47)，从 u 0.86 推到 0.79 —— 4.25 秒里推近 7%，
+     慢到看不出在动，但整段不会"死"。cy 略高于中心（0.40）：切面带在画面中线偏上，
+     下方留出橙堆的暗部，中间调才有层次。 ── */
+  function sceneFruit(t, si) {
+    photoInto("fruit", t, si, { u0: 0.90, u1: 0.84, cx0: 0.44, cx1: 0.46, cy0: 0.44, cy1: 0.46 });
+  }
+
+  /* ── 02 肌肤 ───────────────────────────────────────────────────────────────
+     为什么是**脸**：人眼对肤色过渡带的容差最低，一丁点套印偏差在这里就变成"脏"。
+     这张是四张里唯一"错一点就废"的 —— 也是六版值不值的判据。
+
+     ★ 这里换掉了手绘侧脸。原先画了四版（轮廓细化 / 细线勾五官 / 块面法 / 明暗分层），
+     全部失败，原因不是画功，是**信息量**：那四版是在 1056 宽 / 183 格的画布上排的，一格 3.9 源像素，
+     脸宽约 110 格。写实的鼻梁转折只有 2–3 格，网点一圆化就糊成斜坡；
+     眼皮 0.6 格、睫毛 0.4 格 —— 低于一格的笔画在 1-bit 里根本不存在。
+     照片不一样：它有毛孔、有胡须、有眼白里的血丝，这些高频细节正好落在格子尺度上，
+     于是"网点化"本身变成了信息，而不是把信息抹平。
+
+     取景：正面特写，u 1.00 → 0.93、cy 0.42 → 0.40（轻微推近，长镜头）。
+     母版 274 格时脸宽约 165 格，眉眼/鼻唇/胡须都在格内成画。
+     底色不铺任何渐变 —— 照片自带背景（浅灰墙），而那片浅灰离纸色只有十几个色阶，
+     正好是"干净的纸"该有的样子。 ── */
+  function sceneSkin(t, si) {
+    photoInto("skin", t, si, { u0: 1.00, u1: 0.93, cx0: 0.50, cx1: 0.51, cy0: 0.42, cy1: 0.40 });
+  }
+  /* ── 03 字版 ───────────────────────────────────────────────────────────────
+     为什么一张"字"：套印偏差在**硬边**上最说得清 —— 边缘的彩边宽窄就是偏差的尺子。
+     而且它顺手把「点墨」这件事自己印一遍：这张样张既是内容，也是署名。
+
+     ★ 这一页同时回答两个问题，所以有两套黑：
+       ① **单版黑字**（不齐的网点 / PROOF / 0123456789 / 灰梯）——
+          中性色走黑版（见 neutralToBlack），印出来是干净的单版网点，证明点阵能印多细；
+       ② **多版叠印的彩字**（套印）—— 硬边上一错位就漏色，证明套印不齐。
+       两者同页，观者能分出「字糊了」和「版歪了」是两件事。
+
+     ★ 整个版面按**格**排，不按比例排。格是这里唯一诚实的单位。
+       实测（母版 1920 CSS / cell 7 / scale 1）：源画布 1644×924（SW = COLS·SPX），一格 = 6 源像素，
+       网格 274×154 格；**版心只有 0.66·SH**（字幕带占 0.34），
+       可排 = **274 × 101.6 格**。这个数改一次，下面全部重算。
+
+     ★ 判据只看格数：黑体汉字字干约占字高 1/7，**≥14 格**才不断（字干 2 格）；
+       拉丁大写字干更粗，9 格就立得住。**但灰色小字要再加两条**：
+       色浅一格就少一层墨、笔画再细一格就断 —— 实测 12 格 + rgb(58,62,68) 直接糊成斜纹。
+       所以这一页的灰色字一律 14 格 + 最深的一档灰（rgb(42,46,52)）。
+
+     ★ 字面高 ≠ 字号（headless Edge / 100px 实测）：
+         汉字「墨」  ascent 0.80em, descent 0.11em → 字面 0.91em
+         拉丁大写    ascent 0.73em, descent 0.01em → 字面 0.74em
+       「42 格的字」印出来只有 38 格高。行距按字面高排，不能按字号拍脑袋。
+
+     ★ 竖向预算表（基线 y，单位 = 格）。**先算表再落笔**：
+         左栏（x 5–118）                       右栏（x 132–248）
+         ──────────────────────────────         ──────────────────────────────
+         05.8 ─ 48.6   套印 42 格 彩字           06 ─ 14      六版色标 8 块（8 格方）
+         50.5 ─ 60.5   DOT INK 14 格            22.8 ─ 40.1  不齐的网点 19 格
+         63.8 ─ 74.4   PRESS · PROOF 14 格      43.0 ─ 62.3  PROOF 26 格
+         77.5 ─ 97.5   反白块 20 格             69.8 ─ 81.4  0123456789 14 格
+          （内：PROOF · 1-BIT 白字 17 格）      85.0 ─ 92.0  灰梯 8 块 7 格
+       两条竖排的底都落在 92–97.5，下面留 4 格纸。
+       没有这张表时靠"一行接一行往下推"，推到第四行就出了版心：
+       大字压住署名、反白块盖住数字行、字幕带被顶进画面里（实测三次）。 */
+  function sceneType(t) {
+    var g = sx, w = SW, h = contentH();
+    /* ★ 这一页是按固定设计网格 274 × 101.6 格画的，画完再整体缩放到当前网格。
+       为什么必须缩放、不能照着格数直接排：这一页调试时会被放到别的网格上出图
+       （格数会变：274 / 183 / 137），而**格子的设备像素不变**（母版 10.5）。
+       所以「42 格的字」在 183 格的画布上占 46% 宽，在 274 格上只占 31% ——
+       照格排的结果是：母版好看，183 格上右栏被挤成 21 格宽、四字标题被压到 5 格，
+       糊成一条灰带（实测就是更早那版预览 mp4 里的样子）。
+       缩放之后每个元素的**相对位置与大小**恒定，格数只是分辨率。 */
+    var K = Math.min(1, COLS / 274);
+    /* ⚠ 只能缩到 1（母版），不能放大：这一页的可读性按 274 格校过，
+       格数比母版少时（183 格 = 网页预览尺寸）小字的字干会掉到 1.4 格，
+       低于「字干 ≥ 2 格」这条硬门槛，整页的序号与副题会碎成网点。
+       所以 274 格是**母版**：预览片由母版转码，不重新出图。 */
+    var U = SH / ROWS * K;                   /* 一个**设计格**的源像素数 */
+    var CJK = '"Microsoft YaHei","Noto Sans SC","PingFang SC","Source Han Sans SC",sans-serif';
+    var LAT = '"Helvetica Neue",Arial,Helvetica,sans-serif';
+    g.fillStyle = 'rgb(' + PAPER.join(',') + ')'; g.fillRect(0, 0, w, h);
+    g.textBaseline = 'alphabetic';
+
+    /* 把一段字缩到 maxW（源像素）内，返回实际字号（格）。同时更新 g.font。
+       手算宽度必错：曾把「MISREGISTRATION PROOF」估窄 19%，越过分隔线压进右栏。 */
+    function setFont(weight, cells, fam, txt, maxW) {
+      var size = U * cells;
+      g.font = weight + ' ' + size + 'px ' + fam;
+      var mw = txt ? g.measureText(txt).width : 0;
+      if (mw > maxW) {
+        size = size * maxW / mw;
+        g.font = weight + ' ' + size + 'px ' + fam;
+      }
+      return size / U;
+    }
+
+    /* 竖分隔线：1-bit 里细线会断成虚线 —— 线宽 3.0 格。
+       1.6 格时呈波浪虚线，2.2 格仍能看出锯齿（圆盘 45° 排布，竖线的每一行落在不同相位），
+       3.0 格才连成实线：线宽 ≥ 2 格是「不断」的门槛，≥ 3 格才是「平直」的门槛。 */
+    var splitX = U * 126;
+    g.fillStyle = 'rgba(16,18,22,1)';
+    g.fillRect(splitX, U * 6, Math.max(3, U * 3.0), h - U * 12);
+
+    var leftW = splitX - U * 14;
+    var rx = splitX + U * 10, rightW = w - rx - U * 26;
+
+    /* ── 左 · 彩字「套印」42 格 ──
+       颜色是饱和暖红（#D63E1C）：必须由两三版叠出来，硬边才有可漏的彩。
+       用中性黑就错了 —— 中性色走 GCR 全落到 K 版，六版只剩一版，永远漏不出色。 */
+    g.fillStyle = 'rgb(214,62,28)';
+    setFont(900, 42, CJK, '套印', leftW);
+    g.fillText('套印', U * 5, U * 44);
+
+    /* ── 左 · 署名与副题。★ 全部用**实墨黑**，不用灰 ——
+       这是印厂的规矩，也是 1-bit 的物理：灰色只能靠网点疏密表示，
+       而 14 格的笔画只有 2 格宽，一层 86% 的网点就把笔画咬成斜纹网格，
+       读起来是"一片有纹理的灰"，一个字母都认不出（实测过 rgb(42,46,52) 那一版）。
+       小字要么纯黑、要么别印 —— 这是这套点距的第三条硬约束。 ── */
+    g.fillStyle = 'rgb(18,20,24)';
+    setFont(800, 15, LAT, 'DOT INK', leftW);
+    g.fillText('DOT INK', U * 5, U * 60);
+    g.fillStyle = 'rgb(18,20,24)';
+    setFont(800, 15, LAT, '6 INKS · ROSE', leftW);
+    g.fillText('6 INKS · ROSE', U * 5, U * 74);
+
+    /* ── 左 · 反白块 20 格高。整张样张只有这一块是深底浅字。
+       反白在 1-bit 里是"在黑里挖洞"，洞宽必须 ≥2 格 —— 所以字 17 格、块 20 格。
+       上一版做 15.5 格高、字 14 格，实测笔画只剩 2 格、白色被网点切碎成虚线，
+       整块读起来是"一块黑底上有几条白噪"。（反白比正字更吃亏：正字是墨往纸上长，
+       反白是纸从墨里被挖掉，边缘的抗锯齿两边都吃。） ── */
+    var rvY = U * 77.5, rvH = U * 20;
+    g.fillStyle = 'rgb(13,15,19)';
+    g.fillRect(U * 5, rvY, leftW - U * 2, rvH);
+    g.fillStyle = 'rgb(' + PAPER.join(',') + ')';
+    setFont(900, 17, LAT, 'PROOF · 1-BIT', leftW - U * 10);
+    g.fillText('PROOF · 1-BIT', U * 11, rvY + U * 15);
+
+    /* ── 右 · 六版色标（8 块，8 格见方、间距 10）＝ 这套墨的色域表。
+       C/M/Y/K 四原色，O/G 是 Hexachrome 的补色，后两块是叠出来的间色（紫 / 暖沙）。
+       色标是印厂的通用语言：看一眼就知道这套墨能走多远。
+       块要够大：6 格见方时在 1:1 下只能数出 6 颗点，看不出颜色。 ── */
+    var sw = ['rgb(0,174,239)', 'rgb(236,0,140)', 'rgb(255,241,0)', 'rgb(26,28,30)',
+              'rgb(255,108,0)', 'rgb(0,166,81)', 'rgb(120,60,150)', 'rgb(196,150,96)'];
+    for (var s2 = 0; s2 < 8; s2++) {
+      g.fillStyle = sw[s2];
+      g.fillRect(rx + s2 * U * 10, U * 6, U * 8, U * 8);
+    }
+
+    /* ── 右 · 不齐的网点 19 格（汉字，远高于 14 格门槛）── */
+    g.fillStyle = 'rgb(14,16,20)';
+    setFont(700, 19, CJK, '不齐的网点', rightW);
+    g.fillText('不齐的网点', rx, U * 38);
+
+    /* ── 右 · PROOF 26 格（拉丁大写，单版黑，边缘最干净的一组）── */
+    g.fillStyle = 'rgb(14,16,20)';
+    setFont(900, 26, LAT, 'PROOF', rightW);
+    g.fillText('PROOF', rx, U * 62);
+
+    /* ── 右 · 数字 14 格 —— 这一行是**读数**：这套点距能印多细的编号 ── */
+    g.fillStyle = 'rgb(14,16,20)';
+    setFont(700, 14, LAT, '0123456789', rightW);
+    g.fillText('0123456789', rx, U * 80);
+
+    /* ── 右 · 灰梯 8 块（7 格见方，间距 8.6）＝ 分色与点径的双重标尺。
+       中性灰走 GCR → 单版网点，网点大小连续变化；这一排既是"分色对不对"的尺子，
+       也是"点径能分几级"的尺子。块要够大：5 格见方时前四块会糊成一条黑杠。 ── */
+    var gs = U * 7, gp2 = U * 8.6, gy2 = U * 85;
+    for (var k = 0; k < 8; k++) {
+      var v = Math.round(255 * (k / 7));
+      g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+      g.fillRect(rx + k * gp2, gy2, gs, gs);
+      g.strokeStyle = 'rgba(18,20,24,0.70)';
+      g.lineWidth = Math.max(1, U * 0.40);
+      g.strokeRect(rx + k * gp2, gy2, gs, gs);
+    }
+
+    /* ── 套准十字（register mark）：印厂用它对版，这里用来对读者的眼 ——
+       三个十字是同一条几何，错位时各自偏开，是整页最灵敏的偏差指示器。 ── */
+    function regMark(cx, cy, r) {
+      var arm = r * 0.34, gap = r * 0.22;
+      g.fillStyle = 'rgb(16,18,22)';
+      g.fillRect(cx - arm / 2, cy - r, arm, r - gap);
+      g.fillRect(cx - arm / 2, cy + gap, arm, r - gap);
+      g.fillRect(cx - r, cy - arm / 2, r - gap, arm);
+      g.fillRect(cx + gap, cy - arm / 2, r - gap, arm);
+      g.beginPath(); g.arc(cx, cy, gap * 0.60, 0, Math.PI * 2); g.fill();
+    }
+    regMark(w - U * 13, U * 22, U * 7);
+    regMark(w - U * 13, U * 52, U * 7);
+    regMark(w - U * 13, U * 82, U * 7);
+  }
+
+
+  /* ── 04 风景 ───────────────────────────────────────────────────────────────
+     四张里色域最宽的一张：蓝紫的天、金红的花岗岩山脊、雪的白、湖水的暖橙反射与冷青。
+     这几种颜色在四色里各有各的塌法 —— 金红靠 M+Y 会发闷、冷青靠 C+Y 会发灰、
+     雪的白一有套印偏差就变成脏粉。所以它是偏差的**峰值**所在，也是「六版值不值」的第二个判据。
+
+     为什么换掉 Peyto Lake：那张原图整体偏暗（雪山背光 + 深色湖），在 1-bit 里
+     K 版吃掉 50% 的面积，六色只剩三版出活（实测 plates K 50.1% / C 5.9% / G 5.5% /
+     M 4.4% / O 1.0% / Y 0.2%）—— 一张"暗"的样张证明不了色域宽。
+     现在这张（Isolation Lake，Golden Hour）明暗各半，金红与冷青同时在场。
+
+     取景：cy 0.42 —— 把**三段**都装进来（蓝紫的天 / 金红的山脊 / 湖面的暖橙反射）。
+     扫过 0.26 / 0.34 / 0.42 / 0.50：0.26 只有天与山、湖看不见；0.50 湖占了 2/5、山被压扁。
+     u 从 0.94 收到 0.88，收得最轻，因为这张信息密度最高，推太近反而挤。 ── */
+  function sceneLand(t, si) {
+    photoInto("land", t, si, { u0: 0.94, u1: 0.88, cx0: 0.52, cx1: 0.54, cy0: 0.42, cy1: 0.435 });
+  }
+
+  /* ── 叙事：四张样张，一条套印曲线 ───────────────────────────────────────────
+     这一版刻意**不**给每个题材单独的进出场。四张之间不切镜头、不淡入淡出 ——
+     换题材是"下一张纸进机器"，所以边界上只换画面，不换版。
+     真正在变的是套印：开头干净，越印越歪，最后一张归位。
+     这条曲线是整片的叙事骨架，四张画面只是它的四个被印对象。
+     ------------------------------------------------------------------------- */
+  /* 顺序是**论证顺序**，不是审美顺序：
+       01 果物 —— 先给四色的短板（高饱和橙/绿），"为什么需要多两版"由画面自己提出来；
+       02 肌肤 —— 紧接着是容差最低的连续中间调；
+       03 风景 —— 把色域一次摊开，偏差在这里到峰值；
+       04 字版 —— 收尾。它既是"偏差的尺子"（硬边上的彩边宽窄），又是署名（墨）。
+                  放在最后是因为它要在**归位**这一段里读：从 8px 一路收回到 0，
+                  字的边缘从毛变干净，这个过程用硬边才看得见。 */
+  /* ★ 片源有两副面孔，取决于有没有给 clips：
+       · 不给（默认）—— 「四张样张」，写死的四段，各 DUR/4 秒；
+       · 给了 —— 「任意素材」，段数与每段时长来自输入，末尾自动补一张字版收尾。
+     两条路共用同一套引擎、同一条套印曲线、同一个字幕带，所以片子的体裁不变：
+     变的只是被印的东西。
+
+     字版为什么**永远在最后**：它既是署名，也是偏差的尺子（硬边上彩边宽窄）。
+     少了它，一段从歪到正的曲线没有落点；而且它是唯一能证明「这台机器印得出字」的样张。
+     所以管线化不让它变成可选项 —— 但它占几秒可以给（--type / type= 参数）。 */
+  var TYPE_DUR = +(q.get('type') || 3.0);
+  var SCENES;
+  if (CLIPS.length) {
+    /* 每段时长：clip 自己给了就用它，没给则把剩下的时间均分。
+       总时长 DUR 也在这里定 —— 命令行没给 dur 时，片长由素材自己决定，
+       而不是钉死 17 秒再把四段挤进去（那会让 2 段素材各占 8.5 秒，节奏全乱）。 */
+    var fixed = 0, free = 0;
+    for (var ci = 0; ci < CLIPS.length; ci++) { if (CLIPS[ci].dur > 0) fixed += CLIPS[ci].dur; else free++; }
+    /* 没给 dur 时，没定长的段各按 4.25 秒算 —— 那是原分镜里一段的长度，节奏是校过的。 */
+    if (q.get('dur') === null) DUR = fixed + free * 4.25 + TYPE_DUR;
+    var rest = Math.max(0, DUR - TYPE_DUR - fixed);
+    var each = free ? rest / free : 0;
+    SCENES = [];
+    var acc = 0;
+    for (var cj = 0; cj < CLIPS.length; cj++) {
+      var c = CLIPS[cj];
+      var d = c.dur > 0 ? c.dur : each;
+      c._span = d;
+      SCENES.push({ name: c.name, idx: c.idx, note: '视频素材', span: d, t0: acc, clip: c });
+      acc += d;
+    }
+    SCENES.push({ name: '字版', idx: ('0' + (SCENES.length + 1)).slice(-2), note: '硬边 · 偏差的尺子', fn: sceneType, span: TYPE_DUR, t0: acc });
+    DUR = acc + TYPE_DUR;
+  } else {
+    SCENES = [
+      { name: '果物', idx: '01', note: '橙与叶 · 四色的短板色域', fn: sceneFruit },
+      { name: '肌肤', idx: '02', note: '连续中间调 · 容差最低的过渡带', fn: sceneSkin },
+      { name: '风景', idx: '03', note: '大色域扫掠 · 偏差到峰值', fn: sceneLand },
+      { name: '字版', idx: '04', note: '硬边 · 偏差的尺子', fn: sceneType }
+    ];
+  }
+  var SPAN = SCENES.length ? DUR / SCENES.length : DUR;
+  /* 每段的起点与跨度：默认模式四段均分（t0 = i·SPAN，跨度 = SPAN），
+     有 clips 时用上面算好的 t0 / span。两套都落到同一对字段上，stateAt 只认字段。 */
+  (function () {
+    var a0 = 0;
+    for (var i1 = 0; i1 < SCENES.length; i1++) {
+      if (SCENES[i1].span === undefined) SCENES[i1].span = SPAN;
+      if (SCENES[i1].t0 === undefined) SCENES[i1].t0 = a0;
+      a0 = SCENES[i1].t0 + SCENES[i1].span;
+      /* 素材段的画面函数在这里补：它要的是自己这一段（t0/span），不是全局序号，
+         因为每段时长可以不同。先建对象、后绑函数，就不用给所有场景函数加参数
+         （照片那三个只认 t 与 si，签名不动）。 */
+      if (SCENES[i1].clip) {
+        SCENES[i1].fn = (function (sc) {
+          return function (t) { clipInto(sc.clip, t, sc); };
+        })(SCENES[i1]);
+      }
+    }
+  })();
+
+  /* 套印偏差曲线：0 → 8.0px（峰值保持）→ 0。
+     为什么峰值取 8px：cell 7 时一个点距约 7 CSS 像素，8px 略超一个点距 ——
+     这时同一颗网点已经分裂成两三个错开的彩点，"重影"才真的成立；
+     小于一个点距只会看到"边缘发虚"，那是另一件事。 */
+  /* ★ 时间轴参数化（管线化，m10571 p1=A）：曲线上的所有时刻都是**同一条形状**在
+     不同总时长下的缩放，不是四条独立写死的曲线。缩放因子 TS = DUR / 17 用的是
+     原分镜的 17s；TS === 1 时下面每个乘法都乘 1.0，浮点逐位不变 —— 这是能保证
+     「不加参数时输出与旧版逐字节相同」的前提（实测 0.5*1 = 0.5、12*1 = 12 等全成立，
+     且 a+rise === 12.5、b+hold === 12.7、c+fall === 14 都是精确值）。
+     ⚠ 别把 TS 折进常量里（比如直接写 0.5*TS 当 a、再写 a+12*TS 当 b）——
+     只要有一个乘法的舍入不同，末几帧的 amp 就会差 1e-15，字幕读数跟着变。 */
+  var TS = DUR / 17;
+  var AMP_MAX = 8.0, ROT_MAX = 0.75;
+  /* 偏差曲线的四个锚点（秒，已乘 TS）：起势 0.5 → 峰值 12.5 → 保持到 12.7 → 回落 14.0。
+     为什么峰值取 8px：cell 7 时一个点距约 7 CSS 像素，8px 略超一个点距 ——
+     这时同一颗网点已经分裂成两三个错开的彩点，"重影"才真的成立；
+     小于一个点距只会看到"边缘发虚"，那是另一件事。 */
+  var DRIFT = {
+    a: 0.5 * TS, rise: 12 * TS, hold: 0.2 * TS, fall: 1.3 * TS,
+    amp: +(q.get('amp') || AMP_MAX)
+  };
+  /* ★ 素材模式下曲线**锚在字版上**，不锚在秒数上。
+     原分镜里那段「回落」正好压在字版的头 1.25 秒（12.70–14.00，字版从 12.75 起），
+     于是硬边上的彩边一格一格收掉 —— 「归位」这件事是靠字版看出来的。
+     给了 clips 之后字版的起点会变（段数、每段时长都由素材决定），
+     若还按 12.7 秒回落，20 秒的片子会先归位、后面五分钟都干干净净地等 ——
+     最该被看见的那 1.3 秒落在没人注意的地方。
+     所以这里把「峰值的结束」钉在 DUR − TYPE_DUR（字版开始），回落在它之后走完。
+     回落的长度也夹一道：字版短于 2.4 秒时按一半算，免得片子结束时还在歪。 */
+  if (CLIPS.length) {
+    var tType = DUR - TYPE_DUR;
+    DRIFT.rise = Math.max(0.2, tType - 0.2 - DRIFT.a);
+    DRIFT.fall = Math.min(1.3 * TS, TYPE_DUR * 0.55);
+  }
+
+  function ease(x) { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
+
+  /* 曲线按**秒**写，不按百分比 —— 分镜一变（改 DUR）时百分比会整体漂移，
+     而"第几秒该多歪"是叙事决定，不该跟着总时长动。
+       0.00–0.50   0     开头先让"对"立住，否则观者不知道后面在歪什么
+       0.50–12.50  缓升  果物/肌肤/风景三段一路从 0 长到 8.0px
+       12.50–12.70 峰值  8.0px 保持 0.2s，给"最歪"一个可辨识的瞬间
+       12.70–14.00 回落  1.3s 收回 0。这段时间正好压在字版段头 —— 硬边上的彩边
+                         从宽到窄一格一格收掉，"归位"这件事就是在这里被看见的
+       14.00–17.00 0     字版剩 3 秒是干净的：样张的正文必须读得出来 */
+  function driftAt(t) {
+    var s = DRIFT.a, b = s + DRIFT.rise, c = b + DRIFT.hold, d = c + DRIFT.fall;
+    if (t < s) return 0;
+    if (t < b) return DRIFT.amp * ease((t - s) / DRIFT.rise);
+    if (t < c) return DRIFT.amp;
+    if (t < d) return DRIFT.amp * (1 - ease((t - c) / DRIFT.fall));
+    return 0;
+  }
+
+  /* 落版：开头六版依次进版（K 从第一帧就在），结尾倒序离版，每版 0.16s、间隔 0.14s。
+     两端的**版状态**因此是同一个（只有黑版、完全对齐）—— 这是收束，不是循环接点：
+     画面本身一直在走（四张题材不同），所以首尾并不相同。
+     ⚠ 离版必须**早于**片尾至少一版的淡出时长，否则最后一帧还挂着一点墨：
+     早先版本实测 t=11.94 仍残留 5.3% 的黄，收尾就脏了。G 在 16.62+0.16=16.78 走完，
+     片尾 17.0（末帧 16.967）留了 0.19s 余量。 */
+  /* 落版时刻同样按 TS 缩放，但**表里存的是偏移量**，不是绝对秒：
+       IN  偏移  = 开片后多久进版（0.42 … 1.14）
+       OUT 偏移  = 离片尾还有多久离版（0.94 … 0.38）
+     写成绝对秒的话，改 --dur 后落版还钉在 16.06 秒 —— 短片直接落在片外（整段只有黑版），
+     长片则提前一秒半离版。17s 时 17−0.94 = 16.06 是精确值（实测 Object.is 相等），
+     所以默认参数的输出不变。 */
+  var PLATE_IN_OFF = { C: 0.42, M: 0.60, Y: 0.78, K: -1, O: 0.96, G: 1.14 };
+  var PLATE_OUT_OFF = { C: 0.94, M: 0.80, Y: 0.66, K: -1, O: 0.52, G: 0.38 };
+  var PLATE_IN = {}, PLATE_OUT = {};
+  (function () {
+    for (var i0 = 0; i0 < INKS.length; i0++) {
+      var k0 = INKS[i0].name;
+      PLATE_IN[k0] = PLATE_IN_OFF[k0] === undefined ? undefined : PLATE_IN_OFF[k0] * TS;
+      PLATE_OUT[k0] = PLATE_OUT_OFF[k0] === undefined ? undefined : DUR - PLATE_OUT_OFF[k0] * TS;
+    }
+  })();
+  var PLATE_FADE = 0.16 * TS;
+
+  /* 落在哪一段：用**每段自己的** t0 / span 查，不能用 floor(t/SPAN) ——
+     管线化之后每段时长可以不同（2s 的素材 + 4.25s 的素材 + 3s 字版），均分假设当场失效。 */
+  function sceneIndexAt(t) {
+    for (var i2 = SCENES.length - 1; i2 > 0; i2--) if (t >= SCENES[i2].t0) return i2;
+    return 0;
+  }
+  function stateAt(t) {
+    var si = sceneIndexAt(t);
+    var amp = driftAt(t), rot = amp / DRIFT.amp * ROT_MAX;
+    var fade = {};
+    for (var i = 0; i < INKS.length; i++) {
+      var k = INKS[i].name;
+      var sIn = PLATE_IN[k], sOut = PLATE_OUT[k];
+      /* 六版时没登记的按顺序往后排：宁可让落版慢一点，也不能让它拿到 undefined。
+         曾经的坑：这里写死 C/M/Y，换六版时 O/G 得到 undefined → plates[O] *= undefined
+         → 整版 NaN → 渲染时被「墨量 > 0 才画」的判断静默丢弃（画面只剩品红）。 */
+      if (sIn === undefined) sIn = k === 'K' ? -1 : (0.42 + 0.18 * Math.max(0, i - 3)) * TS;
+      if (sOut === undefined) sOut = k === 'K' ? -1 : DUR - (0.94 - 0.14 * Math.max(0, i - 3)) * TS;
+      var fin = sIn < 0 ? 1 : ease((t - sIn) / PLATE_FADE);
+      var fout = sOut < 0 ? 1 : 1 - ease((t - sOut) / PLATE_FADE);
+      fade[k] = fin * fout;
+    }
+    return { amp: amp, rot: rot, fade: fade, scene: SCENES[si], si: si };
+  }
+
+  /* ── 画面：一张纸 → 题材 → 字幕带 ─────────────────────────────────────────
+     三件的顺序不能换：先铺整张纸（否则上一张题材的残像素会带进分色），
+     再画题材（题材自己也会铺满版心），最后画字幕带（家具压在最上层）。 */
+  function paint(t) {
+    var g = sx;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    g.fillStyle = 'rgb(' + PAPER.join(',') + ')'; g.fillRect(0, 0, SW, SH);
+    var st = stateAt(t);
+    st.scene.fn(t, st.si);
+    drawBand(t, st);
+    return sx.getImageData(0, 0, SW, SH).data;
+  }
+
+  /* 字幕带：纸色底 + 一条细规线 + 两行字。
+     字是**实墨**（在 frame() 里被压成 1/0），所以它的边缘就是套印的判据：
+     画面边缘会长出彩色毛边，字的边缘永远是干净的 —— 这个对照让观者一眼分出
+     "这是套印不齐"而不是"整张图糊了"。 */
+  function drawBand(t, st) {
+    var g = sx, w = SW, h = SH;
+    var bandH = h * CAP_BAND, bandY = h - bandH;
+    g.fillStyle = 'rgb(' + PAPER.join(',') + ')';
+    g.fillRect(0, bandY, w, bandH);
+    g.fillStyle = 'rgba(10,11,13,0.92)';
+    g.fillRect(0, bandY - Math.max(1, h * 0.0045), w, Math.max(1, h * 0.0045));
+    g.textBaseline = 'alphabetic';
+
+    var small = Math.round(h * SMALL);
+    g.font = '800 ' + small + 'px "Helvetica Neue",Arial,"Noto Sans SC","Microsoft YaHei",sans-serif';
+    g.fillStyle = 'rgb(58,61,65)';
+    var sy = bandY + Math.round(bandH * SMALL_Y);
+    /* ⚠ 小字行有**宽度预算**，不是"想写多长写多长"：
+       母版源画布 1644×924（274×154 格），小字字高 = 0.42·cap = 0.42×0.20×924 ≈ 77.6 源像素 ≈ 12.9 格，
+       每个半角字符约 4 格宽，一行合计可用约 258 格（左右两段各 ~120 格，中间还留 18 格）。
+       实测踩过：小字取 0.50·cap（≈10 格）时，左侧刊头 + 右侧读数两段在中间撞上，
+       整条糊成一条实心黑带 —— 字号先降下来，再去压缩文案，顺序不能反。
+       现在只留最短的识别信息：左：这是谁　右：第几张 / 题材 / 偏差多少。
+       时间码不进片子（它在 mjs 的抽检表里）。 */
+    g.fillText('DOT INK · PRESS', w * 0.032, sy);
+    g.textAlign = 'right';
+    g.fillText(st.scene.idx + ' ' + st.scene.name + ' · ' + st.amp.toFixed(1) + 'px', w - w * 0.032, sy);
+    g.textAlign = 'left';
+
+    var bigPx = Math.round(h * CAP);
+    g.fillStyle = 'rgb(44,46,50)';
+    g.font = '900 ' + bigPx + 'px "Helvetica Neue","Arial Black",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif';
+    g.fillText(st.scene.name, w * 0.030, bandY + Math.round(bandH * BIG_Y));
+  }
+
+  /* ── 引擎实例 + 覆盖率曲线 ───────────────────────────────────────────────── */
+  var inst = DotInk.press.create({
+    canvas: cv, cssW: CSSW, cssH: CSSH, scale: SCALE, paper: PAPER,
+    /* floor 必须与 press.html 同口径（0.035）。0.02 时**纸色自己**就会长出网点：
+       分离是按 1-max(r,g,b) 取黑的，纸 242/243/242 算出来 K=.026、Y=.026，
+       高于 0.02 就落墨 —— 整片纸变成均匀的彩色噪点。 */
+    cell: CELL, maxFrac: MAXFRAC, areaMap: true, floor: 0.035,
+    inks: INKS, ucr: UCR, tacLimit: TAC, duration: DUR,
+    drift: { amp: 0, speed: 0.62, seed: 17, rot: 0 }
+  });
+
+  /* 覆盖率曲线：**实测一次，全片复用**。它只跟几何有关（cell / scale / maxFrac / areaMap），
+     与画面内容无关 —— 每帧重新量 24 次小画布是纯浪费（每帧多 ~25 ms，400 帧就是 10 秒）。
+     曲线的用途：分色求出「每版该盖多少面积」，再反查成墨量场；
+     少了这一步，暗部的墨量换算会把 60 的灰印成 164。 */
+  var CUV = null;
+  if (SEP === 'cov') {
+    var cuvCv = document.createElement('canvas');
+    CUV = DotInk.press.coverageCurve({
+      canvas: cuvCv, paper: PAPER, maxFrac: MAXFRAC, areaMap: true,
+      cell: CELL, scale: SCALE, steps: 24, grid: 24
+    });
+  }
+
+
+  /* 字幕带只留黑版。单独成函数而不是内联在 frame() 里，是因为 benchParts 也要量它，
+     同一段逻辑只能有一份。 */
+  function kOnlyBand(plates, raw) {
+    var bandRow0 = Math.floor(SH * (1 - CAP_BAND));
+    var cy0 = Math.min(ROWS - 1, Math.floor(bandRow0 / SH * ROWS));
+    /* 字幕带只留黑版（其余版归零）。三个理由，两个是印刷的、一个是可读性的：
+       ① 真实印厂的字**就是单黑版**印的（套色字是特例），多色叠出来的字边缘自带彩边；
+       ② 多色叠字在错位段会被拆成彩色噪点，字读不出来 —— 而字幕的第一职责是读得出；
+       ③ 顺带成了**对照**：字的边缘永远干净，画面边缘才漏色，
+          观者一眼能分出"这是套印不齐"而不是"整张图糊了"。
+       黑版自己仍会随 drift 微动 —— 那是黑版在走，不是重影。
+
+       ⚠ 墨量按**格内暗像素的面积占比**算，不是按格心采一个点。
+       这一条是被两次实测逼出来的：
+         · 打在心采点上（lit < 0.55 → K = 1）：字被**增肥** —— 每个被笔画擦到的格都
+           变成满墨，10 格高的小字四边各长出 1 格，字怀直接填死，整行糊成一条黑杠；
+         · 打在分色后的墨量上：换成覆盖域分色后同一片黑暗被六版平摊，每版只剩 0.15，
+           阈值把整行判成纸，字幕带**整条消失**（只剩一条分隔线）。
+       面积占比既保墨量守恒（细笔画不会被增肥），又与"这里有没有字"直接相关。
+       增益 1.15 补偿圆盘相切时的面积损失（π/4 的角永远露纸）。 */
+    var x0c = new Int32Array(COLS + 1), y0c = new Int32Array(ROWS + 1);
+    for (var c = 0; c <= COLS; c++) x0c[c] = Math.min(SW, Math.round(c / COLS * SW));
+    for (var r = 0; r <= ROWS; r++) y0c[r] = Math.min(SH, Math.round(r / ROWS * SH));
+    for (var cy = cy0; cy < ROWS; cy++) {
+      var ya = y0c[cy], yb = Math.max(ya + 1, y0c[cy + 1]);
+      for (var cx = 0; cx < COLS; cx++) {
+        var xa = x0c[cx], xb = Math.max(xa + 1, x0c[cx + 1]);
+        var dark = 0, tot = 0;
+        for (var yy = ya; yy < yb; yy++) {
+          var row = yy * SW;
+          for (var xx = xa; xx < xb; xx++) {
+            var o = (row + xx) * 4;
+            var L = (0.299 * raw[o] + 0.587 * raw[o + 1] + 0.114 * raw[o + 2]) / 255;
+            if (L < BAND_INK) dark++;
+            tot++;
+          }
+        }
+        var jj = cy * COLS + cx;
+        for (var pi = 0; pi < INKS.length; pi++) {
+          if (INKS[pi].name !== 'K') plates[INKS[pi].name][jj] = 0;
+        }
+        /* 字是**实墨**：真实印厂的字是 100% 实地黑，1-bit 里就是满墨（点与点相切）。
+           1.15 的增益让"半格被笔画盖住"的格也接近满墨，字缘才不会灰掉。
+           ⚠ 这里必须过一遍覆盖率曲线：plates 里存的是**墨量 w**，引擎按
+           r = rMax·√w 落点，印出来的面积不是 w 而是 curve.cov(w)。目标既然是
+           "这一格要盖住 cov 的暗面积"，w 就得反查 —— 少了这一步，30% 的灰字
+           会印成 19%（w=0.30 时面积只有 0.19），细笔画整条断掉。 */
+        /* ★ 把"暗面积占比"过一条 S 曲线，而不是直接当墨量用。
+           实测：直接乘 1.15 当墨量，大字笔画中部仍有白点 —— 因为覆盖率曲线是
+           cov(0.85)=0.85，一格只盖 85% 就会在方格的角上露纸，几十颗连起来看就是筛子。
+           真实印刷的**字**是 100% 实地，网点只用来表现调子；所以这里把"盖到一半以上"的格
+           直接推到满墨，把"只擦到边"的格压回纸色 —— 边缘仍然是连续过渡，但字怀不再漏点。
+           0.30/0.62 是量出来的：小字字干约占一格 0.4–0.6，取 0.30 起跳才不会把它压没。 */
+        var t0 = tot ? dark / tot : 0;
+        /* ★ 二值化，不是连续映射。这一条是放大 4× 逐格数出来的：
+           连续映射（把暗面积占比直接当墨量）时，笔画中部那些 0.5–0.7 的格
+           印成 0.5–0.7 的墨量 → 点径 0.7–0.84 个点距 → 四个角露纸。
+           字是**实墨**，真实印厂的字是 100% 实地，网点只该出现在图版上；
+           所以「格内超过 45% 是笔画」就整格满墨，否则留纸。0.45 是量出来的：
+           小字字干约占一格 0.4–0.6，取 0.45 时字干连成一片、而字怀不会被填死。
+           代价是字缘变硬 —— 但这套体裁本来就是 1-bit，硬边才是它的语言。 */
+        /* 大字号与小字号用**不同阈值**：小字（那一行刊头/读数）字干只有一两格，
+           0.45 会把边缘整格吞掉，读起来是断续的斑点；0.34 时笔画连得上，
+           而它四周本来就没有邻字，不会被填死。大字反过来 —— 0.34 会让字怀（口、日）糊上。 */
+        var rf = (cy - cy0) / Math.max(1, ROWS - cy0);
+        var TH = rf < 0.52 ? 0.34 : 0.45;
+        plates.K[jj] = t0 >= TH ? 1 : 0;
+      }
+    }
+  }
+
+  /* 每格只留最强的几版（限色）。
+     起因是照片：真实照片的暗部与高饱和区会让**六版同时上墨**（实测果物那一帧：
+     C 0.5% M 16% Y 25% K 19% O 13% G 9%），一格上落着六张不同角度的网点。
+     远看颜色是对的，1:1 看是一片彩色纸屑 —— 因为人眼在一格的尺度上分不清"六颗小点"
+     和"一颗中点的颜色"，只看到噪。
+
+     印厂的做法是**限色**：一格里能用两三版，就不上第六版。这里照做 ——
+     每格按覆盖率排序，只留最强的 keep 版，其余归零。
+     丢掉的是小数（c < 0.1 时那点面积本来就只占 3%），所以整体调子几乎不动，
+     但每格的网点点数少一半，画面立刻从"纸屑"变回"网点"。
+
+     为什么不用"总墨量上限"来压：TAC 是**等比缩放**，六版一起变淡，色调会整体发白；
+     而限色是**选择**，留下来的是这一格最该有的那几版。两者不是一回事。
+
+     ⚠ 实测默认关（sparse=0）：开 3 版时分色精度只差 0.3（24.23 vs 23.97），
+     画面却明显变薄（皮肤的高光区整片掉成纸）。留这个开关是因为它确实能
+     把 1:1 的纸屑感压下去，只是这一版的内容不需要 —— 别默认开。 */
+  /* 0..1 之间的平滑阶跃：字幕带用它把"盖到一半"的格推到满墨（见 kOnlyBand） */
+  function smoothstep01(a, b, x) {
+    if (!(x > a)) return 0;
+    if (b <= a) return x >= b ? 1 : 0;
+    var u2 = (x - a) / (b - a);
+    if (u2 > 1) u2 = 1;
+    return u2 * u2 * (3 - 2 * u2);
+  }
+  var SPARSE = Math.max(0, Math.min(INKS.length, +(q.get('sparse') || 0)));
+  function sparsify(plates) {
+    if (!SPARSE || SPARSE >= INKS.length) return;
+    var n = INKS.length, n2 = COLS * ROWS, k = SPARSE;
+    var val = new Float32Array(n), idx = new Int32Array(n);
+    for (var j = 0; j < n2; j++) {
+      for (var i = 0; i < n; i++) { val[i] = plates[INKS[i].name][j]; idx[i] = i; }
+      /* 插入排序取前 k 个（n ≤ 6，比 sort 快且不分配内存） */
+      for (var a = 1; a < n; a++) {
+        var v = val[a], w2 = idx[a], b = a - 1;
+        while (b >= 0 && val[b] < v) { val[b + 1] = val[b]; idx[b + 1] = idx[b]; b--; }
+        val[b + 1] = v; idx[b + 1] = w2;
+      }
+      /* 阈值 0.08：低于它的点印出来只有一两像素，肉眼看不到，却贡献了噪 */
+      for (var t2 = k; t2 < n; t2++) {
+        var ii = idx[t2];
+        if (plates[INKS[ii].name][j] < 0.08) plates[INKS[ii].name][j] = 0;
+      }
+    }
+  }
+
+  /* 字幕带按**格**铺墨：K 场里判为字的格，整格填墨。
+
+     ★ 为什么不能指望网点自己印实：
+       单版墨量 1 时点径 = 0.7071·格距，四颗圆盘只在格角**相切**，
+       切点处是抗锯齿的半调像素 —— 四盘交汇处留一颗到几颗白像素。
+       一颗看不见，一个 20 格高的汉字有一千多个这样的角，连起来就是"珠串"。
+       这不是分色错、也不是阈值错，是圆盘几何与像素栅格的对齐误差。
+
+     ★ 试错记录（判据是试出来的，不是想出来的）：
+       ① 这颗像素属于哪一格、那格是不是字 → 补不上，孔正好开在格边界上；
+       ② 相邻四格里有字就补 → 外轮廓被补了一圈，字被撑粗；
+       ③ 亮度 + 四邻格至少三格是字 → 格中央的像素只看得到一格，凑不到三格；
+       ④ 4-连通标记，封闭且面积小于半格就填 → 实测 holes=0：
+          这些孔不封闭，它们沿着相切点连成一条细线，一路漏到纸面；
+       ⑤ 5×5 形态学闭运算 → 孔封住了，但整帧 105→153 ms，且半径 2 起字怀被填死；
+       ⑥ 一维游程闭运算 R=1 保字怀但孔还在，R=2 填死字怀 —— 没有中间档。
+
+     ★ 最后用的办法根本不做形态学：**字幕带就是一张格子图**。
+       K 场已经回答了"这一格是不是字"（面积占比判据，见 kOnlyBand），
+       那就在设备像素上把这些格整格涂黑，别再让圆盘去凑。
+       这样做的三个理由：
+         · 零针孔：格是矩形，拼起来不会有缝；
+         · 零过填：判据只认 K>0.5 的格，字怀的格是 0，天然保住；
+         · 它是**诚实**的：字幕本来就是 1-bit 方格组成的，格边就是它的笔触。
+       代价：字的边缘是 10.5 设备像素的方阶 —— 与整幅画面的网点同一个尺度，
+       放大看是一致的（图版是圆点阵，字幕是方格阵，两者都是"印刷的格子"）。
+
+     只动字幕带，图版里的网点一个像素都不碰。 */
+  function solidBand() {
+    var ki = -1;
+    for (var i = 0; i < INKS.length; i++) if (INKS[i].name === "K") ki = i;
+    if (ki < 0) return;
+    var K = inst.opts.plates.K;
+    if (!K) return;
+    var DW = cv.width, DH = cv.height;
+    var cw = DW / COLS, chh = DH / ROWS;
+    var r0 = Math.max(0, Math.floor(ROWS * (1 - CAP_BAND)));
+    var y0 = Math.round(r0 * chh);
+    if (y0 >= DH) return;
+    var g2 = cv.getContext("2d");
+    g2.save();
+    /* ★ 先整条铺纸，再铺字格。
+       少了这一步会留下一圈"波浪形的毛边"：相邻字格的圆盘半径是 4.95 CSS（7.4 设备像素），
+       比格子的半宽（5.24）大，加上 drift 的 1–2 像素位移，圆盘会溢进隔壁的**空格**里。
+       溢进来的是弧，不是格 —— 于是字的轮廓变成一条抖动的曲线，看起来比原来的珠串更脏。
+       整条铺纸就等于声明：字幕带里只有格，没有圆盘。 */
+    g2.fillStyle = "rgb(" + PAPER.join(",") + ")";
+    g2.fillRect(0, y0, DW, DH - y0);
+    g2.fillStyle = "rgb(" + INKS[ki].rgb.join(",") + ")";
+    /* 格边界一律用 round：同一格在相邻两次调用里必须落在同一个像素上，
+       否则字会随播放抖动 1 像素（用 floor(c*cw) 就会）。 */
+    for (var cy = r0; cy < ROWS; cy++) {
+      var ya = Math.round(cy * chh), yb = Math.round((cy + 1) * chh);
+      for (var cx = 0; cx < COLS; cx++) {
+        if (K[cy * COLS + cx] <= 0.5) continue;
+        var xa = Math.round(cx * cw), xb = Math.round((cx + 1) * cw);
+        g2.fillRect(xa, ya, xb - xa, yb - ya);
+      }
+    }
+    g2.restore();
+  }
+
+  /* 中性走黑版（GCR）。这条是这一页最关键的一条，也是踩了三轮才想通的：
+
+     起因：字是纯黑的（RGB 12,13,14），但印出来边缘一圈**彩点** —— 品红、绿、橙。
+     原因不在分色算法，在几何：玫瑰角下六张网的圆盘格不重合，而 maxFrac 上限 1/√2
+     又让单个圆盘盖不满方格（0.5 时盖 78.5%，0.707 时 98.8%），
+     于是抗锯齿边缘那一圈"半黑"的格被摊给六版，每版一颗小点，落在**不同子集**的墨下 ——
+     远处看是灰，1:1 看是彩色针点。字因此变"脏"，而不是"黑"。
+
+     印厂怎么解：**中性色走黑版**（GCR/UCR）。灰不是"六版各摊一点"，
+     而是"黑版一颗大小合适的点"。这一改，灰梯、字、反白条全部变成单版网点 ——
+     形状是点阵该有的形状，颜色也只有黑与纸两种，边缘干净。
+
+     实现上不是"阈值二值化"（那会把抗锯齿边缘吃掉、字变瘦），
+     而是**只换版、不换墨量**：算出这一格该盖多少面积，再整份记到 K 上。
+       面积 = (纸亮度 − 格亮度) / (纸亮度 − 黑墨亮度)      —— 减色叠印的线性插值
+       w    = curve.w(面积)                              —— 面积 → 墨量(点径) 的反查
+     这样灰度是连续的，网点是一颗颗长出来的，而不是一刀切。
+     判据「中性」用三通道极差 ≤ 12：肤色的阴影、果物的核、山脊的背光都带色偏，
+     不会被这条规则吞掉（否则整片暗调会塌成死黑，六色的层次白做）。 */
+  function neutralToBlack(plates, srcAvg) {
+    var ki = -1;
+    for (var q0 = 0; q0 < INKS.length; q0++) if (INKS[q0].name === 'K') ki = q0;
+    if (ki < 0) return;                       /* 没有黑版（CMY 三色）时无从可换 */
+    var krgb = INKS[ki].rgb;
+    var paperL = 0.299 * PAPER[0] + 0.587 * PAPER[1] + 0.114 * PAPER[2];
+    var inkL = 0.299 * krgb[0] + 0.587 * krgb[1] + 0.114 * krgb[2];
+    var span = paperL - inkL;
+    if (span < 1) return;
+    var K = plates.K;
+    var cMax = CUV ? CUV.maxCov : 1;
+    var n = COLS * ROWS;
+    for (var j = 0; j < n; j++) {
+      /* 格子均值直接取 cellAverages 的产物（同一份数据分色也在用）——
+         自己再扫一遍源图会多花一倍时间，而且两条路径的格子边界一旦算得不一样，
+         就会出现"分色认这一格、判中性认隔壁格"的错位。 */
+      var r = srcAvg[j * 3] * 255, gg = srcAvg[j * 3 + 1] * 255, b = srcAvg[j * 3 + 2] * 255;
+      var mx = r > gg ? (r > b ? r : b) : (gg > b ? gg : b);
+      var mn = r < gg ? (r < b ? r : b) : (gg < b ? gg : b);
+      /* ★ 判"中性"不能只看绝对色差。暗部的绝对色差天然很小（#27160F 的极差只有 24），
+         可它看起来就是黑 —— 而这一丁点色差在六版分色里会被放大成满屏彩点（实测：
+         头发整片变成盐与胡椒，1:1 看是彩色砂）。所以容差随暗度放宽：
+         越暗越允许它"看起来无彩"，亮部的容差反而收紧。 */
+      var tol = 12 + (255 - mx) * 0.18;
+      if (mx - mn > tol) continue;             /* 有色偏 → 交给六版分色 */
+      var L = 0.299 * r + 0.587 * gg + 0.114 * b;
+      var area = (paperL - L) / span;
+      if (area < 0) area = 0;
+      if (area > cMax) area = cMax;
+      for (var pi = 0; pi < INKS.length; pi++) plates[INKS[pi].name][j] = 0;
+      K[j] = CUV ? CUV.w(area) : area;
+    }
+  }
+
+  /* 初值不能是 null：measure() 在**第一帧还没画**时也要能答（抽检脚本、
+     调试面板、导出驱动都可能先问一句"现在什么状态"）。
+     原先写 null，实测 measure() 直接抛 TypeError: Cannot read properties of null (reading 'amp')。 */
+  var lastMeta = stateAt(0);
+
+  function frame(t) {
+    var st = stateAt(t);
+    var raw = paint(t);
+    /* 分色三条路（见文件头 SEP 注释）。默认 cov：覆盖域的最小二乘，与引擎记账口径一致。 */
+    /* 格子均值只算一次，分色与"中性走黑版"共用 —— 两条路径必须看同一份数据。 */
+    var srcAvg = DotInk.press.cellAverages(raw, SW, SH, COLS, ROWS);
+    var plates;
+    if (SEP === 'formula') {
+      plates = DotInk.press.separate(raw, SW, SH, COLS, ROWS, { ucr: UCR });
+    } else if (SEP === 'nnls') {
+      plates = DotInk.press.separateN(INKS, raw, SW, SH, COLS, ROWS, { paper: PAPER, mode: SMODE });
+    } else {
+      plates = DotInk.press.separateCov(INKS, raw, SW, SH, COLS, ROWS, {
+        paper: PAPER, curve: CUV, sweeps: 30, mode: SMODE, srcAvg: srcAvg
+      });
+    }
+    /* 限色在落版**之前**：落版改的是墨量，限色该看的是分色的原意；
+       先限色再乘落版系数，淡出的版才不会因为被排序踢掉而闪一下。 */
+    sparsify(plates);
+    /* 落版：显影系数直接乘在该版的墨量上 —— 1-bit 下"墨量"就是点径，
+       所以渐显 = 点从无长到满，正是油墨落纸的样子。 */
+    for (var i = 0; i < INKS.length; i++) {
+      var f = st.fade[INKS[i].name];
+      if (f >= 1) continue;
+      var arr = plates[INKS[i].name];
+      for (var j = 0; j < arr.length; j++) arr[j] *= f;
+    }
+    /* 字幕带只留黑版（其余版归零）。两个理由，一个是印刷的、一个是可读性的：
+       ① 真实印厂的字**就是单黑版**印的（套色字是特例），多色叠出来的字边缘会自带彩边；
+       ② 多色叠字在错位段会被拆成彩色噪点，字读不出来 —— 而字幕的第一职责是读得出。
+       顺带还成了一个**对照**：字的边缘永远干净、画面边缘才是漏色的，
+       观者一眼能分出"这是套印不齐"而不是"整张图糊了"。
+       黑版自己仍会随 drift 微动 —— 那是黑版在走，不是重影。 */
+    neutralToBlack(plates, srcAvg);
+    kOnlyBand(plates, raw);
+    inst.setPlates(plates);
+    inst.opts.drift = { amp: st.amp, speed: 0.62, seed: 17, rot: st.rot };
+    inst.draw(t);
+    solidBand();
+    lastMeta = st;
+    return cv;
+  }
+
+  /* ── 对外接口（tools/press-reel.mjs 只认这几个） ──────────────────────────── */
+  window.__reel = {
+    /* ready 由照片载入决定：三张 CC0 源图都 decode 完才置 true。
+       驱动脚本 press-reel.mjs 轮询的就是这个标志；早置 true 会导出一段白片。 */
+    get ready() { return PHOTO_OK >= PHOTO_N && CLIP_OK >= CLIP_N; },
+    photos: function () { return JSON.stringify({ n: PHOTO_N, ok: PHOTO_OK, fail: PHOTO_FAIL }); },
+    /* 图集状态：哪一段载进来了、哪一段没载进来（sidecar 缺失、路径写错、跨源都会落到这里）。
+       导出驱动只要看到 fail 非空就该拒跑 —— 少一段不是「黑一帧」，是整段时间轴错位。 */
+    clips: function () {
+      return JSON.stringify({
+        n: CLIP_N, ok: CLIP_OK, fail: CLIP_FAIL,
+        list: CLIPS.map(function (c) {
+          return { name: c.name, idx: c.idx, src: c.src, ready: c.ready,
+                   n: c.side ? c.side.n : null, tile: c.side ? (c.side.tileW + 'x' + c.side.tileH) : null };
+        })
+      });
+    },
+    dur: DUR, fps: 30,
+    w: Math.round(CSSW * SCALE), h: Math.round(CSSH * SCALE), cols: COLS, rows: ROWS,
+    inks: INKS.map(function (p) { return p.name; }).join(''),
+    sep: SEP, angles: ANGLES, mode: SMODE,
+    scenes: SCENES.map(function (s) { return s.name; }).join('/'),
+    /* 曲线本身也给出去：抽检脚本要拿 maxCov 判断「满墨到底能盖多少」 */
+    curve: CUV ? { maxCov: CUV.maxCov, steps: CUV.steps } : null,
+    frame: function (t) { frame(t); return cv.toDataURL('image/png'); },
+    /* 调试：把**源画布**（分色之前）也导出来。判断"构图对不对"和"网点好不好看"
+       必须分开看 —— 混在一起永远分不清是取景错了还是分色错了。 */
+    src: function (t) { paint(t); return sc.toDataURL('image/png'); },
+    /* 每帧都 measure() 太贵（整帧 getImageData + 扫描），导出时按需抽检 */
+    measure: function () {
+      var m = inst.measure();
+      return JSON.stringify({
+        colors: m.colors, paletteColors: m.paletteColors, tac: +m.tac.toFixed(4),
+        fringe: +m.fringe.toFixed(4), regPx: +m.regPx.toFixed(3), regRot: +m.regRot.toFixed(3),
+        perInk: +m.platesPerInk.toFixed(3), bad: m.badPixels,
+        amp: +lastMeta.amp.toFixed(3), scene: lastMeta.scene.name,
+        plates: Object.keys(m.plates).map(function (k) { return k + ':' + (m.plates[k].cov * 100).toFixed(1) + '%'; })
+      });
+    },
+    /* 保真度：把**渲染出来的画布**按格取平均，和源图同格的均值比。
+       为什么不拿 plates 和源比：分色出来的墨量是"该盖多少面积"，还要过覆盖率曲线、
+       TAC 上限、落版系数、K 版实地化 —— 中间任何一步都会改它。只有量画布上的像素，
+       才是"印出来到底是什么颜色"。返回值是 0..255 的 sRGB 欧氏距离。 */
+    fidelity: function (t) {
+      frame(t);
+      var DW = cv.width, DH = cv.height;
+      var tmp = document.createElement('canvas'); tmp.width = DW; tmp.height = DH;
+      var tx = tmp.getContext('2d', { willReadFrequently: true });
+      tx.drawImage(cv, 0, 0);
+      var px = tx.getImageData(0, 0, DW, DH).data;
+      var raw = paint(t);
+      var cellW = DW / COLS, cellH = DH / ROWS;
+      var errs = [];
+      var sum = [0, 0, 0], nS = 0;
+      for (var cy = 0; cy < ROWS; cy++) {
+        for (var cx = 0; cx < COLS; cx++) {
+          var x0 = Math.floor(cx * SW / COLS), x1 = Math.max(x0 + 1, Math.floor((cx + 1) * SW / COLS));
+          var y0 = Math.floor(cy * SH / ROWS), y1 = Math.max(y0 + 1, Math.floor((cy + 1) * SH / ROWS));
+          var a = [0, 0, 0], na = 0;
+          for (var yy = y0; yy < y1; yy++) {
+            for (var xx = x0; xx < x1; xx++) {
+              var o = (yy * SW + xx) * 4;
+              a[0] += raw[o]; a[1] += raw[o + 1]; a[2] += raw[o + 2]; na++;
+            }
+          }
+          for (var c = 0; c < 3; c++) a[c] /= na;
+          var b = [0, 0, 0], nb = 0;
+          var px0 = Math.floor(cx * cellW), px1 = Math.max(px0 + 1, Math.round((cx + 1) * cellW));
+          var py0 = Math.floor(cy * cellH), py1 = Math.max(py0 + 1, Math.round((cy + 1) * cellH));
+          for (var py = py0; py < py1; py++) {
+            for (var pxx = px0; pxx < px1; pxx++) {
+              var qq = (py * DW + pxx) * 4;
+              b[0] += px[qq]; b[1] += px[qq + 1]; b[2] += px[qq + 2]; nb++;
+            }
+          }
+          for (var c2 = 0; c2 < 3; c2++) b[c2] /= nb;
+          var e = 0;
+          for (var c3 = 0; c3 < 3; c3++) { var d3 = a[c3] - b[c3]; e += d3 * d3; }
+          errs.push(Math.sqrt(e));
+          for (var c4 = 0; c4 < 3; c4++) sum[c4] += b[c4] - a[c4];
+          nS++;
+        }
+      }
+      errs.sort(function (u, v) { return u - v; });
+      var mean = 0;
+      for (var i2 = 0; i2 < errs.length; i2++) mean += errs[i2];
+      return JSON.stringify({
+        mean: +(mean / errs.length).toFixed(2),
+        p95: +errs[Math.min(errs.length - 1, Math.floor(errs.length * 0.95))].toFixed(2),
+        bias: sum.map(function (v) { return +(v / nS).toFixed(1); })
+      });
+    },
+    /* 抽一帧的耗时（含分色 + 六版栅格化，不含 PNG 编码） */
+    bench: function (n) {
+      var t0 = performance.now();
+      for (var i = 0; i < n; i++) frame((i / n) * DUR);
+      return ((performance.now() - t0) / n).toFixed(1);
+    },
+    /* 分项耗时：导出前用它决定要不要降 sweeps / 降 CELL。
+       四个数加起来才是每帧成本，只测总和会不知道该砍哪一段。 */
+    benchParts: function (n) {
+      var i, t;
+      var acc = { paint: 0, sep: 0, band: 0, draw: 0 };
+      for (i = 0; i < n; i++) {
+        var tt = (i / n) * DUR;
+        var st = stateAt(tt);
+        t = performance.now(); var raw = paint(tt); acc.paint += performance.now() - t;
+        t = performance.now();
+        var srcAvg = DotInk.press.cellAverages(raw, SW, SH, COLS, ROWS);
+        var plates = (SEP === 'formula')
+          ? DotInk.press.separate(raw, SW, SH, COLS, ROWS, { ucr: UCR })
+          : DotInk.press.separateCov(INKS, raw, SW, SH, COLS, ROWS, { paper: PAPER, curve: CUV, sweeps: 30, mode: SMODE, srcAvg: srcAvg });
+        acc.sep += performance.now() - t;
+        t = performance.now();
+        neutralToBlack(plates, srcAvg);
+        kOnlyBand(plates, raw);
+        acc.band += performance.now() - t;
+        t = performance.now();
+        inst.setPlates(plates);
+        inst.opts.drift = { amp: st.amp, speed: 0.62, seed: 17, rot: st.rot };
+        inst.draw(tt);
+        acc.draw += performance.now() - t;
+      }
+      var o = {};
+      for (var k in acc) o[k] = +(acc[k] / n).toFixed(1);
+      o.total = +(n ? (acc.paint + acc.sep + acc.band + acc.draw) / n : 0).toFixed(1);
+      return JSON.stringify(o);
+    }
+  };
+  document.getElementById('log').textContent =
+    'ready · ' + window.__reel.w + 'x' + window.__reel.h + ' · ' + COLS + 'x' + ROWS + ' 格 · cell ' + CELL +
+    ' · ' + DUR + 's @30fps · ' + INKS.length + ' 版 · 分色 ' + SEP + ' · 网角 ' + ANGLES +
+    (SEP === 'cov' && INKS.length > 4 ? '（' + SMODE + '）' : '') +
+    ' · 题材 ' + window.__reel.scenes +
+    (CUV ? ' · 满墨覆盖率 ' + (CUV.maxCov * 100).toFixed(1) + '%' : '');
+})();
+</script>
+</body>
+</html>

@@ -69,6 +69,29 @@ test('fromImageData：先二值化再算每格深色占比（白底细线不被�
   assert.equal(Math.max(...other), 0, '没有线的格应无墨');
 });
 
+test('fromImageData：给了 ink/paper 就按"离哪个颜色更近"判墨（深色画布不反相）', () => {
+  const W = 32, H = 32, cols = 8, rows = 8;
+  /* 右半边涂墨、左半边是纸；两组颜色互为一对，场必须逐格相同 */
+  const paint = (ink, paper) => {
+    const data = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const c = x < 16 ? paper : ink;
+        const i = (y * W + x) * 4;
+        data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = 255;
+      }
+    }
+    return data;
+  };
+  const light = D.fields.fromImageData(paint([12, 13, 14], [242, 243, 242]), W, H, cols, rows,
+    { ink: [12, 13, 14], paper: [242, 243, 242], gamma: 1, gain: 1 });
+  const dark = D.fields.fromImageData(paint([242, 243, 242], [12, 13, 14]), W, H, cols, rows,
+    { ink: [242, 243, 242], paper: [12, 13, 14], gamma: 1, gain: 1 });
+  assert.deepEqual(Array.from(dark), Array.from(light), '同一张图换深色画布，场必须逐格不变');
+  assert.equal(light[0], 0, '左半边是纸 → 场值 0');
+  assert.equal(light[7], 1, '右半边是墨 → 场值 1');
+});
+
 test('现象场库：八个 + 沙粒版都在，且都能构造', () => {
   const names = ['chladni', 'sunflower', 'deJong', 'grayScott', 'dla', 'kuramoto', 'bifurcation', 'interference'];
   for (const n of names) assert.equal(typeof D.pheno[n], 'function', '缺 ' + n);
@@ -183,8 +206,10 @@ test('版本号：package.json 与 dotink.js 一致', () => {
 
 test('文件表：README 里点名的入口文件都真的存在', () => {
   const need = ['dotink.js', 'fields.js', 'render.js', 'judge.js', 'host.js', 'hud.js',
-    'pheno.js', 'markplate.js', 'marks.js', 'logo.js', 'STANDARD.md',
+    'pheno.js', 'markplate.js', 'marks.js', 'logo.js', 'STANDARD.md', 'THEME.md',
     'preview.html', 'gallery.html', 'hero.html', 'marks.html', 'marks-type.html', 'logo-demo.html', 'icon.html',
+    'spec.html', 'theme.html', 'ink.css', 'theme.css', 'theme.js',
+    'theme/palettes.json', 'site/nav.json',
     'NOTICE.md', 'SKILL.md', 'LICENSE', 'CHANGELOG.md', 'OPENSOURCE.md',
     'docs/01-standard.md', 'docs/02-phenomena.md', 'docs/03-marks-logo.md'];
   for (const f of need) assert.ok(fs.existsSync(path.join(ROOT, f)), '缺文件：' + f);
@@ -237,6 +262,46 @@ test('整条管线（假画布）：1-bit · 确定性 · overlays 只加墨不�
   const snap2 = Uint8ClampedArray.from(c2.pixels);
   i2.draw(2);
   assert.deepEqual(Array.from(c2.pixels), Array.from(snap2), '带 overlays 的 draw(t) 也应确定');
+});
+
+/* 判墨曾经按亮度阈值（`PX[i] < 128`），只在浅纸深墨下成立：
+   深色画布（夜墨套 ink=[242,243,242] / paper=[12,13,14]）会把纸也判成墨，
+   compose() 于是把整帧写成墨色 —— 整屏翻转、覆盖率虚报 100%。
+   不变式：**覆盖率与掩膜只跟场有关，跟配色无关**。 */
+test('深色画布：覆盖率与掩膜跟配色无关（判墨不按亮度阈值）', () => {
+  const mkCanvas = (W, H) => {
+    const px = new Uint8ClampedArray(W * H * 4);
+    const ctx = {
+      createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }),
+      putImageData: img => { px.set(img.data); },
+      getImageData: () => ({ data: px.slice() }),
+    };
+    return { width: W, height: H, getContext: () => ctx, pixels: px };
+  };
+  const cols = 24, rows = 12;
+  const base = { cssW: cols * 8, cssH: rows * 8, scale: 1, cols: cols, rows: rows, cell: 8,
+    shutter: 0, field: D.fields.ramp(cols, rows) };
+
+  const lightC = mkCanvas(cols * 8, rows * 8);
+  const light = D.create(Object.assign({ canvas: lightC }, base));
+  light.draw(2);
+  const a = light.measure();
+
+  const darkC = mkCanvas(cols * 8, rows * 8);
+  const dark = D.create(Object.assign({ canvas: darkC }, base, { ink: [242, 243, 242], paper: [12, 13, 14] }));
+  dark.draw(2);
+  const b = dark.measure();
+
+  assert.ok(a.coverage > 0.05, '浅色画布上应有一片墨（实测 ' + (a.coverage * 100).toFixed(2) + '%）');
+  assert.equal(b.coverage, a.coverage, '同一场换深色画布，覆盖率必须逐位不变（否则就是整屏翻转）');
+  assert.deepEqual(Array.from(dark.core.mask), Array.from(light.core.mask), '掩膜应逐位一致');
+
+  /* 落屏颜色真的换了：纸像素 = paper、墨像素 = ink */
+  const darkPx = darkC.pixels;
+  const seen = new Set();
+  for (let i = 0; i < darkPx.length; i += 4) seen.add(darkPx[i] + ',' + darkPx[i + 1] + ',' + darkPx[i + 2]);
+  assert.deepEqual([...seen].sort(), ['12,13,14', '242,243,242'], '画布上只该有 ink 与 paper 两种颜色');
+  assert.equal(dark.judge().checks.find(x => x.name === '1-bit 无灰阶').ok, true, '深色画布也必须零灰阶');
 });
 
 test('叠加层是两个纯函数：hud 只用 api.dot，caption 只用 api.glyph', () => {
@@ -405,4 +470,38 @@ test('页面装载顺序：四个核件必须在 dotink.js 之前', () => {
     }
   }
   assert.ok(checked >= 6, '应检查到所有用核心的页面（实测 ' + checked + ' 个）');
+});
+
+/* press.js 是**可选件**（多色版套印），与四个核件方向相反：它挂到 DotInk.press 上，
+   所以必须在 dotink.js **之后**。上面那条只查"核件在 dotink.js 之前"，管不到这里 ——
+   页面把 press.js 放到 dotink.js 前面时，press.js 拿不到 render 的实例方法，
+   而且 press.create 会在 DotInk 上挂出半个对象：浏览器里只报一句 undefined，很难查。 */
+test('页面装载顺序：引用 press.js 的页面，press.js 必须在 dotink.js 之后且 render.js 在它之前', () => {
+  const pages = [];
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name === '_release' || e.name.startsWith('.')) continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.html')) pages.push(p);
+    }
+  };
+  walk(ROOT);
+  const idx = (srcs, f) => srcs.findIndex(s => s.endsWith('/' + f) || s === f || s === '../' + f);
+  const used = [];
+  for (const p of pages) {
+    const rel = path.relative(ROOT, p);
+    const html = fs.readFileSync(p, 'utf8');
+    const srcs = Array.from(html.matchAll(/<script[^>]*src="([^"]+)"/g)).map(m => m[1]);
+    const pi = idx(srcs, 'press.js');
+    if (pi < 0) continue;                        /* 不玩多色版的页面 */
+    used.push(rel);
+    const at = idx(srcs, 'dotink.js');
+    assert.ok(at >= 0, rel + ' 装了 press.js 却没装 dotink.js（press 挂 DotInk.press，前置是 dotink.js）');
+    assert.ok(pi > at, rel + ' 里 press.js 必须在 dotink.js 之后（实测 ' + pi + ' vs ' + at + '）');
+    const ri = idx(srcs, 'render.js');
+    assert.ok(ri >= 0, rel + ' 装了 press.js 却没装 render.js（圆盘栅格化在 render 里）');
+    assert.ok(ri < pi, rel + ' 里 render.js 必须在 press.js 之前（实测 ' + ri + ' vs ' + pi + '）');
+  }
+  assert.ok(used.length >= 1, 'press.js 已进仓，应至少有一个页面引用它（实测 ' + used.length + ' 个）');
 });
