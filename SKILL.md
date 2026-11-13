@@ -137,7 +137,7 @@ python lab/tools/measure/ink-budget.py --frames <帧目录>
 ## 6 · 改完必跑
 
 ```powershell
-npm run check          # 90 test + 两个 --check 零漂移 + 链接 600 条
+npm run check          # 92 test + 两个 --check 零漂移 + 链接 605 条
 ```
 
 只跑一部分：`node --test check/core.mjs check/theme.mjs check/site.mjs` ·

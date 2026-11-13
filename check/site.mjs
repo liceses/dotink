@@ -25,7 +25,9 @@ import { renderBoot, loadPalettes } from '../tools/theme-core.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nav = JSON.parse(fs.readFileSync(path.join(ROOT, 'site', 'nav.json'), 'utf8'));
 const pal = loadPalettes(ROOT);
-const readFile = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+/* ⚠ 归一 CRLF：Windows 上 core.autocrlf=true 时 checkout 出来是 CRLF，
+   不归一的话「零漂移」在全新 clone / worktree 里必红（实测：3 条同时红）。 */
+const readFile = f => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/\r\n/g, '\n');
 
 /* build-site 会把这个写进 nav：默认套的纸色 */
 const defPal = pal.palettes.find(p => p.slug === pal.default);

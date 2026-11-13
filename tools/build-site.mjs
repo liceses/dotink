@@ -44,7 +44,9 @@ const boot = renderBoot(pal);
 for (const e of entries) {
   const abs = path.join(ROOT, e.file);
   if (!fs.existsSync(abs)) { console.error('✗ 登记了但文件不存在：' + e.file); drift++; continue; }
-  const before = fs.readFileSync(abs, 'utf8');
+  /* ⚠ 读进来先归一 CRLF：Windows 上 core.autocrlf=true 时 checkout 出来的是 CRLF，
+     直接和生成的 LF 比会整片判成漂移（实测：全新 worktree 里三条零漂移测试全红）。 */
+  const before = fs.readFileSync(abs, 'utf8').replace(/\r\n/g, '\n');
   let html = before;
 
   /* ① h2 补 id（幂等：已有 id 的不动） */

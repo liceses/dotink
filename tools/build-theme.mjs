@@ -46,7 +46,9 @@ if (CHECK) {
   for (const t of targets) {
     const abs = path.join(ROOT, t.file);
     if (!fs.existsSync(abs)) { console.error('✗ 缺生成件：' + t.file); drift++; continue; }
-    const cur = fs.readFileSync(abs, 'utf8');
+    /* ⚠ 归一 CRLF 再比：Windows 上 core.autocrlf=true 时 checkout 出来是 CRLF，
+       不归一的话「零漂移」在全新 clone 里必红（实测）。 */
+    const cur = fs.readFileSync(abs, 'utf8').replace(/\r\n/g, '\n');
     if (cur !== t.body) {
       drift++;
       const i = firstDiff(cur, t.body);

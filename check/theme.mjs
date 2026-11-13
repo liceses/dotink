@@ -15,7 +15,9 @@ const json = loadPalettes(ROOT);
 const css = renderCss(json);
 const js = renderJs(json);
 
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+/* ⚠ 归一 CRLF：Windows 上 core.autocrlf=true 时 checkout 出来是 CRLF，
+   不归一的话「零漂移」在全新 clone / worktree 里必红（实测：3 条同时红）。 */
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/\r\n/g, '\n');
 
 /* 页面清单：根目录的 10 个 + demo。跳过点开头目录 / node_modules / _release */
 function pages() {

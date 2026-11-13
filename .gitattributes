@@ -1,0 +1,16 @@
+# 换行符：全仓统一 LF。
+# 为什么必须钉住：theme.css / theme.js / 12 个页面的骨架是**逐字节**比对生成件的
+# （check/theme.mjs、check/site.mjs、tools/build-*.mjs --check）。Windows 上
+# core.autocrlf=true 会把 checkout 出来的文件变成 CRLF，生成器写的是 LF ——
+# 实测在全新 worktree 里三条「零漂移」门禁当场全红，而这跟内容一点关系都没有。
+* text=auto eol=lf
+
+# 二进制：不归一换行，也不参与 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp4 binary
+*.webp binary
+*.ico binary
+*.woff2 binary

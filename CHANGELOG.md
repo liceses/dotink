@@ -45,7 +45,7 @@
 - 新页：[`spec.html`](spec.html)（规范入口 + 五册 + 三条主判据 + 怎么自己验收）、
   [`theme.html`](theme.html)（六套配色卡 + 8 档网点梯尺 + 门禁矩阵，全部**现算**）。
 - `hero.html` 从"手抄 9 项导航"改成装站点外壳（`.hero > .site-head` 覆盖在舞台上），并补 `<main>`；
-  顶栏底色改为纸色 + 26px 淡出带（原来是全透明 —— 夜墨态下浅色文字压在浅色网点上直接糊掉）；
+  顶栏底色改为纸色 + 38px 淡出带（原来是全透明 —— 夜墨态下浅色文字压在浅色网点上直接糊掉）；
   `preview.html` 补 `<main>`；`index.html` 收成跳转壳（只装 `theme.css`）。
 - 删掉 8 个页面各自手抄的 `:root` 颜色声明（颜色只剩 `theme.css` 一处）；`ink.css` 里硬编码的
   `rgba(242,243,242,.90)` / `#2A2D2E` / `rgba(255,75,31,.28)` 全部令牌化；
@@ -63,7 +63,10 @@
 - `check/theme.mjs`（15 条）：结构 / 恰好一套 standard / 默认套画布逐位 / 六套门禁 / 对比度自反 / 两个生成件零漂移 /
   主题块与别名 / 打印回落 / 无 ESM / **裸色禁令**（页面 `<style>` 与 ink.css 里不许 hex 或 `rgba(数字`）/ 引入顺序 / 画布取色。
 - `check/site.mjs`（10 条）：nav 合法 / 文件存在 / 标记成对 / **零漂移** / aria 唯一 / 面包屑 = title / 目录锚点 / 无孤儿页 / meta / `<main>`+`h1`。
-- 现状：`npm run check` = **90 test 全过 · 链接 568 条全在 · 两个 `--check` 零漂移**（`scripts.check` 已把 theme/site 与两个生成器都接进去）。
+- 现状：`npm run check` = **92 test 全过 · 链接 605 条全在 · 两个 `--check` 零漂移**（`scripts.check` 已把 theme/site 与两个生成器都接进去）。
+- **换行符钉成 LF**（新增 `.gitattributes`：`* text=auto eol=lf`）：生成件与每页骨架是**逐字节**比对的，
+  Windows 上 `core.autocrlf=true` 会把 checkout 出来变成 CRLF —— 实测在全新 worktree 里三条「零漂移」门禁
+  当场全红，跟内容一点关系都没有。两个 check 与两个 `--check` 另加 `\r\n → \n` 归一作兜底。
 
 **新增：套印不齐 `press.js`（可选脚本，不进汇总入口）+ 演示页 `press.html`**
 - 一张画面分成 **2–8 张版**，每版每格仍只有「有墨/没墨」；颜色靠**减色叠印**查表（透过率相乘，非加色）。
